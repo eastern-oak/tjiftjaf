@@ -7,7 +7,7 @@ use bytes::Bytes;
 // The second byte encodes the remaining length, which is 0.
 const PINGREQ: [u8; 2] = [12 << 4, 0];
 
-/// The INGREQ Packet is sent from a Client to the Server. It can be used to:
+/// The PINGREQ Packet is sent from a Client to the Server. It can be used to:
 /// * Indicate to the Server that the Client is alive in the absence of any other Control Packets being sent from the Client to the Server.
 /// * Request that the Server responds to confirm that it is alive.
 /// * Exercise the network to indicate that the Network Connection is active.

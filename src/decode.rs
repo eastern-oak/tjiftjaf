@@ -25,7 +25,7 @@ pub enum DecodingError {
     // The field "remaining length" is not valid.
     InvalidRemainingLength,
 
-    // TODO: For now a 'catch-all' type. WHen we approach a first stable
+    // TODO: For now a 'catch-all' type. When we approach a first stable
     // release we should replace this variant with more explicit members.
     Other,
 }
