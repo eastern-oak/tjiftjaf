@@ -2,7 +2,7 @@
 //!
 //! The `Client` holds a connection internally. Use a `ClientHandle` to
 //! read and write packets to this connection.
-use super::{MqttBinding, Packet, Publish, Subscribe, packet_identifier};
+use super::{MqttBinding, Packet, Publish, Subscribe};
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
 use bytes::Bytes;

@@ -1,6 +1,7 @@
 use super::decode::{self, DecodingError, InvalidPacketTypeError, packet_length};
 use super::encode;
 use crate::packet_v2;
+use crate::packet_v2::ping_req::PingReq;
 use bytes::{BufMut, Bytes, BytesMut};
 use std::io::Read;
 use std::{fmt, u16};
@@ -13,7 +14,7 @@ pub enum Packet {
     SubAck(SubAck),
     Publish(Publish),
     PubAck(PubAck),
-    PingReq(PingReq),
+    PingReq(packet_v2::ping_req::PingReq),
     PingResp(PingResp),
     Other(Bytes),
 }
@@ -41,7 +42,7 @@ impl Packet {
             Self::SubAck(packet) => packet.inner,
             Self::Publish(packet) => packet.inner,
             Self::PubAck(packet) => packet.inner,
-            Self::PingReq(packet) => packet.inner,
+            Self::PingReq(packet) => packet.into(),
             Self::PingResp(packet) => packet.inner,
             Self::Other(inner) => inner,
         }
@@ -107,7 +108,7 @@ impl TryFrom<Bytes> for Packet {
             .try_into()?;
 
         match packet_type {
-            PacketType::PingReq => return Ok(Packet::PingReq(PingReq { inner: value })),
+            PacketType::PingReq => return Ok(Packet::PingReq(PingReq::try_from(value)?)),
             PacketType::PingResp => return Ok(Packet::PingResp(PingResp { inner: value })),
 
             PacketType::Disconnect => match value.len() {
@@ -680,37 +681,6 @@ impl std::fmt::Debug for PubAck {
         f.debug_struct("PUBACK")
             .field("length", &self.length())
             .field("packet_identifier", &self.identifier())
-            .finish()
-    }
-}
-
-#[derive(Clone)]
-pub struct PingReq {
-    inner: Bytes,
-}
-
-impl PingReq {
-    pub fn build() -> PingReq {
-        PingReq {
-            inner: Bytes::copy_from_slice(&[(PacketType::PingReq as u8) << 4, 0]),
-        }
-    }
-}
-
-impl Frame for PingReq {
-    fn as_bytes(&self) -> &[u8] {
-        &self.inner
-    }
-
-    fn variable_header(&self) -> &[u8] {
-        &[]
-    }
-}
-
-impl std::fmt::Debug for PingReq {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PINGREQ")
-            .field("length", &self.length())
             .finish()
     }
 }

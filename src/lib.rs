@@ -51,7 +51,7 @@ pub use packet::*;
 
 use bytes::{BufMut, Bytes, BytesMut};
 use log::{debug, error};
-use packet_v2::connect::Connect;
+use packet_v2::{connect::Connect, ping_req::PingReq};
 use std::time::{Duration, Instant, SystemTime};
 
 pub fn packet_identifier() -> u16 {
@@ -126,7 +126,7 @@ impl MqttBinding {
 
     pub fn handle_timeout(&mut self, now: Instant) {
         if (now - self.last_io).as_secs() >= self.options.keep_alive as u64 {
-            self.transmits.push(Packet::PingReq(PingReq::build()))
+            self.transmits.push(Packet::PingReq(PingReq))
         }
     }
 
