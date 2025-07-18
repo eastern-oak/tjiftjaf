@@ -24,6 +24,10 @@ pub enum DecodingError {
 
     // The field "remaining length" is not valid.
     InvalidRemainingLength,
+
+    // TODO: For now a 'catch-all' type. When we approach a first stable
+    // release we should replace this variant with more explicit members.
+    Other,
 }
 
 impl From<InvalidPacketTypeError> for DecodingError {
@@ -42,6 +46,7 @@ impl Display for DecodingError {
             Self::InvalidPacketType(value) => &format!("{value} is not a valid packet type"),
             Self::InvalidValue(reason) => reason,
             Self::InvalidRemainingLength => &format!("Field remaining length is not valid"),
+            Self::Other => &format!("Some other error"),
         };
         write!(f, "{msg}")
     }
@@ -169,7 +174,6 @@ pub mod field {
         };
 
         let offset: usize = u16::from_be_bytes([bytes[0], bytes[1]]) as usize + 2;
-        dbg!(&offset);
         if bytes.len() < offset {
             Err(DecodingError::NotEnoughBytes {
                 minimum: offset + 2,
