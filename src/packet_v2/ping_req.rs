@@ -47,8 +47,8 @@ impl TryFrom<Bytes> for PingReq {
     }
 }
 
-impl Into<Bytes> for PingReq {
-    fn into(self) -> Bytes {
+impl From<PingReq> for Bytes {
+    fn from(_: PingReq) -> Bytes {
         Bytes::copy_from_slice(&PINGREQ)
     }
 }
