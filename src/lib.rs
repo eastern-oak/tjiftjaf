@@ -303,6 +303,8 @@ impl Statistics {
 
 #[cfg(test)]
 mod test {
+    use std::io::{Cursor, Read};
+
     use super::*;
 
     fn as_str(bytes: &[u8]) -> &str {
@@ -388,5 +390,23 @@ mod test {
             as_str(packet.payload()),
             "{\"battery\":100,\"comfort_humidity_max\":60,\"comfort_humidity_min\":40,\"comfort_temperature_max\":27,\"comfort_temperature_min\":19,\"humidity\":47.2,\"linkquality\":105,\"temperature\":24,\"temperature_units\":\"fahrenheit\",\"update\":{\"installed_version\":4105,\"latest_version\":8960,\"state\":\"available\"}}"
         );
+    }
+
+    #[test]
+    fn test_try_decode() {
+        let connect = connect("test".to_string(), 300);
+
+        let mut input = Cursor::new(connect.clone().into_bytes());
+        let mut binding = MqttBinding::from_options(Options::default());
+        let packet = loop {
+            let mut buffer = binding.get_read_buffer();
+            _ = input.read(&mut buffer).unwrap();
+
+            if let Some(packet) = binding.try_decode(buffer.freeze(), Instant::now()) {
+                break packet;
+            }
+        };
+
+        assert_eq!(connect.into_bytes(), packet.into_bytes());
     }
 }

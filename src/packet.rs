@@ -1,6 +1,7 @@
 use super::decode::{self, DecodingError, InvalidPacketTypeError, packet_length};
 use super::encode;
 use crate::packet_v2;
+use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
 use bytes::{BufMut, Bytes, BytesMut};
 use std::io::Read;
@@ -108,6 +109,7 @@ impl TryFrom<Bytes> for Packet {
             .try_into()?;
 
         match packet_type {
+            PacketType::Connect => return Ok(Packet::Connect(Connect::try_from(value)?)),
             PacketType::PingReq => return Ok(Packet::PingReq(PingReq::try_from(value)?)),
             PacketType::PingResp => return Ok(Packet::PingResp(PingResp { inner: value })),
 
