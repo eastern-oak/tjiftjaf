@@ -3,6 +3,7 @@ use super::encode;
 use crate::packet_v2;
 use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
+use crate::packet_v2::ping_resp::PingResp;
 use bytes::{BufMut, Bytes, BytesMut};
 use std::io::Read;
 use std::{fmt, u16};
@@ -16,7 +17,7 @@ pub enum Packet {
     Publish(Publish),
     PubAck(PubAck),
     PingReq(packet_v2::ping_req::PingReq),
-    PingResp(PingResp),
+    PingResp(packet_v2::ping_resp::PingResp),
     Other(Bytes),
 }
 
@@ -44,7 +45,7 @@ impl Packet {
             Self::Publish(packet) => packet.inner,
             Self::PubAck(packet) => packet.inner,
             Self::PingReq(packet) => packet.into(),
-            Self::PingResp(packet) => packet.inner,
+            Self::PingResp(packet) => packet.into(),
             Self::Other(inner) => inner,
         }
     }
@@ -111,7 +112,7 @@ impl TryFrom<Bytes> for Packet {
         match packet_type {
             PacketType::Connect => return Ok(Packet::Connect(Connect::try_from(value)?)),
             PacketType::PingReq => return Ok(Packet::PingReq(PingReq::try_from(value)?)),
-            PacketType::PingResp => return Ok(Packet::PingResp(PingResp { inner: value })),
+            PacketType::PingResp => return Ok(Packet::PingResp(PingResp::try_from(value)?)),
 
             PacketType::Disconnect => match value.len() {
                 0 | 1 => {
@@ -683,29 +684,6 @@ impl std::fmt::Debug for PubAck {
         f.debug_struct("PUBACK")
             .field("length", &self.length())
             .field("packet_identifier", &self.identifier())
-            .finish()
-    }
-}
-
-#[derive(Clone)]
-pub struct PingResp {
-    inner: Bytes,
-}
-
-impl Frame for PingResp {
-    fn as_bytes(&self) -> &[u8] {
-        &self.inner
-    }
-
-    fn variable_header(&self) -> &[u8] {
-        &[]
-    }
-}
-
-impl std::fmt::Debug for PingResp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PINGRESP")
-            .field("length", &self.length())
             .finish()
     }
 }
