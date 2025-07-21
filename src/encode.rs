@@ -23,17 +23,17 @@ pub fn remaining_length(length: usize) -> Bytes {
 
     loop {
         let mut byte = (length % 128) as u8;
-        length = length / 128;
+        length /= 128;
 
         if length > 0 {
-            byte = byte | 128;
+            byte |= 128;
         }
         bytes.put_u8(byte);
 
-        if length <= 0 {
+        if length == 0 {
             break;
         }
     }
     assert!(bytes.len() <= 4);
-    return bytes.freeze();
+    bytes.freeze()
 }

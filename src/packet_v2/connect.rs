@@ -155,10 +155,10 @@ impl UnverifiedConnect {
 
         let payload = self.try_payload()?;
 
-        let (will_topic, _) = decode::field::variable_length_n(&payload, 1)?;
-        let will_topic = std::str::from_utf8(&will_topic)
+        let (will_topic, _) = decode::field::variable_length_n(payload, 1)?;
+        let will_topic = std::str::from_utf8(will_topic)
             .map_err(|_| DecodingError::InvalidValue("Payload is not valid UTF-8".into()))?;
-        let (will_message, _) = decode::field::variable_length_n(&payload, 2)?;
+        let (will_message, _) = decode::field::variable_length_n(payload, 2)?;
 
         Ok(Some(Will {
             topic: will_topic,
@@ -185,9 +185,9 @@ impl UnverifiedConnect {
             field_index = 3
         };
 
-        let (username, _) = decode::field::variable_length_n(&payload, field_index)?;
+        let (username, _) = decode::field::variable_length_n(payload, field_index)?;
 
-        let username = std::str::from_utf8(&username)
+        let username = std::str::from_utf8(username)
             .map_err(|_| DecodingError::InvalidValue("Payload is not valid UTF-8".into()))?;
         Ok(Some(username))
     }
@@ -206,7 +206,7 @@ impl UnverifiedConnect {
             field_index = 4
         };
 
-        let (password, _) = decode::field::variable_length_n(&payload, field_index)?;
+        let (password, _) = decode::field::variable_length_n(payload, field_index)?;
 
         Ok(Some(password))
     }

@@ -8,7 +8,7 @@ async-broadcast = { version = "0.7.2", default-features = false }
 async-channel = { version = "2.5.0", default-features = false }
 async-io = { version = "2.4.1", default-features = false }
 bytes = { version = "1.10.1", default-features = false, features = ["std"] }
-futures-lite = { version = "2.6.0", default-features = false }
+futures-lite = { version = "2.6.0", default-features = false, features = ["std", "race"] }
 log = "0.4.27"
 
 [dev-dependencies]

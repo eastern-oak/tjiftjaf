@@ -8,7 +8,7 @@ use async_io::Timer;
 use bytes::Bytes;
 use futures_lite::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
 use log::error;
-use std::{io::ErrorKind, time::Instant};
+use std::time::Instant;
 
 pub struct Client<S: AsyncRead + AsyncWrite + Unpin> {
     // Socket for interacting with the MQTT broker.
@@ -47,7 +47,6 @@ where
     }
 
     /// Spawn an event loop that operates on the socket.
-    #[must_use]
     pub fn spawn(
         self,
     ) -> (
@@ -103,7 +102,7 @@ where
                     }
 
                     if let Some(packet) = self.binding.try_decode(buffer.freeze(), Instant::now()) {
-                        if let Err(_) = self.broadcast.broadcast(packet).await {
+                        if self.broadcast.broadcast(packet).await.is_err() {
                             // TODO: Change error type. std::io::Error is not really fitting here.
                             return Err(std::io::Error::other("Failed to broadcast message"));
                         }
@@ -117,10 +116,7 @@ where
                 }
                 Winner::Future3(Ok(packet)) => self.binding.send(packet),
                 Winner::Future3(Err(_)) => {
-                    return Err(std::io::Error::new(
-                        ErrorKind::Other,
-                        "Failed to read message from channel",
-                    ));
+                    return Err(std::io::Error::other("Failed to read message from channel"));
                 }
             }
         }
