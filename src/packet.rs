@@ -1,6 +1,7 @@
 use super::decode::{self, DecodingError, InvalidPacketTypeError, packet_length};
 use super::encode;
 use crate::packet_v2;
+use crate::packet_v2::connack::ConnAck;
 use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
 use crate::packet_v2::ping_resp::PingResp;
@@ -11,7 +12,7 @@ use std::io::Read;
 #[derive(Clone)]
 pub enum Packet {
     Connect(packet_v2::connect::Connect),
-    ConnAck(ConnAck),
+    ConnAck(packet_v2::connack::ConnAck),
     Subscribe(Subscribe),
     SubAck(SubAck),
     Publish(Publish),
@@ -39,7 +40,7 @@ impl Packet {
     pub fn into_bytes(self) -> Bytes {
         match self {
             Self::Connect(packet) => packet.into_bytes(),
-            Self::ConnAck(packet) => packet.inner,
+            Self::ConnAck(packet) => packet.into(),
             Self::Subscribe(packet) => packet.inner,
             Self::SubAck(packet) => packet.inner,
             Self::Publish(packet) => packet.inner,
@@ -138,7 +139,7 @@ impl TryFrom<Bytes> for Packet {
                 _ => return Err(DecodingError::TooManyBytes),
             },
             PacketType::ConnAck => {
-                return Ok(Self::ConnAck(ConnAck::new(value)));
+                return Ok(Self::ConnAck(ConnAck::try_from(value)?));
             }
             PacketType::SubAck => {
                 return Ok(Self::SubAck(SubAck::new(value)));
@@ -310,93 +311,6 @@ pub enum QoS {
     AtMostOnceDelivery = 0,
     AtLeastOnceDelivery = 1,
     ExactlyOnceDelivery = 2,
-}
-
-#[derive(Clone)]
-pub struct ConnAck {
-    inner: Bytes,
-}
-
-impl Frame for ConnAck {
-    fn as_bytes(&self) -> &[u8] {
-        &self.inner
-    }
-
-    fn variable_header(&self) -> &[u8] {
-        // This packet has a fixed length of 4 byts.
-        &self.as_bytes()[2..4]
-    }
-}
-
-impl ConnAck {
-    pub fn new(inner: Bytes) -> Self {
-        assert_eq!(PacketType::from_unchecked(inner[0]), PacketType::ConnAck);
-        Self { inner }
-    }
-
-    // Whether this session is new
-    pub fn session_present(&self) -> bool {
-        if self.variable_header()[0] & 0x1 == 1 {
-            return true;
-        }
-
-        false
-    }
-
-    pub fn return_code(&self) -> ConnectReturnCode {
-        ConnectReturnCode::try_from(&self.variable_header()[1]).unwrap()
-    }
-}
-
-impl std::fmt::Debug for ConnAck {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CONNACK")
-            .field("length", &self.length())
-            .field("session_present", &self.session_present())
-            .field("return_code", &self.return_code())
-            .finish()
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum ConnectReturnCode {
-    ConnectionAccepted = 0x0,
-
-    /// The Server does not support the level of the MQTT protocol requested by the Client.
-    ConnectionRefusedUnacceptableProtocolVersion = 0x1,
-
-    /// The Client identifier is correct UTF-8 but not allowed by the Server
-    ConnectionRefusedIdentifierRejected = 0x2,
-
-    /// The Network Connection has been made but the MQTT service is unavailable.
-    ConnectionRefusedServerUnavailable = 0x3,
-
-    /// The data in the user name or password is malformed
-    ConnectionRefusedBadUsernameOrPassword = 0x4,
-
-    /// The Client is not authorized to connect
-    ConnectionRefusedNotAuthorized = 0x5,
-}
-
-impl TryFrom<&u8> for ConnectReturnCode {
-    type Error = ();
-
-    fn try_from(value: &u8) -> Result<Self, Self::Error> {
-        let value = match value {
-            0x0 => Self::ConnectionAccepted,
-            0x1 => Self::ConnectionRefusedUnacceptableProtocolVersion,
-            0x2 => Self::ConnectionRefusedIdentifierRejected,
-            0x3 => Self::ConnectionRefusedServerUnavailable,
-            0x4 => Self::ConnectionRefusedBadUsernameOrPassword,
-            0x5 => Self::ConnectionRefusedNotAuthorized,
-            _ => {
-                eprintln!("{value} is an invalid return code");
-                return Err(());
-            }
-        };
-
-        Ok(value)
-    }
 }
 
 #[derive(Clone)]

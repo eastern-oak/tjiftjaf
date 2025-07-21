@@ -329,6 +329,8 @@ impl Statistics {
 
 #[cfg(test)]
 mod test {
+    use crate::packet_v2::connack::ConnAck;
+
     use super::*;
     use std::io::{Cursor, Read};
 
@@ -449,6 +451,7 @@ mod test {
                 .password("secret")
                 .build()
                 .into(),
+            ConnAck::builder().build().into(),
         ]
     }
 }
