@@ -37,7 +37,7 @@ use core::fmt;
 /// assert_eq!(packet.client_id(), "test");
 /// assert_eq!(packet.flags().clean_session(), true);
 /// ```
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Connect {
     inner: UnverifiedConnect,
 }
@@ -98,6 +98,18 @@ impl TryFrom<Bytes> for Connect {
     }
 }
 
+impl From<Connect> for Bytes {
+    fn from(value: Connect) -> Bytes {
+        value.inner.inner
+    }
+}
+
+impl From<Connect> for Packet {
+    fn from(value: Connect) -> Packet {
+        Packet::Connect(value)
+    }
+}
+
 impl std::fmt::Debug for Connect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CONNECT")
@@ -110,7 +122,7 @@ impl std::fmt::Debug for Connect {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 struct UnverifiedConnect {
     pub inner: Bytes,
 }

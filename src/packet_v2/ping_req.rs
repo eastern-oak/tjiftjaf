@@ -1,5 +1,5 @@
 //! Providing [`PingReq`]
-use crate::{Frame, decode::DecodingError};
+use crate::{Frame, Packet, decode::DecodingError};
 use bytes::Bytes;
 
 // A PINGREQ packet consists of only a header of two bytes.
@@ -58,6 +58,12 @@ impl TryFrom<&[u8]> for PingReq {
 impl From<PingReq> for Bytes {
     fn from(_: PingReq) -> Bytes {
         Bytes::copy_from_slice(&PINGREQ)
+    }
+}
+
+impl From<PingReq> for Packet {
+    fn from(value: PingReq) -> Packet {
+        Packet::PingReq(value)
     }
 }
 

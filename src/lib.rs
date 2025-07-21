@@ -50,7 +50,7 @@ pub use client::{Client, ClientHandle, Options};
 pub use packet::*;
 
 use bytes::{BufMut, Bytes, BytesMut};
-use log::{debug, error};
+use log::{debug, error, info};
 use packet_v2::{connect::Connect, ping_req::PingReq};
 use std::time::{Duration, Instant, SystemTime};
 
@@ -84,14 +84,22 @@ pub fn publish(topic: &str, payload: Bytes) -> Packet {
 }
 
 #[derive(Default, Debug)]
-pub enum State {
+enum State {
     // The state machine is waiting for the start of a new packet.
     #[default]
-    AwaitingFrame,
+    AwaitingStartOfHeader,
 
-    // The state machine is currently decoding a packet and it is expecting some more bytes.
-    AwaitingRemainder {
-        partial_packet: Bytes,
+    // The state machine processed first half of a header and is waiting
+    // for the remainder of the header.
+    AwaitingEndOfHeader {
+        partial_header: Bytes,
+    },
+
+    // The state machine processed the header and it knows the length
+    // of the entire packet. Now it waits for the remaining bytes
+    // to complete the packet.
+    AwaitingRestOfPacket {
+        header: Bytes,
         // The number of bytes that are pending.
         bytes_remaining: u32,
     },
@@ -137,11 +145,20 @@ impl MqttBinding {
     /// Retrieve an input buffer. The event loop must fill the buffer.
     pub fn get_read_buffer(&mut self) -> BytesMut {
         match self.state {
-            State::AwaitingFrame => BytesMut::zeroed(4),
-            State::AwaitingRemainder {
-                bytes_remaining: length,
-                ..
-            } => BytesMut::zeroed(length as usize),
+            State::AwaitingStartOfHeader => {
+                debug!("Waiting for start of header.");
+                BytesMut::zeroed(2)
+            }
+            State::AwaitingEndOfHeader { .. } => {
+                debug!("Waiting for end of the header.");
+                BytesMut::zeroed(2)
+            }
+            State::AwaitingRestOfPacket {
+                bytes_remaining, ..
+            } => {
+                debug!("Waiting for remainder of the packet.");
+                BytesMut::zeroed(bytes_remaining as usize)
+            }
         }
     }
 
@@ -188,18 +205,52 @@ impl MqttBinding {
     // Try parsing the bytes as a Packet.
     pub fn try_decode(&mut self, buf: Bytes, now: Instant) -> Option<Packet> {
         let (state, packet) = match &self.state {
-            State::AwaitingFrame => {
-                use PacketType::*;
-
-                let packet_type = match decode::packet_type(&buf) {
-                    Ok(packet_type) => packet_type,
+            State::AwaitingStartOfHeader => {
+                // MQTT uses between 1 and 3 (including) bytes to encode the
+                // length of the packet.
+                let packet_length = match decode::packet_length(&buf[1..]) {
+                    Ok(packet_length) => packet_length,
+                    // `buf` doesn't contain enough bytes to decode the length.
+                    // At maximum, 2 more bytes are required to make the header complete.
+                    Err(decode::DecodingError::NotEnoughBytes { .. }) => {
+                        self.state = State::AwaitingEndOfHeader {
+                            partial_header: buf,
+                        };
+                        return None;
+                    }
                     Err(error) => {
-                        error!("Woeps Failed to decode packet type: {:?}", error);
+                        error!("Failed to decode packet length: {:?}", error);
                         return None;
                     }
                 };
 
-                let packet_length = match decode::packet_length(&buf[1..buf.len()]) {
+                let bytes_remaining = packet_length - buf.len() as u32;
+                if bytes_remaining == 0 {
+                    match Packet::try_from(buf) {
+                        Ok(packet) => {
+                            return Some(packet);
+                        }
+                        Err(error) => {
+                            error!("Failed to parse a 4 byte packet: {}", error);
+                            return None;
+                        }
+                    };
+                }
+
+                (
+                    State::AwaitingRestOfPacket {
+                        header: buf,
+                        bytes_remaining,
+                    },
+                    None,
+                )
+            }
+            State::AwaitingEndOfHeader { partial_header } => {
+                let mut header = BytesMut::new();
+                header.put(partial_header.clone());
+                header.put(buf);
+
+                let packet_length = match decode::packet_length(&header[1..]) {
                     Ok(packet_length) => packet_length,
                     Err(error) => {
                         error!("Failed to decode packet length: {:?}", error);
@@ -207,41 +258,18 @@ impl MqttBinding {
                     }
                 };
 
-                // TODO: how to handle this?
-                // * PingReq - 2 bytes
-                // * PingResp - 2 bytes
-                // * Disconnect - 2 bytes
-                if packet_type == PacketType::ConnAck {
-                    self.connection_status = ConnectionStatus::Connected;
-                }
-
-                // These packets have a fixed length of 4 bytes: a fixed header of 2 bytes
-                // and a variable header of 2 bytes.
-                if matches!(
-                    packet_type,
-                    ConnAck | PubAck | PubRec | PubRel | PubComp | UnsubAck | PingReq | PingResp
-                ) {
-                    let packet = match Packet::try_from(buf) {
-                        Ok(packet) => Some(packet),
-                        Err(error) => {
-                            error!("Failed to parse a 4 byte packet: {}", error);
-                            return None;
-                        }
-                    };
-
-                    (State::AwaitingFrame, packet)
-                } else {
-                    (
-                        State::AwaitingRemainder {
-                            partial_packet: buf,
-                            bytes_remaining: packet_length - 4,
-                        },
-                        None,
-                    )
-                }
+                let bytes_remaining = packet_length - header.len() as u32;
+                (
+                    State::AwaitingRestOfPacket {
+                        header: header.freeze(),
+                        bytes_remaining,
+                    },
+                    None,
+                )
             }
-            State::AwaitingRemainder {
-                partial_packet: prefix,
+
+            State::AwaitingRestOfPacket {
+                header: prefix,
                 bytes_remaining: length,
             } => {
                 let mut bytes = BytesMut::with_capacity(*length as usize + prefix.len());
@@ -256,7 +284,7 @@ impl MqttBinding {
                 self.statistics.record_inbound_packet(&packet);
 
                 // parse message;
-                (State::AwaitingFrame, Some(packet))
+                (State::AwaitingStartOfHeader, Some(packet))
             }
         };
 
@@ -303,17 +331,11 @@ impl Statistics {
 
 #[cfg(test)]
 mod test {
-    use std::io::{Cursor, Read};
-
     use super::*;
+    use std::io::{Cursor, Read};
 
     fn as_str(bytes: &[u8]) -> &str {
         std::str::from_utf8(bytes).expect("Failed to parse bytes as UTF-8.")
-    }
-
-    fn new_packet(bytes: &[u8]) -> Publish {
-        let bytes: Bytes = Bytes::copy_from_slice(bytes);
-        Publish::from(bytes)
     }
 
     fn decode_message(packet: Packet) -> Packet {
@@ -331,11 +353,6 @@ mod test {
                 return packet;
             }
         }
-    }
-
-    #[test]
-    fn test_subscribe() {
-        let packet = subscribe("zigbee2mqtt/light/state".into());
     }
 
     #[test]
@@ -392,21 +409,48 @@ mod test {
         );
     }
 
+    /// Verify that `MqttBinding.get_read_buffer()`
+    /// and `MqttBinding.try_decode()` correctly decode `Packet`s.
+    ///
+    /// This test iterates over a series of valid packets. Each packet
+    /// is deserialized as `Bytes` and fed to `MqttBinding`. The latter
+    /// should correctly decode the `Bytes` back into the `Packet` we started with.
     #[test]
-    fn test_try_decode() {
-        let connect = connect("test".to_string(), 300);
-
-        let mut input = Cursor::new(connect.clone().into_bytes());
+    fn test_mqtt_binding_decoding_packets() {
         let mut binding = MqttBinding::from_options(Options::default());
-        let packet = loop {
-            let mut buffer = binding.get_read_buffer();
-            _ = input.read(&mut buffer).unwrap();
 
-            if let Some(packet) = binding.try_decode(buffer.freeze(), Instant::now()) {
-                break packet;
-            }
-        };
+        for test in valid_packets() {
+            let mut input = Cursor::new(test.clone().into_bytes());
 
-        assert_eq!(connect.into_bytes(), packet.into_bytes());
+            let mut iterations = 0;
+            // A mini-event loop that requests one or more read buffers
+            // to decode packets.
+            let packet = loop {
+                iterations += 1;
+                let mut buffer = binding.get_read_buffer();
+                _ = input.read(&mut buffer).unwrap();
+
+                if let Some(packet) = binding.try_decode(buffer.freeze(), Instant::now()) {
+                    break packet;
+                }
+            };
+
+            assert!(iterations > 0);
+            assert!(iterations < 4);
+            assert_eq!(test.into_bytes(), packet.into_bytes());
+        }
+    }
+
+    // A collection of valid `Packet`s.
+    fn valid_packets() -> Vec<Packet> {
+        vec![
+            PingReq.into(),
+            connect("test".to_string(), 300),
+            Connect::builder()
+                .username("admin")
+                .password("secret")
+                .build()
+                .into(),
+        ]
     }
 }
