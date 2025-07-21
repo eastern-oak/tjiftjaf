@@ -6,7 +6,6 @@
 //! use async_net::TcpStream;
 //! use tjiftjaf::{Frame, Client, Options};
 //!
-//! fn main() {
 //!    smol::block_on(async {
 //!        let stream = TcpStream::connect("test.mosquitto.org:1883")
 //!            .await
@@ -38,21 +37,20 @@
 //!            println!("{} - {:?}", packet.topic(), payload);
 //!        }
 //!    })
-//! }
 //! ```
 mod client;
 mod decode;
 mod encode;
+use bytes::{BufMut, Bytes, BytesMut};
+pub use client::{Client, ClientHandle, Options};
+use log::{debug, error};
+pub use packet::*;
+use packet_v2::{connect::Connect, ping_req::PingReq};
+use std::time::{Duration, Instant, SystemTime};
+
 pub mod packet;
 pub mod packet_v2;
 mod validate;
-pub use client::{Client, ClientHandle, Options};
-pub use packet::*;
-
-use bytes::{BufMut, Bytes, BytesMut};
-use log::{debug, error, info};
-use packet_v2::{connect::Connect, ping_req::PingReq};
-use std::time::{Duration, Instant, SystemTime};
 
 pub fn packet_identifier() -> u16 {
     let seconds = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
@@ -87,18 +85,18 @@ pub fn publish(topic: &str, payload: Bytes) -> Packet {
 enum State {
     // The state machine is waiting for the start of a new packet.
     #[default]
-    AwaitingStartOfHeader,
+    StartOfHeader,
 
     // The state machine processed first half of a header and is waiting
     // for the remainder of the header.
-    AwaitingEndOfHeader {
+    EndOfHeader {
         partial_header: Bytes,
     },
 
     // The state machine processed the header and it knows the length
     // of the entire packet. Now it waits for the remaining bytes
     // to complete the packet.
-    AwaitingRestOfPacket {
+    RestOfPacket {
         header: Bytes,
         // The number of bytes that are pending.
         bytes_remaining: u32,
@@ -145,15 +143,15 @@ impl MqttBinding {
     /// Retrieve an input buffer. The event loop must fill the buffer.
     pub fn get_read_buffer(&mut self) -> BytesMut {
         match self.state {
-            State::AwaitingStartOfHeader => {
+            State::StartOfHeader => {
                 debug!("Waiting for start of header.");
                 BytesMut::zeroed(2)
             }
-            State::AwaitingEndOfHeader { .. } => {
+            State::EndOfHeader { .. } => {
                 debug!("Waiting for end of the header.");
                 BytesMut::zeroed(2)
             }
-            State::AwaitingRestOfPacket {
+            State::RestOfPacket {
                 bytes_remaining, ..
             } => {
                 debug!("Waiting for remainder of the packet.");
@@ -181,7 +179,7 @@ impl MqttBinding {
 
             let packet = builder.build_packet();
 
-            debug!("<-- {:?}", packet);
+            debug!("<-- {packet:?}");
             self.statistics.record_outbound_packet(&packet);
 
             self.last_io = now;
@@ -193,7 +191,7 @@ impl MqttBinding {
 
         if let Some(packet) = self.transmits.pop() {
             self.last_io = now;
-            debug!("<-- {:?}", packet);
+            debug!("<-- {packet:?}");
             self.statistics.record_outbound_packet(&packet);
 
             return Some(packet.into_bytes());
@@ -203,9 +201,9 @@ impl MqttBinding {
     }
 
     // Try parsing the bytes as a Packet.
-    pub fn try_decode(&mut self, buf: Bytes, now: Instant) -> Option<Packet> {
+    pub fn try_decode(&mut self, buf: Bytes, _now: Instant) -> Option<Packet> {
         let (state, packet) = match &self.state {
-            State::AwaitingStartOfHeader => {
+            State::StartOfHeader => {
                 // MQTT uses between 1 and 3 (including) bytes to encode the
                 // length of the packet.
                 let packet_length = match decode::packet_length(&buf[1..]) {
@@ -213,13 +211,13 @@ impl MqttBinding {
                     // `buf` doesn't contain enough bytes to decode the length.
                     // At maximum, 2 more bytes are required to make the header complete.
                     Err(decode::DecodingError::NotEnoughBytes { .. }) => {
-                        self.state = State::AwaitingEndOfHeader {
+                        self.state = State::EndOfHeader {
                             partial_header: buf,
                         };
                         return None;
                     }
                     Err(error) => {
-                        error!("Failed to decode packet length: {:?}", error);
+                        error!("Failed to decode packet length: {error:?}");
                         return None;
                     }
                 };
@@ -231,21 +229,21 @@ impl MqttBinding {
                             return Some(packet);
                         }
                         Err(error) => {
-                            error!("Failed to parse a 4 byte packet: {}", error);
+                            error!("Failed to parse a 4 byte packet: {error:?}");
                             return None;
                         }
                     };
                 }
 
                 (
-                    State::AwaitingRestOfPacket {
+                    State::RestOfPacket {
                         header: buf,
                         bytes_remaining,
                     },
                     None,
                 )
             }
-            State::AwaitingEndOfHeader { partial_header } => {
+            State::EndOfHeader { partial_header } => {
                 let mut header = BytesMut::new();
                 header.put(partial_header.clone());
                 header.put(buf);
@@ -253,14 +251,14 @@ impl MqttBinding {
                 let packet_length = match decode::packet_length(&header[1..]) {
                     Ok(packet_length) => packet_length,
                     Err(error) => {
-                        error!("Failed to decode packet length: {:?}", error);
+                        error!("Failed to decode packet length: {error:?}");
                         return None;
                     }
                 };
 
                 let bytes_remaining = packet_length - header.len() as u32;
                 (
-                    State::AwaitingRestOfPacket {
+                    State::RestOfPacket {
                         header: header.freeze(),
                         bytes_remaining,
                     },
@@ -268,7 +266,7 @@ impl MqttBinding {
                 )
             }
 
-            State::AwaitingRestOfPacket {
+            State::RestOfPacket {
                 header: prefix,
                 bytes_remaining: length,
             } => {
@@ -284,13 +282,13 @@ impl MqttBinding {
                 self.statistics.record_inbound_packet(&packet);
 
                 // parse message;
-                (State::AwaitingStartOfHeader, Some(packet))
+                (State::StartOfHeader, Some(packet))
             }
         };
 
         self.state = state;
         packet.as_ref().inspect(|ref packet| {
-            debug!("--> {:?}", packet);
+            debug!("--> {packet:?}");
         });
         packet
     }

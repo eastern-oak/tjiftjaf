@@ -42,7 +42,7 @@ impl TryFrom<&[u8]> for PingReq {
 
         if value.len() < PINGREQ.len() {
             return Err(DecodingError::NotEnoughBytes {
-                minimum: PINGREQ.len() as usize,
+                minimum: PINGREQ.len(),
                 actual: value.len(),
             });
         }

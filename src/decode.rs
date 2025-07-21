@@ -45,15 +45,15 @@ impl Display for DecodingError {
             Self::TooManyBytes => "too many bytes",
             Self::InvalidPacketType(value) => &format!("{value} is not a valid packet type"),
             Self::InvalidValue(reason) => reason,
-            Self::InvalidRemainingLength => &format!("Field remaining length is not valid"),
-            Self::Other => &format!("Some other error"),
+            Self::InvalidRemainingLength => "Field remaining length is not valid",
+            Self::Other => "Some other error",
         };
         write!(f, "{msg}")
     }
 }
 
 pub fn packet_type(bytes: &[u8]) -> Result<PacketType, DecodingError> {
-    let byte = bytes.get(0).ok_or(DecodingError::NotEnoughBytes {
+    let byte = bytes.first().ok_or(DecodingError::NotEnoughBytes {
         minimum: 1,
         actual: 0,
     })?;
@@ -65,7 +65,7 @@ pub fn packet_identifier(bytes: &[u8]) -> Result<u16, DecodingError> {
 }
 
 pub fn u16(bytes: &[u8]) -> Result<u16, DecodingError> {
-    let msb = bytes.get(0).ok_or(DecodingError::NotEnoughBytes {
+    let msb = bytes.first().ok_or(DecodingError::NotEnoughBytes {
         minimum: 2,
         actual: 0,
     })?;
@@ -105,13 +105,13 @@ pub fn packet_length(bytes: &[u8]) -> Result<u32, DecodingError> {
             ));
         }
     }
-    return Ok(value + 1 + index as u32 + 1);
+    Ok(value + 1 + index as u32 + 1)
 }
 
 pub fn utf8(bytes: &[u8]) -> Result<&str, DecodingError> {
     let bytes = crate::decode::bytes(bytes)?;
 
-    std::str::from_utf8(&bytes)
+    std::str::from_utf8(bytes)
         .map_err(|_| DecodingError::InvalidValue("Payload is not valid UTF-8".into()))
 }
 
@@ -187,7 +187,7 @@ pub mod field {
     pub fn utf8(bytes: &[u8]) -> Result<(&str, usize), DecodingError> {
         let (bytes, offset) = crate::decode::field::bytes(bytes)?;
 
-        let value = std::str::from_utf8(&bytes)
+        let value = std::str::from_utf8(bytes)
             .map_err(|_| DecodingError::InvalidValue("Payload is not valid UTF-8".into()))?;
         Ok((value, offset))
     }

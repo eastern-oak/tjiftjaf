@@ -5,8 +5,8 @@ use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
 use crate::packet_v2::ping_resp::PingResp;
 use bytes::{BufMut, Bytes, BytesMut};
+use std::fmt;
 use std::io::Read;
-use std::{fmt, u16};
 
 #[derive(Clone)]
 pub enum Packet {
@@ -102,7 +102,7 @@ impl TryFrom<Bytes> for Packet {
 
     fn try_from(value: Bytes) -> Result<Self, Self::Error> {
         let packet_type: PacketType = value
-            .get(0)
+            .first()
             .ok_or(DecodingError::NotEnoughBytes {
                 minimum: 2,
                 actual: 0,
@@ -147,15 +147,14 @@ impl TryFrom<Bytes> for Packet {
             PacketType::PubAck => {
                 return Ok(Self::PubAck(PubAck::new(value)));
             }
-            _ => match value.len() {
-                0..=4 => {
+            _ => {
+                if let 0..=4 = value.len() {
                     return Err(DecodingError::NotEnoughBytes {
                         minimum: 5,
                         actual: value.len(),
                     });
                 }
-                _ => {}
-            },
+            }
         }
 
         Ok(Self::Other(value))
@@ -185,27 +184,27 @@ pub enum PacketType {
 
 impl PacketType {
     fn from_unchecked(value: u8) -> Self {
-        Self::try_from(value).expect(&format!("{} is not a valid MQTT packet type.", value))
+        Self::try_from(value).unwrap_or_else(|_| panic!("{value} is not a valid MQTT packet type."))
     }
 }
 
-impl Into<u8> for PacketType {
-    fn into(self) -> u8 {
-        match self {
-            Self::Connect => 1,
-            Self::ConnAck => 2,
-            Self::Publish => 3,
-            Self::PubAck => 4,
-            Self::PubRec => 5,
-            Self::PubRel => 6,
-            Self::PubComp => 7,
-            Self::Subscribe => 8,
-            Self::SubAck => 9,
-            Self::Unsubscribe => 10,
-            Self::UnsubAck => 11,
-            Self::PingReq => 12,
-            Self::PingResp => 13,
-            Self::Disconnect => 14,
+impl From<PacketType> for u8 {
+    fn from(value: PacketType) -> u8 {
+        match value {
+            PacketType::Connect => 1,
+            PacketType::ConnAck => 2,
+            PacketType::Publish => 3,
+            PacketType::PubAck => 4,
+            PacketType::PubRec => 5,
+            PacketType::PubRel => 6,
+            PacketType::PubComp => 7,
+            PacketType::Subscribe => 8,
+            PacketType::SubAck => 9,
+            PacketType::Unsubscribe => 10,
+            PacketType::UnsubAck => 11,
+            PacketType::PingReq => 12,
+            PacketType::PingResp => 13,
+            PacketType::Disconnect => 14,
         }
     }
 }
@@ -391,7 +390,7 @@ impl TryFrom<&u8> for ConnectReturnCode {
             0x4 => Self::ConnectionRefusedBadUsernameOrPassword,
             0x5 => Self::ConnectionRefusedNotAuthorized,
             _ => {
-                eprintln!("{} is an invalid return code", value);
+                eprintln!("{value} is an invalid return code");
                 return Err(());
             }
         };
@@ -503,6 +502,12 @@ impl SubscribeBuilder {
     }
 }
 
+impl Default for SubscribeBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Clone)]
 pub struct SubAck {
     inner: Bytes,
@@ -527,8 +532,6 @@ impl SubAck {
 
     pub fn identifier(&self) -> u16 {
         u16::from_be_bytes(self.variable_header().try_into().unwrap())
-            .try_into()
-            .unwrap()
     }
 }
 
@@ -584,10 +587,6 @@ impl std::fmt::Debug for Publish {
 }
 
 pub struct PublishBuilder {
-    quality_of_service: usize,
-    retain: bool,
-    packet_identifier: u16,
-
     topic: Option<String>,
     payload: Option<Bytes>,
 }
@@ -595,9 +594,6 @@ pub struct PublishBuilder {
 impl PublishBuilder {
     pub fn new() -> Self {
         Self {
-            quality_of_service: 0x00,
-            retain: false,
-            packet_identifier: packet_identifier(),
             topic: None,
             payload: None,
         }
@@ -640,6 +636,12 @@ impl PublishBuilder {
 
     pub fn build_packet(self) -> Packet {
         Packet::Publish(self.build())
+    }
+}
+
+impl Default for PublishBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
