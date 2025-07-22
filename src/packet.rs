@@ -5,9 +5,9 @@ use crate::packet_v2::connack::ConnAck;
 use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
 use crate::packet_v2::ping_resp::PingResp;
+use crate::time::SystemTime;
 use bytes::{BufMut, Bytes, BytesMut};
 use std::fmt;
-use std::io::Read;
 
 #[derive(Clone)]
 pub enum Packet {
@@ -605,11 +605,10 @@ impl std::fmt::Debug for PubAck {
 }
 
 pub fn packet_identifier() -> u16 {
-    let mut buf = vec![0u8, 2];
-    std::fs::File::open("/dev/urandom")
-        .expect("Failed to open /dev/urandom.")
-        .read_exact(&mut buf)
-        .expect("Failed to obtain random data.");
+    let seconds = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(n) => n.as_millis(),
+        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
+    };
 
-    (buf[0] as u16 * 256) + buf[1] as u16
+    seconds as u16
 }
