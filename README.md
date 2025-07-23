@@ -30,21 +30,19 @@ Most users interact with a few types only:
 | MQTT Message Type | Status |
 |------------------|--------|
 | CONNECT | 🔶 | Will not yet supported |
-| CONNACK | ✅ |
-| PUBLISH | 🔶 | Configuring Quality of Service not yet supported|
-| PUBACK | ✅|
-| PUBREC | ❌ |
-| PUBREL | ❌ |
-| PUBCOMP | ❌ |
+| CONNACK | ✅ | |
+| PUBLISH | 🔶 | Configuring Quality of Service not yet supported| 
+| PUBACK | ✅| |
+| PUBREC | ❌ | |
+| PUBREL | ❌ | | 
+| PUBCOMP | ❌ | |
 | SUBSCRIBE | 🔶 | Subscribing to multiple topics is not yet supported |
-| SUBACK | ✅ |
-| UNSUBSCRIBE | ❌ |
-| UNSUBACK | ❌ |
-| PINGREQ | ✅ |
-| PINGRESP | ✅ |
-| DISCONNECT | ❌ |
-
-
+| SUBACK | ✅ | |
+| UNSUBSCRIBE | ❌ | |
+| UNSUBACK | ❌ | |
+| PINGREQ | ✅ | |
+| PINGRESP | ✅ | |
+| DISCONNECT | ❌ | |
 
 ## Goals
 
@@ -58,7 +56,7 @@ Efficient use of memory and compute is a secondary goal.
 
 The `MqttBinding` is the heart of `tjiftjaf`. The `MqttBinding` is implemented using according to sans-IO.
 To learn more about this design pattern,  read Firezone's post
-["Sans-IO: The secret to effective Rust for network services"](https://www.firezone.dev/blog/sans-io].
+[Sans-IO: The secret to effective Rust for network services](https://www.firezone.dev/blog/sans-io].
 
 The binding includes two state machine
 One state machine keeps track of the connection status. An MQTT client is only allowed to
