@@ -19,3 +19,5 @@ rumqttd = { version = "0.19.0", default-features = false }
 smol-macros = "0.1.1"
 async-net = { version = "2.0.0", default-features = false }
 smol = { version = "2.0.2", default-features = false }
+tokio = { version = "1.46.1", default-features = false, features = ["rt", "rt-multi-thread", "tokio-macros"] }
+async-compat = "0.2.4"

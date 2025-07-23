@@ -124,6 +124,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-compat"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7bab94bde396a3f7b4962e396fdad640e241ed797d4d8d77fc8c237d14c58fc0"
+dependencies = [
+ "futures-core",
+ "futures-io",
+ "once_cell",
+ "pin-project-lite",
+ "tokio",
+]
+
+[[package]]
 name = "async-executor"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1746,6 +1759,7 @@ version = "0.0.1"
 dependencies = [
  "async-broadcast",
  "async-channel",
+ "async-compat",
  "async-io",
  "async-net",
  "bytes",
@@ -1757,6 +1771,7 @@ dependencies = [
  "simple_logger",
  "smol",
  "smol-macros",
+ "tokio",
 ]
 
 [[package]]
