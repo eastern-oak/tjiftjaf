@@ -87,7 +87,8 @@ impl TryFrom<Bytes> for Subscribe {
             });
         }
 
-        if value[0] != 128 {
+        // TODO: value exists of packet type (128) + 2 for a flag.
+        if value[0] != 130 {
             return Err(DecodingError::InvalidPacketType(value[0]));
         };
 
@@ -127,24 +128,28 @@ impl std::fmt::Debug for Subscribe {
 }
 pub struct SubscribeBuilder {
     packet_identifier: u16,
-    topic: Option<String>,
+    topics: Vec<(String, QoS)>,
 }
 
 impl SubscribeBuilder {
     pub fn new() -> Self {
         Self {
             packet_identifier: packet_identifier(),
-            topic: None,
+            topics: Vec::new(),
         }
     }
 
-    pub fn add_topic(mut self, topic: String) -> Self {
-        self.topic = Some(topic);
+    pub fn add_topic(self, topic: impl ToString) -> Self {
+        self.add_topic_with_qos(topic, QoS::AtMostOnceDelivery)
+    }
+
+    pub fn add_topic_with_qos(mut self, topic: impl ToString, qos: QoS) -> Self {
+        self.topics.push((topic.to_string(), qos));
         self
     }
 
     pub fn build(self) -> Subscribe {
-        let Some(topic) = self.topic else {
+        if self.topics.is_empty() {
             panic!();
         };
 
@@ -152,14 +157,17 @@ impl SubscribeBuilder {
         variable_header.put_u16(self.packet_identifier);
 
         // TODO: Add support for subscribing to multiple topics.
-        let mut payload = BytesMut::with_capacity(topic.len() + 3);
+        let mut payload = BytesMut::new();
 
-        payload.put(encode::utf8(topic));
-        payload.put_u8(QoS::AtMostOnceDelivery as u8);
+        for (topic, qos) in self.topics {
+            payload.put(encode::utf8(topic));
+            payload.put_u8(qos as u8);
+        }
 
         let mut packet = BytesMut::new();
 
         let x: u8 = PacketType::Subscribe.into();
+        dbg!(x << 4 + 2);
 
         packet.put_u8((x << 4) + 2);
 
@@ -186,6 +194,19 @@ impl Default for SubscribeBuilder {
 
 #[cfg(test)]
 mod test {
+    use super::Subscribe;
+    use crate::{Frame, QoS};
+    use bytes::Bytes;
+
     #[test]
-    fn test() {}
+    fn test_subscribe() {
+        let packet = Subscribe::builder()
+            .add_topic("rpm")
+            .add_topic_with_qos("temperature", QoS::ExactlyOnceDelivery)
+            .build();
+
+        let bytes = Bytes::copy_from_slice(packet.as_bytes());
+        Subscribe::try_from(bytes).unwrap();
+        assert_eq!(packet.first_topic(), ("rpm", QoS::AtMostOnceDelivery));
+    }
 }

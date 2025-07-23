@@ -452,6 +452,11 @@ mod test {
                 .build()
                 .into(),
             ConnAck::builder().build().into(),
+            Subscribe::builder()
+                .add_topic("rpm")
+                .add_topic_with_qos("temperature", QoS::ExactlyOnceDelivery)
+                .build()
+                .into(),
         ]
     }
 }

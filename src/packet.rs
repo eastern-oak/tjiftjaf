@@ -305,7 +305,7 @@ pub enum ProtocolLevel {
     _3_1_1 = 4,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum QoS {
     AtMostOnceDelivery = 0,
