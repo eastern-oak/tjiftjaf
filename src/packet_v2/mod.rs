@@ -1,4 +1,5 @@
 use crate::decode::DecodingError;
+pub mod connack;
 pub mod connect;
 pub mod ping_req;
 pub mod ping_resp;

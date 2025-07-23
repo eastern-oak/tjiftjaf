@@ -1,4 +1,4 @@
-//! Providing [`Connect`]
+//! Providing [`Connect`], the first message a client sends to the server.
 use super::UnverifiedFrame;
 use crate::{
     Frame, Packet, PacketType, ProtocolLevel, QoS,
