@@ -45,7 +45,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 pub use client::{Client, ClientHandle, Options};
 use log::{debug, error};
 pub use packet::*;
-use packet_v2::{connect::Connect, ping_req::PingReq};
+use packet_v2::{connect::Connect, ping_req::PingReq, subscribe::Subscribe};
 use std::time::{Duration, Instant, SystemTime};
 
 pub mod packet;
