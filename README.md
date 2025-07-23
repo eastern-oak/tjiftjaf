@@ -27,8 +27,8 @@ Most users interact with a few types only:
 
 ## Features
 
-| MQTT Message Type | Status |
-|------------------|--------|
+| MQTT Message Type | Status | Note |
+|------------------|--------|----|
 | CONNECT | 🔶 | Will not yet supported |
 | CONNACK | ✅ | |
 | PUBLISH | 🔶 | Configuring Quality of Service not yet supported| 
