@@ -35,7 +35,7 @@ impl Frame for ConnAck {
     }
 
     fn variable_header(&self) -> &[u8] {
-        // This packet has a fixed length of 4 byts.
+        // This packet has a fixed length of 4 bytes.
         &self.as_bytes()[2..]
     }
 }
