@@ -141,7 +141,7 @@ impl TryFrom<&u8> for ReturnCode {
             0x5 => Self::ConnectionRefusedNotAuthorized,
             _ => {
                 return Err(DecodingError::InvalidValue(format!(
-                    "{value} is not a valiad value for ReturnCode",
+                    "{value} is not a valid value for ReturnCode",
                 )));
             }
         };
