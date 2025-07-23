@@ -1,11 +1,18 @@
 # Tjiftjaf
 
-_tjiftjaf_ is a Rust library implementing MQTT 3.1.1.
+_tjiftjaf_ is a Rust library implementing MQTT 3.1.1 that supports various use cases.
 
-It features:
+# Features
+**MQTT Client**
 
-* encoding and decoding support for all 14 control packets.
-* a sans-io `Client` that supports both blocking and async paradigms. See [examples/](examples/) for more information.
+The crate provides a [blocking `Client`](https://docs.rs/tjiftjaf/latest/tjiftjaf/blocking/index.html)
+and an [asynchronous `Client`](https://docs.rs/tjiftjaf/latest/tjiftjaf/struct.Client.html).
+
+The latter does not require a specific runtime executor.
+
+Take a look at the examples:
+* [examples/client.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/client.rs) uses the executor [smol](https://docs.rs/smol/latest/smol/index.html)
+* [examples/blocking_client.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/blocking_client.rs) does _not_ use async.
 
 ## Do not use this crate
 
