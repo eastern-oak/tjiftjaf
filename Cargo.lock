@@ -1019,6 +1019,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78bed444cc8a2160f01cbcf811ef18cac863ad68ae8ca62092e8db51d51c761c"
 dependencies = [
  "libc",
+ "log",
  "wasi",
  "windows-sys 0.59.0",
 ]
@@ -1773,6 +1774,7 @@ dependencies = [
  "futures-lite",
  "log",
  "macro_rules_attribute",
+ "mio",
  "pretty_assertions",
  "rumqttd",
  "simple_logger",

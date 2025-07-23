@@ -13,6 +13,9 @@ use tjiftjaf::{
     packet_v2::{connack::ConnAck, connect::Connect, publish::Publish},
 };
 
+#[cfg(feature = "blocking")]
+use tjiftjaf::blocking;
+
 mod env;
 
 const TOPIC: &str = "topic";
@@ -24,6 +27,15 @@ async fn create_client(port: u16) -> Client<TcpStream> {
 
     let connect = Connect::builder().client_id("test").keep_alive(5).build();
     Client::new(connect, stream)
+}
+
+#[cfg(feature = "blocking")]
+fn create_blocking_client(port: u16) -> blocking::Client {
+    let stream = std::net::TcpStream::connect(format!("127.0.0.1:{}", port))
+        .expect("Failed to open TCP connection to broker.");
+
+    let connect = Connect::builder().client_id("test").keep_alive(5).build();
+    blocking::Client::new(connect, stream)
 }
 
 // Connect a client to a broker.
@@ -60,6 +72,35 @@ async fn test_subscribe_and_publish() {
 
     let packet = handle_a.any_packet().await.unwrap();
     assert_eq!(packet.packet_type(), PacketType::PingResp);
+}
+
+// Connect a client to a broker.
+// Then, subscribe to a topic and publish to that same topic.
+// Verify that the client receives published message.
+#[cfg(feature = "blocking")]
+#[test]
+fn test_subscribe_and_publish_with_blocking_client() {
+    let broker = Broker::new();
+    let (mut handle_a, _task) = create_blocking_client(broker.port).spawn().unwrap();
+
+    handle_a
+        .subscribe(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
+        .unwrap();
+
+    // Until GH-71 is implemented, we need to introduce an artificial
+    // sleep.
+    //
+    // https://github.com/eastern-oak/tjiftjaf/issues/71
+    std::thread::sleep(Duration::from_secs(1));
+
+    handle_a
+        .publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        .unwrap();
+
+    let publish = handle_a.publication().unwrap();
+
+    assert_eq!(publish.topic(), TOPIC);
+    assert_eq!(publish.payload(), b"test_subscribe_and_publish");
 }
 
 // Issue #17 tracked a bug where `MqttBinding` failed to

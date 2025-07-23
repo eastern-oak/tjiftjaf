@@ -1,46 +1,16 @@
-//! The `tjiftjaf` crate provides a asynchronous MQTT [`Client`].
-//!
-//! # Example
-//!
-//! ```no_run
-//! use async_net::TcpStream;
-//! use tjiftjaf::{Frame, Client, packet_v2::connect::Connect, QoS};
-//!
-//!    smol::block_on(async {
-//!        let stream = TcpStream::connect("test.mosquitto.org:1883")
-//!            .await
-//!            .expect("Failed connecting to MQTT broker.");
-//!
-//!        let connect = Connect::builder().client_id("test").keep_alive(5).build();
-//!        let client = Client::new(connect, stream);
-//!
-//!        // Spawn the event loop that monitors the socket.
-//!        // `handle` allows for sending and receiving MQTT packets.
-//!        let (mut handle, _task) = client.spawn();
-//!
-//!        handle
-//!            .subscribe("$SYS/broker/uptime", QoS::AtMostOnceDelivery)
-//!            .await
-//!            .expect("Failed to subscribe to topic.");
-//!
-//!        loop {
-//!            let packet = handle
-//!                .subscriptions()
-//!                .await
-//!                .expect("Failed to read packet.");
-//!
-//!            let payload = String::from_utf8_lossy(packet.payload());
-//!            println!("{} - {:?}", packet.topic(), payload);
-//!        }
-//!    })
-//! ```
+#![doc = include_str!("../README.md")]
 use crate::packet_v2::{publish::Publish, subscribe::Subscribe};
+use async_channel::{RecvError, SendError};
 use bytes::{BufMut, Bytes, BytesMut};
 pub use client::{Client, ClientHandle};
-use log::{debug, error};
+use log::{debug, error, trace};
 pub use packet::*;
 use packet_v2::ping_req::PingReq;
-use std::time::{Duration, Instant, SystemTime};
+use std::{
+    error::Error,
+    fmt::Display,
+    time::{Duration, Instant, SystemTime},
+};
 
 pub mod packet;
 pub mod packet_v2;
@@ -49,6 +19,9 @@ mod client;
 pub mod decode;
 mod encode;
 mod validate;
+
+#[cfg(feature = "blocking")]
+pub mod blocking;
 
 pub fn packet_identifier() -> u16 {
     let seconds = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
@@ -159,17 +132,17 @@ impl MqttBinding {
     pub fn get_read_buffer(&mut self) -> BytesMut {
         match self.state {
             State::StartOfHeader => {
-                debug!("Waiting for start of header.");
+                trace!("Waiting for start of header.");
                 BytesMut::zeroed(2)
             }
             State::EndOfHeader { .. } => {
-                debug!("Waiting for end of the header.");
+                trace!("Waiting for end of the header.");
                 BytesMut::zeroed(2)
             }
             State::RestOfPacket {
                 bytes_remaining, ..
             } => {
-                debug!("Waiting for remainder of the packet.");
+                trace!("Waiting for remainder of the packet.");
                 BytesMut::zeroed(bytes_remaining as usize)
             }
         }
@@ -340,6 +313,32 @@ impl Statistics {
     fn record_outbound_packet(&mut self, packet: &Packet) {
         self.bytes_sent += packet.length();
         self.packets_sent += 1;
+    }
+}
+#[derive(Debug)]
+pub struct HandlerError(String);
+
+impl Error for HandlerError {}
+
+impl Display for HandlerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HandlerError: {}", self.0)
+    }
+}
+
+impl From<RecvError> for HandlerError {
+    fn from(value: RecvError) -> Self {
+        HandlerError(format!(
+            "Handler failed receiving packet from Client: {value:?}"
+        ))
+    }
+}
+
+impl<T> From<SendError<T>> for HandlerError {
+    fn from(value: SendError<T>) -> Self {
+        HandlerError(format!(
+            "Handler failed to send packet to Client: {value:?}"
+        ))
     }
 }
 

@@ -7,12 +7,14 @@ description = "Library including an encoder and decoder for MQTT v3.1.1. It also
 
 [dependencies]
 async-broadcast = { version = "0.7.2", default-features = false }
-async-channel = { version = "2.5.0", default-features = false }
+async-channel = { version = "2.5.0", default-features = false, features = ["std"] }
 async-io = { version = "2.4.1", default-features = false }
 bytes = { version = "1.10.1", default-features = false, features = ["std"] }
 futures-lite = { version = "2.6.0", default-features = false, features = ["std", "race"] }
 log = "0.4.27"
 arbitrary = { version = "1", optional = true, features = ["derive"] }
+mio = { version = "1.0.4", optional = true, default-features = false, features = ["log", "os-poll", "net"] }
+
 
 [dev-dependencies]
 simple_logger = "5.0.0"
@@ -22,3 +24,13 @@ rumqttd = { version = "0.19.0", default-features = false }
 smol-macros = "0.1.1"
 async-net = { version = "2.0.0", default-features = false }
 smol = { version = "2.0.2", default-features = false }
+
+[features]
+blocking = ["mio"]
+
+[[example]]
+name = "blocking_client"
+required-features = ["blocking"]
+
+[package.metadata.docs.rs]
+all-features = true

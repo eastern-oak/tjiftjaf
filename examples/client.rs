@@ -1,11 +1,17 @@
 use async_net::TcpStream;
 use futures_lite::FutureExt;
+use log::info;
+use std::env;
 use tjiftjaf::{Client, QoS, packet_identifier, packet_v2::connect::Connect};
 
 fn main() {
     simple_logger::init_with_level(log::Level::Debug).unwrap();
+    let broker = env::args()
+        .nth(1)
+        .unwrap_or(String::from("test.mosquitto.org:1884"));
+
     smol::block_on(async {
-        let stream = TcpStream::connect("test.mosquitto.org:1884")
+        let stream = TcpStream::connect(broker)
             .await
             .expect("Failed connecting to MQTT broker.");
 
@@ -43,7 +49,7 @@ fn main() {
                     n += 1;
 
                     let payload = String::from_utf8_lossy(packet.payload());
-                    println!("{} - {:?}", packet.topic(), payload);
+                    info!("{} - {:?}", packet.topic(), payload);
                     if packet.topic() == "$SYS/broker/uptime" {
                         handle
                             .publish(&random_topic, format!("{n} packets received").into())
