@@ -14,7 +14,7 @@ impl ConnAck {
         ConnAckBuilder::new()
     }
 
-    /// Indiciate if the server as stored state for this client.
+    /// Indicate if the server has stored state for this client.
     ///
     /// This might be `true` when a client reconnects and the server
     /// has collected some packets for the client.
