@@ -179,7 +179,7 @@ impl ConnAckBuilder {
 
     /// Set the [session present](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc385349255) bit.
     ///
-    /// This bit indicates that the server as stored state
+    /// This bit indicates that the server has stored state
     /// for the client that just connected.
     pub fn session_present(mut self) -> Self {
         self.session_present = true;
