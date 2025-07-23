@@ -1,20 +1,29 @@
+//! Providing [`ConnAck`], a response from server to a `Connect`
 use crate::{Frame, Packet, decode::DecodingError};
 use bytes::Bytes;
 
+/// [Connack](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718033)
 #[derive(Clone, PartialEq, Eq)]
 pub struct ConnAck {
     inner: [u8; 4],
 }
 
 impl ConnAck {
+    /// Create a `ConnAckBuilder` to configure a `ConnAck`.
     pub fn builder() -> ConnAckBuilder {
         ConnAckBuilder::new()
     }
 
+    /// Indiciate if the server as stored state for this client.
+    ///
+    /// This might be `true` when a client reconnects and the server
+    /// has collected some packets for the client.
     pub fn session_present(&self) -> bool {
         self.inner[2] & 1 == 1
     }
 
+    /// Indication if connection was successful. If not, the `ReturnCode`
+    /// explains the failure.
     pub fn return_code(&self) -> ReturnCode {
         ReturnCode::try_from(&self.inner[3]).unwrap()
     }
@@ -96,6 +105,9 @@ impl std::fmt::Debug for ConnAck {
     }
 }
 
+/// A status code indicating if client connected successfully
+/// to the server. If not, the return code provides a hint
+/// why the connection failed.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ReturnCode {
     ConnectionAccepted = 0x0,
@@ -151,6 +163,7 @@ impl From<ReturnCode> for u8 {
     }
 }
 
+/// A helper type to create a `ConnAck`.
 pub struct ConnAckBuilder {
     return_code: ReturnCode,
     session_present: bool,
@@ -164,16 +177,22 @@ impl ConnAckBuilder {
         }
     }
 
+    /// Set the [session present](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc385349255) bit.
+    ///
+    /// This bit indicates that the server as stored state
+    /// for the client that just connected.
     pub fn session_present(mut self) -> Self {
         self.session_present = true;
         self
     }
 
+    /// Configure the `ReturnCode`.
     pub fn return_code(mut self, return_code: ReturnCode) -> Self {
         self.return_code = return_code;
         self
     }
 
+    /// Returns a `ConnAck` using the `ConnAckBuilder` configuration.
     pub fn build(self) -> ConnAck {
         ConnAck {
             inner: [
