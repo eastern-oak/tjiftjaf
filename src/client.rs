@@ -2,13 +2,13 @@
 //!
 //! The `Client` holds a connection internally. Use a `ClientHandle` to
 //! read and write packets to this connection.
+use super::time::{Instant, timer_at};
 use super::{MqttBinding, Packet, Publish, Subscribe};
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
-use async_io::Timer;
+
 use bytes::Bytes;
 use futures_lite::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
 use log::error;
-use std::time::Instant;
 
 pub struct Client<S: AsyncRead + AsyncWrite + Unpin> {
     // Socket for interacting with the MQTT broker.
@@ -29,7 +29,7 @@ pub struct Client<S: AsyncRead + AsyncWrite + Unpin> {
 
 impl<S> Client<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: AsyncRead + AsyncWrite + Unpin + 'static,
 {
     pub fn new(options: Options, socket: S) -> Self {
         // TODO: What size do we need?
@@ -91,7 +91,7 @@ where
 
             let future1 = async { Winner::Future1(self.socket.read(&mut buffer).await) };
             let future2 = async {
-                Timer::at(timeout).await;
+                timer_at(timeout).await;
                 Winner::Future2
             };
             let future3 = async { Winner::Future3(self.receiver.recv().await) };

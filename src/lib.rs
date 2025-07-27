@@ -46,20 +46,14 @@ pub use client::{Client, ClientHandle, Options};
 use log::{debug, error};
 pub use packet::*;
 use packet_v2::{connect::Connect, ping_req::PingReq};
-use std::time::{Duration, Instant, SystemTime};
 
 pub mod packet;
 pub mod packet_v2;
+pub mod time;
 mod validate;
 
-pub fn packet_identifier() -> u16 {
-    let seconds = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_millis(),
-        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
-    };
-
-    seconds as u16
-}
+use crate::time::Instant;
+use std::time::Duration;
 
 pub fn connect(client_id: String, keep_alive_interval: u16) -> Packet {
     Connect::builder()
