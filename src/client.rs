@@ -75,6 +75,9 @@ where
 
             while let Some(bytes) = self.binding.poll_transmits(Instant::now()) {
                 self.socket.write_all(&bytes).await?;
+                // If the socket implementation is buffered, `bytes` will not be transmited unless
+                // the internal buffer is full or a call to flush is done.
+                self.socket.flush().await?;
             }
 
             let timeout = self.binding.poll_timeout();
