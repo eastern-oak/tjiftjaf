@@ -1,6 +1,6 @@
 use async_net::TcpStream;
 use broker::Broker;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use pretty_assertions::assert_eq;
 use tjiftjaf::{Client, Frame, Options, Packet, PacketType};
 mod broker;
@@ -43,6 +43,7 @@ async fn test_subcribe_and_publish() {
         .publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
         .await
         .unwrap();
+
     let publish = match handle_a.any_packet().await.unwrap() {
         Packet::Publish(publish) => publish,
         _ => panic!("Invalid packet."),
@@ -52,4 +53,23 @@ async fn test_subcribe_and_publish() {
 
     let packet = handle_a.any_packet().await.unwrap();
     assert_eq!(packet.packet_type(), PacketType::PingResp);
+}
+
+#[apply(test!)]
+async fn test_large_packets() {
+    let broker = Broker::new();
+    let (mut handle_a, task) = create_client(&broker).await.spawn();
+    let _handle = smol::spawn(task);
+
+    let packet = handle_a.any_packet().await.unwrap();
+    assert_eq!(packet.packet_type(), PacketType::ConnAck);
+
+    handle_a.subscribe(TOPIC).await.unwrap();
+    let packet = handle_a.any_packet().await.unwrap();
+    assert_eq!(packet.packet_type(), PacketType::SubAck);
+
+    handle_a
+        .publish(TOPIC, BytesMut::zeroed(50_000).freeze())
+        .await
+        .unwrap();
 }
