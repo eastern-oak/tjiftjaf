@@ -7,7 +7,7 @@ use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
 use bytes::Bytes;
 use futures_lite::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
-use log::error;
+use log::{debug, error};
 use std::time::Instant;
 
 pub struct Client<S: AsyncRead + AsyncWrite + Unpin> {
@@ -101,7 +101,15 @@ where
                         return Err(std::io::Error::other("Packet is empty"));
                     }
 
-                    if let Some(packet) = self.binding.try_decode(buffer.freeze(), Instant::now()) {
+                    debug!(
+                        "Received {bytes_read} bytes for a buffer of {}",
+                        buffer.len()
+                    );
+
+                    if let Some(packet) = self
+                        .binding
+                        .try_decode(buffer.freeze().slice(0..bytes_read), Instant::now())
+                    {
                         if self.broadcast.broadcast(packet).await.is_err() {
                             // TODO: Change error type. std::io::Error is not really fitting here.
                             return Err(std::io::Error::other("Failed to broadcast message"));

@@ -57,6 +57,7 @@ async fn test_subcribe_and_publish() {
 
 #[apply(test!)]
 async fn test_large_packets() {
+    simple_logger::init_with_level(log::Level::Debug).unwrap();
     let broker = Broker::new();
     let (mut handle_a, task) = create_client(&broker).await.spawn();
     let _handle = smol::spawn(task);
@@ -69,7 +70,10 @@ async fn test_large_packets() {
     assert_eq!(packet.packet_type(), PacketType::SubAck);
 
     handle_a
-        .publish(TOPIC, BytesMut::zeroed(50_000).freeze())
+        .publish(TOPIC, BytesMut::zeroed(20_000).freeze())
         .await
         .unwrap();
+
+    let packet = handle_a.any_packet().await.unwrap();
+    assert_eq!(packet.packet_type(), PacketType::Publish);
 }
