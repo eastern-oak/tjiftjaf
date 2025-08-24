@@ -270,6 +270,19 @@ impl MqttBinding {
                 header: prefix,
                 bytes_remaining: length,
             } => {
+                if buf.len() < length.clone() as usize {
+                    let remaining_length = length - buf.len() as u32;
+                    let mut partial_packet = BytesMut::new();
+                    partial_packet.put(prefix.clone());
+                    partial_packet.put(buf);
+
+                    self.state = State::RestOfPacket {
+                        header: partial_packet.freeze(),
+                        bytes_remaining: remaining_length,
+                    };
+                    return None;
+                }
+
                 let mut bytes = BytesMut::with_capacity(*length as usize + prefix.len());
                 bytes.put(prefix.clone());
                 bytes.put(buf);
