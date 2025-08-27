@@ -61,22 +61,20 @@ pub fn packet_identifier() -> u16 {
     seconds as u16
 }
 
-pub fn connect(client_id: String, keep_alive_interval: u16) -> Packet {
+pub fn connect(client_id: impl ToString, keep_alive_interval: u16) -> Packet {
     Connect::builder()
         .client_id(client_id)
         .keep_alive(keep_alive_interval)
         .build_packet()
 }
 
-pub fn subscribe(topic: &str) -> Packet {
-    Subscribe::builder()
-        .add_topic(topic.to_owned())
-        .build_packet()
+pub fn subscribe(topic: impl ToString) -> Packet {
+    Subscribe::builder().add_topic(topic).build_packet()
 }
 
-pub fn publish(topic: &str, payload: Bytes) -> Packet {
+pub fn publish(topic: impl ToString, payload: impl Into<Bytes>) -> Packet {
     Publish::builder()
-        .topic(topic.to_owned())
+        .topic(topic)
         .payload(payload)
         .build_packet()
 }
@@ -370,10 +368,7 @@ mod test {
 
     #[test]
     fn test_publish() {
-        let packet = publish(
-            "zigbee2mqtt/light/state".into(),
-            Bytes::from(r#"{"state":"on"}"#),
-        );
+        let packet = publish("zigbee2mqtt/light/state", r#"{"state":"on"}"#);
 
         let packet = decode_message(packet);
 
@@ -382,10 +377,7 @@ mod test {
         // assert_eq!(packet.topic(), "$SYS/broker/uptime");
         assert_eq!(as_str(packet.payload()), r#"{"state":"on"}"#);
 
-        let packet = publish(
-            "$SYS/broker/uptime".into(),
-            Bytes::from(r#"388641 seconds"#),
-        );
+        let packet = publish("$SYS/broker/uptime", r#"388641 seconds"#);
 
         let packet = decode_message(packet);
         assert_eq!(packet.packet_type(), PacketType::Publish);
@@ -394,8 +386,8 @@ mod test {
         assert_eq!(as_str(packet.payload()), "388641 seconds");
 
         let packet = publish(
-            "zigbee2mqtt/binary-switch".into(),
-            Bytes::from(r#"{"action":"off","battery":100,"linkquality":3,"voltage":1400}"#),
+            "zigbee2mqtt/binary-switch",
+            r#"{"action":"off","battery":100,"linkquality":3,"voltage":1400}"#,
         );
         let packet = decode_message(packet);
         assert_eq!(packet.packet_type(), PacketType::Publish);
@@ -407,9 +399,7 @@ mod test {
 
         let packet = publish(
             "zigbee2mqtt/thermo-hygrometer",
-            Bytes::from(
-                r#"{"battery":100,"comfort_humidity_max":60,"comfort_humidity_min":40,"comfort_temperature_max":27,"comfort_temperature_min":19,"humidity":47.2,"linkquality":105,"temperature":24,"temperature_units":"fahrenheit","update":{"installed_version":4105,"latest_version":8960,"state":"available"}}"#,
-            ),
+            r#"{"battery":100,"comfort_humidity_max":60,"comfort_humidity_min":40,"comfort_temperature_max":27,"comfort_temperature_min":19,"humidity":47.2,"linkquality":105,"temperature":24,"temperature_units":"fahrenheit","update":{"installed_version":4105,"latest_version":8960,"state":"available"}}"#,
         );
 
         let packet = decode_message(packet);

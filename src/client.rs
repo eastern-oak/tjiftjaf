@@ -165,18 +165,18 @@ pub struct ClientHandle {
 }
 
 impl ClientHandle {
-    pub async fn subscribe(&self, topic: impl Into<String>) -> Result<(), SendError<Packet>> {
-        let packet = Subscribe::builder().add_topic(topic.into()).build_packet();
+    pub async fn subscribe(&self, topic: impl ToString) -> Result<(), SendError<Packet>> {
+        let packet = Subscribe::builder().add_topic(topic).build_packet();
         self.send(packet).await
     }
 
     pub async fn publish(
         &self,
-        topic: impl Into<String>,
-        payload: Bytes,
+        topic: impl ToString,
+        payload: impl Into<Bytes>,
     ) -> Result<(), SendError<Packet>> {
         let packet = Publish::builder()
-            .topic(topic.into())
+            .topic(topic)
             .payload(payload)
             .build_packet();
         self.send(packet).await

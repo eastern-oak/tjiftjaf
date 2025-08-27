@@ -376,8 +376,8 @@ impl SubscribeBuilder {
         }
     }
 
-    pub fn add_topic(mut self, topic: String) -> Self {
-        self.topic = Some(topic);
+    pub fn add_topic(mut self, topic: impl ToString) -> Self {
+        self.topic = Some(topic.to_string());
         self
     }
 
@@ -513,13 +513,13 @@ impl PublishBuilder {
         }
     }
 
-    pub fn topic(mut self, topic: String) -> Self {
-        self.topic = Some(topic);
+    pub fn topic(mut self, topic: impl ToString) -> Self {
+        self.topic = Some(topic.to_string());
         self
     }
 
-    pub fn payload(mut self, payload: Bytes) -> Self {
-        self.payload = Some(payload);
+    pub fn payload(mut self, payload: impl Into<Bytes>) -> Self {
+        self.payload = Some(payload.into());
         self
     }
 
