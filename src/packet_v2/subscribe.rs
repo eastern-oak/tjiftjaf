@@ -1,19 +1,49 @@
-use bytes::{BufMut, Bytes, BytesMut};
-
+//! Provides [`Subscribe`], a message to express interest in a topic.
+//!
+//! # Examples
+//! For most use cases, use [`crate::subscribe`] to create a [`crate::Packet::Subscribe`] that
+//! expresses interest in a single topic:
+//!
+//! ```
+//! use tjiftjaf::subscribe;
+//!
+//! let packet = subscribe("temperature");
+//! ```
+//!
+//! Alternatively, use [`SubscribeBuilder`] to have control over the packet:
+//!
+//! ```
+//! use tjiftjaf::{
+//!     QoS, packet_v2::subscribe::Subscribe
+//! };
+//!
+//! let subscribe = Subscribe::builder()
+//!     // Topic 'temperature' uses QoS::AtMostOnceDelivery.
+//!    .add_topic("temperature")
+//!    .add_topic_with_qos("humidity", QoS::AtLeastOnceDelivery)
+//!    .build();
+//!
+//! for (topic, qos) in subscribe.topics() {
+//!    println!("{topic} - {qos:?}");
+//! }
+//! ```
+use super::UnverifiedFrame;
 use crate::{
     Frame, Packet, PacketType, QoS,
     decode::{self, DecodingError},
     encode, packet_identifier,
 };
+use bytes::{BufMut, Bytes, BytesMut};
 
-use super::UnverifiedFrame;
-
+/// A MQTT message to express interest in one or more topics.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Subscribe {
     inner: UnverifiedSubscribe,
 }
 
 impl Subscribe {
+    /// Creates a `SubscribeBuilder` to configure a `Subscribe`.
+    /// This is the same as `SubscribeBuilder::new()`.
     pub fn builder() -> SubscribeBuilder {
         SubscribeBuilder::new()
     }
@@ -22,6 +52,7 @@ impl Subscribe {
         self.inner.try_packet_identifier().unwrap()
     }
 
+    /// Get a clone of all all topics and their quality of service.
     pub fn topics(&self) -> Vec<(String, QoS)> {
         self.inner.try_topics().unwrap()
     }
@@ -54,42 +85,6 @@ impl TryFrom<Bytes> for Subscribe {
 
     fn try_from(value: Bytes) -> Result<Self, Self::Error> {
         UnverifiedSubscribe { inner: value }.verify()
-        // match value.len() {
-        //     0..=3 => {
-        //         return Err(DecodingError::NotEnoughBytes {
-        //             minimum: 4,
-        //             actual: value.len(),
-        //         });
-        //     }
-        //     4 => {}
-        //     5.. => return Err(DecodingError::TooManyBytes {}),
-        // };
-
-        // if value[0] != 32 {
-        //     return Err(DecodingError::InvalidPacketType(value[0]));
-        // };
-
-        // if value[1] != 2 {
-        //     return Err(DecodingError::InvalidRemainingLength);
-        // }
-
-        // // Only the first bit of this field can be set. All other 7 bits
-        // // are not used.
-        // if value[2] > 1 {
-        //     return Err(DecodingError::Other);
-        // }
-
-        // let return_code = ReturnCode::try_from(&value[3])?;
-
-        // //  [MQTT-3.2.2-4] If a server sends a CONNACK packet containing a non-zero return code it MUST set Session Present to 0 .
-        // if return_code != ReturnCode::ConnectionAccepted && value[2] != 0 {
-        //     return Err(DecodingError::Other);
-        // }
-
-        // Ok(Self {
-        //     // Unwrap is safe since we checked for size above.
-        //     inner: value.as_ref().try_into().unwrap(),
-        // })
     }
 }
 
@@ -184,12 +179,16 @@ impl UnverifiedFrame for UnverifiedSubscribe {
     }
 }
 
+/// `SubscribeBuilder` can be used to to configure a [`Subscribe`].
 pub struct SubscribeBuilder {
     packet_identifier: u16,
     topics: Vec<(String, QoS)>,
 }
 
 impl SubscribeBuilder {
+    /// Constructs a `SubscribeBuilder`.
+    ///
+    /// This is the same as [`Subscribe::builder()`].
     pub fn new() -> Self {
         Self {
             packet_identifier: packet_identifier(),
@@ -197,15 +196,22 @@ impl SubscribeBuilder {
         }
     }
 
-    pub fn add_topic(self, topic: String) -> Self {
+    /// Add a topic with [`QoS::AtMostOnceDelivery`].
+    pub fn add_topic(self, topic: impl Into<String>) -> Self {
         self.add_topic_with_qos(topic, QoS::AtMostOnceDelivery)
     }
 
-    pub fn add_topic_with_qos(mut self, topic: String, qos: QoS) -> Self {
-        self.topics.push((topic, qos));
+    /// Add a topic with a certain `QoS`.
+    pub fn add_topic_with_qos(mut self, topic: impl Into<String>, qos: QoS) -> Self {
+        self.topics.push((topic.into(), qos));
         self
     }
 
+    /// Returns a `Subscribe`.
+    ///
+    /// # Panic
+    ///
+    /// Panics if no topic has been added.
     pub fn build(self) -> Subscribe {
         if self.topics.is_empty() {
             panic!();
@@ -221,7 +227,6 @@ impl SubscribeBuilder {
         }
 
         let mut packet = BytesMut::new();
-
         let x: u8 = PacketType::Subscribe.into();
 
         packet.put_u8((x << 4) + 2);
@@ -238,6 +243,7 @@ impl SubscribeBuilder {
         .unwrap()
     }
 
+    /// Returns a [`Packet::Subscribe`].
     pub fn build_packet(self) -> Packet {
         Packet::Subscribe(self.build())
     }

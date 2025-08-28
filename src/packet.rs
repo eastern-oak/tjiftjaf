@@ -13,7 +13,7 @@ use std::io::Read;
 pub enum Packet {
     Connect(packet_v2::connect::Connect),
     ConnAck(packet_v2::connack::ConnAck),
-    Subscribe(packet_v2::subscribe::Subscribe),
+    Subscribe(packet_v2::Subscribe),
     SubAck(SubAck),
     Publish(Publish),
     PubAck(PubAck),

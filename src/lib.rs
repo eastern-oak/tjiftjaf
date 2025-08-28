@@ -45,7 +45,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 pub use client::{Client, ClientHandle, Options};
 use log::{debug, error};
 pub use packet::*;
-use packet_v2::{connect::Connect, ping_req::PingReq, subscribe::Subscribe};
+use packet_v2::{Subscribe, connect::Connect, ping_req::PingReq};
 use std::time::{Duration, Instant, SystemTime};
 
 pub mod packet;
@@ -270,7 +270,7 @@ impl MqttBinding {
                 header: prefix,
                 bytes_remaining: length,
             } => {
-                if buf.len() < length as usize {
+                if buf.len() < *length as usize {
                     let remaining_length = length - buf.len() as u32;
                     let mut partial_packet = BytesMut::new();
                     partial_packet.put(prefix.clone());
