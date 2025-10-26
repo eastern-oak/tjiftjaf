@@ -29,7 +29,7 @@ async fn create_client(port: u16) -> Client<TcpStream> {
 // Then, subscribe to a topic and publish to that same topic.
 // Verify that the client receives published message.
 #[apply(test!)]
-async fn test_subcribe_and_publish() {
+async fn test_subscribe_and_publish() {
     let broker = Broker::new();
     let (mut handle_a, task) = create_client(broker.port).await.spawn();
     let _handle = smol::spawn(task);
@@ -38,7 +38,10 @@ async fn test_subcribe_and_publish() {
     let packet = handle_a.any_packet().await.unwrap();
     assert_eq!(packet.packet_type(), PacketType::ConnAck);
 
-    handle_a.subscribe(TOPIC).await.unwrap();
+    handle_a
+        .subscribe(TOPIC, tjiftjaf::QoS::AtMostOnceDelivery)
+        .await
+        .unwrap();
     let packet = handle_a.any_packet().await.unwrap();
     assert_eq!(packet.packet_type(), PacketType::SubAck);
 
@@ -65,7 +68,7 @@ async fn test_subcribe_and_publish() {
 //
 // The test spawns a custom broker that emits a Publish packet
 // that's split in 2 TCP frame. The frames are some time apart.
-// This interval allows the `Client` to process each TCP frames separatly.
+// This interval allows the `Client` to process each TCP frames separately.
 #[apply(test!)]
 async fn test_17_decoding_large_packets() {
     let server = TcpListener::bind("localhost:0").await.unwrap();

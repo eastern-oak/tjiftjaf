@@ -4,7 +4,7 @@
 //!
 //! ```no_run
 //! use async_net::TcpStream;
-//! use tjiftjaf::{Frame, Client, Options};
+//! use tjiftjaf::{Frame, Client, Options, QoS};
 //!
 //!    smol::block_on(async {
 //!        let stream = TcpStream::connect("test.mosquitto.org:1883")
@@ -23,7 +23,7 @@
 //!        let (mut handle, _task) = client.spawn();
 //!
 //!        handle
-//!            .subscribe("$SYS/broker/uptime")
+//!            .subscribe("$SYS/broker/uptime", QoS::AtMostOnceDelivery)
 //!            .await
 //!            .expect("Failed to subscribe to topic.");
 //!
@@ -48,6 +48,8 @@ pub use packet::*;
 use packet_v2::{connect::Connect, ping_req::PingReq};
 use std::time::{Duration, Instant, SystemTime};
 
+use crate::packet_v2::subscribe::Subscribe;
+
 pub mod packet;
 pub mod packet_v2;
 mod validate;
@@ -69,9 +71,7 @@ pub fn connect(client_id: String, keep_alive_interval: u16) -> Packet {
 }
 
 pub fn subscribe(topic: &str) -> Packet {
-    Subscribe::builder()
-        .add_topic(topic.to_owned())
-        .build_packet()
+    Subscribe::builder(topic, QoS::AtMostOnceDelivery).build_packet()
 }
 
 pub fn publish(topic: &str, payload: Bytes) -> Packet {
