@@ -5,6 +5,7 @@ use crate::packet_v2::connack::ConnAck;
 use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
 use crate::packet_v2::ping_resp::PingResp;
+use crate::packet_v2::suback::SubAck;
 use bytes::{BufMut, Bytes, BytesMut};
 use std::error::Error;
 use std::fmt::{self, Display};
@@ -15,7 +16,7 @@ pub enum Packet {
     Connect(packet_v2::connect::Connect),
     ConnAck(packet_v2::connack::ConnAck),
     Subscribe(packet_v2::subscribe::Subscribe),
-    SubAck(SubAck),
+    SubAck(packet_v2::suback::SubAck),
     Publish(Publish),
     PubAck(PubAck),
     PingReq(packet_v2::ping_req::PingReq),
@@ -43,7 +44,7 @@ impl Packet {
             Self::Connect(packet) => packet.into_bytes(),
             Self::ConnAck(packet) => packet.into(),
             Self::Subscribe(packet) => packet.into_bytes(),
-            Self::SubAck(packet) => packet.inner,
+            Self::SubAck(packet) => packet.into_bytes(),
             Self::Publish(packet) => packet.inner,
             Self::PubAck(packet) => packet.inner,
             Self::PingReq(packet) => packet.into(),
@@ -143,7 +144,7 @@ impl TryFrom<Bytes> for Packet {
                 return Ok(Self::ConnAck(ConnAck::try_from(value)?));
             }
             PacketType::SubAck => {
-                return Ok(Self::SubAck(SubAck::new(value)));
+                return Ok(Self::SubAck(SubAck::try_from(value)?));
             }
             PacketType::Publish => return Ok(Self::Publish(Publish::from(value))),
             PacketType::PubAck => {
@@ -343,42 +344,6 @@ impl Error for InvalidQoS {}
 impl Display for InvalidQoS {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} is not a valid value for QoS", self.0)
-    }
-}
-
-#[derive(Clone)]
-pub struct SubAck {
-    inner: Bytes,
-}
-
-impl Frame for SubAck {
-    fn as_bytes(&self) -> &[u8] {
-        &self.inner
-    }
-
-    fn variable_header(&self) -> &[u8] {
-        let offset = self.header().len();
-        &self.as_bytes()[offset..offset + 2]
-    }
-}
-
-impl SubAck {
-    pub fn new(inner: Bytes) -> Self {
-        assert_eq!(PacketType::from_unchecked(inner[0]), PacketType::SubAck);
-        Self { inner }
-    }
-
-    pub fn identifier(&self) -> u16 {
-        u16::from_be_bytes(self.variable_header().try_into().unwrap())
-    }
-}
-
-impl std::fmt::Debug for SubAck {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SUBACK")
-            .field("length", &self.length())
-            .field("packet_identifier", &self.identifier())
-            .finish()
     }
 }
 
