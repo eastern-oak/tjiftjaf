@@ -1,4 +1,4 @@
-//! Providing [`Subscribe`], the first message a client sends to the server.
+//! Providing [`Subscribe`], used by client to express interest in one or more topics.
 use crate::{
     Frame, Packet, PacketType, QoS,
     decode::{self, DecodingError},
@@ -25,13 +25,13 @@ use bytes::{BufMut, Bytes, BytesMut};
 /// assert_eq!(topics.next(), None);
 /// ```
 ///
-/// Alternatively, try decoding [`Bytes`] as `Connect`.
+/// Alternatively, try decoding [`Bytes`] as `Subscribe`.
 /// ```
 /// use tjiftjaf::QoS;
 /// use tjiftjaf::packet_v2::subscribe::Subscribe;
 /// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[130,12,75,66,0,7,116,111,112,105,99,45,49,0]);
+/// let frame = Bytes::copy_from_slice(&[130, 12, 75, 66, 0, 7, 116, 111, 112, 105, 99, 45, 49, 0]);
 /// let packet = Subscribe::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 19266);
 /// assert_eq!(packet.topics().next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
