@@ -173,6 +173,7 @@ impl UnverifiedSubscribe {
         Ok(())
     }
 
+    // TODO: figure out if returning `Topics` is better.
     fn try_topics(&self) -> Result<Vec<(String, QoS)>, DecodingError> {
         let payload = self.try_payload()?;
         let mut offset = 0;
