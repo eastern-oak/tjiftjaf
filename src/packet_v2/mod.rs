@@ -3,6 +3,7 @@ pub mod connack;
 pub mod connect;
 pub mod ping_req;
 pub mod ping_resp;
+pub mod subscribe;
 
 // Retrieve the fixed header, variable header, and payload a frame.
 // Since the frame is not verified (yet), these operations are fallible.

@@ -75,7 +75,7 @@ impl Connect {
         self.inner.password().unwrap()
     }
 
-    pub fn will(&self) -> Option<Will> {
+    pub fn will(&self) -> Option<Will<'_>> {
         self.inner.will().unwrap()
     }
 }
@@ -143,7 +143,7 @@ impl UnverifiedConnect {
         Ok(Flags(variable_header[7]))
     }
 
-    fn will(&self) -> Result<Option<Will>, DecodingError> {
+    fn will(&self) -> Result<Option<Will<'_>>, DecodingError> {
         let connect_flags = self.connect_flags()?;
 
         if !connect_flags.will_flag() {

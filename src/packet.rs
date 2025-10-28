@@ -6,14 +6,15 @@ use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
 use crate::packet_v2::ping_resp::PingResp;
 use bytes::{BufMut, Bytes, BytesMut};
-use std::fmt;
+use std::error::Error;
+use std::fmt::{self, Display};
 use std::io::Read;
 
 #[derive(Clone)]
 pub enum Packet {
     Connect(packet_v2::connect::Connect),
     ConnAck(packet_v2::connack::ConnAck),
-    Subscribe(Subscribe),
+    Subscribe(packet_v2::subscribe::Subscribe),
     SubAck(SubAck),
     Publish(Publish),
     PubAck(PubAck),
@@ -41,7 +42,7 @@ impl Packet {
         match self {
             Self::Connect(packet) => packet.into_bytes(),
             Self::ConnAck(packet) => packet.into(),
-            Self::Subscribe(packet) => packet.inner,
+            Self::Subscribe(packet) => packet.into_bytes(),
             Self::SubAck(packet) => packet.inner,
             Self::Publish(packet) => packet.inner,
             Self::PubAck(packet) => packet.inner,
@@ -305,7 +306,7 @@ pub enum ProtocolLevel {
     _3_1_1 = 4,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum QoS {
     AtMostOnceDelivery = 0,
@@ -313,112 +314,35 @@ pub enum QoS {
     ExactlyOnceDelivery = 2,
 }
 
-#[derive(Clone)]
-pub struct Subscribe {
-    inner: Bytes,
-}
+impl TryFrom<&u8> for QoS {
+    type Error = InvalidQoS;
 
-impl Frame for Subscribe {
-    fn as_bytes(&self) -> &[u8] {
-        &self.inner
-    }
-
-    fn variable_header(&self) -> &[u8] {
-        let offset = self.header().len();
-        &self.as_bytes()[offset..offset + 2]
-    }
-}
-
-impl Subscribe {
-    pub fn new(inner: Bytes) -> Self {
-        assert_eq!(PacketType::from_unchecked(inner[0]), PacketType::Subscribe);
-        Self { inner }
-    }
-
-    pub fn builder() -> SubscribeBuilder {
-        SubscribeBuilder::new()
-    }
-
-    pub fn identifier(&self) -> u16 {
-        let offset = self.variable_header().len();
-
-        decode::packet_identifier(&self.inner[offset..offset + 2])
-            .expect("Failed to decode packet identifier.")
-    }
-
-    pub fn topic(&self) -> &str {
-        let offset: usize = self.offset_payload();
-
-        decode::utf8(&self.inner[offset..self.inner.len()]).expect("Failed to decode topic.")
-    }
-}
-
-impl std::fmt::Debug for Subscribe {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SUBSCRIBE")
-            .field("length", &self.length())
-            .field("packet_identifer", &self.identifier())
-            .field("topic", &self.topic())
-            .finish()
-    }
-}
-
-pub struct SubscribeBuilder {
-    packet_identifier: u16,
-    topic: Option<String>,
-}
-
-impl SubscribeBuilder {
-    pub fn new() -> Self {
-        Self {
-            packet_identifier: packet_identifier(),
-            topic: None,
+    fn try_from(value: &u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::AtMostOnceDelivery),
+            1 => Ok(Self::AtLeastOnceDelivery),
+            2 => Ok(Self::ExactlyOnceDelivery),
+            _ => Err(InvalidQoS(*value)),
         }
     }
+}
 
-    pub fn add_topic(mut self, topic: String) -> Self {
-        self.topic = Some(topic);
-        self
-    }
+impl TryFrom<u8> for QoS {
+    type Error = InvalidQoS;
 
-    pub fn build(self) -> Subscribe {
-        let Some(topic) = self.topic else {
-            panic!();
-        };
-
-        let mut variable_header = BytesMut::with_capacity(2);
-        variable_header.put_u16(self.packet_identifier);
-
-        // TODO: Add support for subscribing to multiple topics.
-        let mut payload = BytesMut::with_capacity(topic.len() + 3);
-
-        payload.put(encode::utf8(topic));
-        payload.put_u8(QoS::AtMostOnceDelivery as u8);
-
-        let mut packet = BytesMut::new();
-
-        let x: u8 = PacketType::Subscribe.into();
-
-        packet.put_u8((x << 4) + 2);
-
-        let remaning_length = encode::remaining_length(variable_header.len() + payload.len());
-        packet.put(remaning_length);
-        packet.put(variable_header);
-        packet.put(payload);
-
-        Subscribe {
-            inner: packet.freeze(),
-        }
-    }
-
-    pub fn build_packet(self) -> Packet {
-        Packet::Subscribe(self.build())
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        QoS::try_from(&value)
     }
 }
 
-impl Default for SubscribeBuilder {
-    fn default() -> Self {
-        Self::new()
+#[derive(Debug)]
+pub struct InvalidQoS(u8);
+
+impl Error for InvalidQoS {}
+
+impl Display for InvalidQoS {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} is not a valid value for QoS", self.0)
     }
 }
 
@@ -453,7 +377,7 @@ impl std::fmt::Debug for SubAck {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SUBACK")
             .field("length", &self.length())
-            .field("packet_identifer", &self.identifier())
+            .field("packet_identifier", &self.identifier())
             .finish()
     }
 }

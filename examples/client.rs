@@ -1,6 +1,6 @@
 use async_net::TcpStream;
 use futures_lite::FutureExt;
-use tjiftjaf::{Client, Frame, Options};
+use tjiftjaf::{Client, Frame, Options, QoS};
 
 fn main() {
     simple_logger::init_with_level(log::Level::Debug).unwrap();
@@ -20,7 +20,7 @@ fn main() {
         let (mut handle, task) = client.spawn();
 
         handle
-            .subscribe("$SYS/broker/uptime")
+            .subscribe("$SYS/broker/uptime", QoS::AtMostOnceDelivery)
             .await
             .expect("Failed to subscribe to topic.");
 

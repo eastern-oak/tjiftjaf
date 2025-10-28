@@ -2,7 +2,9 @@
 //!
 //! The `Client` holds a connection internally. Use a `ClientHandle` to
 //! read and write packets to this connection.
-use super::{MqttBinding, Packet, Publish, Subscribe};
+use crate::{QoS, packet_v2::subscribe::Subscribe};
+
+use super::{MqttBinding, Packet, Publish};
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
 use bytes::Bytes;
@@ -67,7 +69,7 @@ where
         //
         // When done, request a read buffer, read bytes from the broker until
         // the buffer is full. Then, request the binding to decode the buffer.
-        // This operation might yield a mqtt::Packet for futher processing.
+        // This operation might yield a mqtt::Packet for further processing.
         loop {
             while let Ok(packet) = self.receiver.try_recv() {
                 self.binding.send(packet);
@@ -75,7 +77,7 @@ where
 
             while let Some(bytes) = self.binding.poll_transmits(Instant::now()) {
                 self.socket.write_all(&bytes).await?;
-                // If the socket implementation is buffered, `bytes` will not be transmited unless
+                // If the socket implementation is buffered, `bytes` will not be transmitted unless
                 // the internal buffer is full or a call to flush is done.
                 self.socket.flush().await?;
             }
@@ -165,8 +167,12 @@ pub struct ClientHandle {
 }
 
 impl ClientHandle {
-    pub async fn subscribe(&self, topic: impl Into<String>) -> Result<(), SendError<Packet>> {
-        let packet = Subscribe::builder().add_topic(topic.into()).build_packet();
+    pub async fn subscribe(
+        &self,
+        topic: impl Into<String>,
+        qos: QoS,
+    ) -> Result<(), SendError<Packet>> {
+        let packet = Subscribe::builder(topic, qos).build_packet();
         self.send(packet).await
     }
 

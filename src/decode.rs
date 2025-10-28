@@ -60,10 +60,6 @@ pub fn packet_type(bytes: &[u8]) -> Result<PacketType, DecodingError> {
     PacketType::try_from(byte).map_err(|_| DecodingError::InvalidPacketType(*byte))
 }
 
-pub fn packet_identifier(bytes: &[u8]) -> Result<u16, DecodingError> {
-    u16(bytes)
-}
-
 pub fn u16(bytes: &[u8]) -> Result<u16, DecodingError> {
     let msb = bytes.first().ok_or(DecodingError::NotEnoughBytes {
         minimum: 2,
