@@ -48,7 +48,7 @@ pub use packet::*;
 use packet_v2::{connect::Connect, ping_req::PingReq};
 use std::time::{Duration, Instant, SystemTime};
 
-use crate::packet_v2::subscribe::Subscribe;
+use crate::packet_v2::{publish::Publish, subscribe::Subscribe};
 
 pub mod packet;
 pub mod packet_v2;
@@ -75,10 +75,7 @@ pub fn subscribe(topic: &str) -> Packet {
 }
 
 pub fn publish(topic: &str, payload: Bytes) -> Packet {
-    Publish::builder()
-        .topic(topic.to_owned())
-        .payload(payload)
-        .build_packet()
+    Publish::builder(topic, payload).build_packet()
 }
 
 #[derive(Default, Debug)]

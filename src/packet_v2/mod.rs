@@ -3,6 +3,7 @@ pub mod connack;
 pub mod connect;
 pub mod ping_req;
 pub mod ping_resp;
+pub mod publish;
 pub mod suback;
 pub mod subscribe;
 
@@ -20,7 +21,7 @@ pub trait UnverifiedFrame {
     fn try_header(&self) -> Result<&[u8], DecodingError> {
         let inner = self.as_bytes();
 
-        // Decode the "remaining lenght" field. This field is between
+        // Decode the "remaining length" field. This field is between
         // 1 and 3 bytes long and contains the number that follow _after_
         // this field.
         //
