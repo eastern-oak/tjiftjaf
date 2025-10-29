@@ -1,12 +1,12 @@
-use super::decode::{self, DecodingError, InvalidPacketTypeError, packet_length};
-use super::encode;
+use super::decode::{DecodingError, InvalidPacketTypeError, packet_length};
 use crate::packet_v2;
 use crate::packet_v2::connack::ConnAck;
 use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
 use crate::packet_v2::ping_resp::PingResp;
+use crate::packet_v2::publish::Publish;
 use crate::packet_v2::suback::SubAck;
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::Bytes;
 use std::error::Error;
 use std::fmt::{self, Display};
 use std::io::Read;
@@ -17,7 +17,7 @@ pub enum Packet {
     ConnAck(packet_v2::connack::ConnAck),
     Subscribe(packet_v2::subscribe::Subscribe),
     SubAck(packet_v2::suback::SubAck),
-    Publish(Publish),
+    Publish(packet_v2::publish::Publish),
     PubAck(PubAck),
     PingReq(packet_v2::ping_req::PingReq),
     PingResp(packet_v2::ping_resp::PingResp),
@@ -45,7 +45,7 @@ impl Packet {
             Self::ConnAck(packet) => packet.into(),
             Self::Subscribe(packet) => packet.into_bytes(),
             Self::SubAck(packet) => packet.into_bytes(),
-            Self::Publish(packet) => packet.inner,
+            Self::Publish(packet) => packet.into_bytes(),
             Self::PubAck(packet) => packet.inner,
             Self::PingReq(packet) => packet.into(),
             Self::PingResp(packet) => packet.into(),
@@ -146,7 +146,7 @@ impl TryFrom<Bytes> for Packet {
             PacketType::SubAck => {
                 return Ok(Self::SubAck(SubAck::try_from(value)?));
             }
-            PacketType::Publish => return Ok(Self::Publish(Publish::from(value))),
+            PacketType::Publish => return Ok(Self::Publish(Publish::try_from(value)?)),
             PacketType::PubAck => {
                 return Ok(Self::PubAck(PubAck::new(value)));
             }
@@ -344,107 +344,6 @@ impl Error for InvalidQoS {}
 impl Display for InvalidQoS {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} is not a valid value for QoS", self.0)
-    }
-}
-
-#[derive(Clone)]
-pub struct Publish {
-    inner: Bytes,
-}
-
-impl Frame for Publish {
-    fn as_bytes(&self) -> &[u8] {
-        &self.inner
-    }
-
-    fn variable_header(&self) -> &[u8] {
-        let offset = self.header().len();
-        let size = self.topic().len() + 2;
-        &self.inner[offset..offset + size]
-    }
-}
-
-impl Publish {
-    pub fn builder() -> PublishBuilder {
-        PublishBuilder::new()
-    }
-
-    pub fn from(inner: Bytes) -> Self {
-        assert_eq!(PacketType::from_unchecked(inner[0]), PacketType::Publish);
-        Self { inner }
-    }
-
-    pub fn topic(&self) -> &str {
-        let offset: usize = self.offset_variable_header();
-        decode::utf8(&self.inner[offset..self.inner.len()]).expect("Failed to decode topic.")
-    }
-}
-
-impl std::fmt::Debug for Publish {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PUBLISH")
-            .field("length", &self.length())
-            .field("topic", &self.topic())
-            .finish()
-    }
-}
-
-pub struct PublishBuilder {
-    topic: Option<String>,
-    payload: Option<Bytes>,
-}
-
-impl PublishBuilder {
-    pub fn new() -> Self {
-        Self {
-            topic: None,
-            payload: None,
-        }
-    }
-
-    pub fn topic(mut self, topic: String) -> Self {
-        self.topic = Some(topic);
-        self
-    }
-
-    pub fn payload(mut self, payload: Bytes) -> Self {
-        self.payload = Some(payload);
-        self
-    }
-
-    pub fn build(self) -> Publish {
-        if self.topic.is_none() || self.payload.is_none() {
-            panic!("Topic and/or payload is not set.");
-        }
-
-        let topic = self.topic.unwrap();
-        let payload = self.payload.unwrap();
-
-        let variable_header = encode::utf8(topic);
-        let remaning_length = encode::remaining_length(variable_header.len() + payload.len());
-
-        let mut packet = BytesMut::new();
-
-        let x: u8 = PacketType::Publish.into();
-
-        packet.put_u8(x << 4);
-        packet.put(remaning_length);
-        packet.put(variable_header);
-        packet.put(payload);
-
-        Publish {
-            inner: packet.freeze(),
-        }
-    }
-
-    pub fn build_packet(self) -> Packet {
-        Packet::Publish(self.build())
-    }
-}
-
-impl Default for PublishBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

@@ -2,9 +2,11 @@
 //!
 //! The `Client` holds a connection internally. Use a `ClientHandle` to
 //! read and write packets to this connection.
-use crate::{QoS, packet_v2::subscribe::Subscribe};
-
-use super::{MqttBinding, Packet, Publish};
+use super::{MqttBinding, Packet};
+use crate::{
+    QoS,
+    packet_v2::{publish::Publish, subscribe::Subscribe},
+};
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
 use bytes::Bytes;
@@ -181,10 +183,7 @@ impl ClientHandle {
         topic: impl Into<String>,
         payload: Bytes,
     ) -> Result<(), SendError<Packet>> {
-        let packet = Publish::builder()
-            .topic(topic.into())
-            .payload(payload)
-            .build_packet();
+        let packet = Publish::builder(topic, payload).build_packet();
         self.send(packet).await
     }
 

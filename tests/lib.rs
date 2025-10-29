@@ -5,7 +5,10 @@ use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use pretty_assertions::assert_eq;
 use smol::Timer;
 use std::{future, time::Duration};
-use tjiftjaf::{Client, Frame, Options, Packet, PacketType, Publish, packet_v2::connack::ConnAck};
+use tjiftjaf::{
+    Client, Frame, Options, Packet, PacketType,
+    packet_v2::{connack::ConnAck, publish::Publish},
+};
 mod broker;
 use macro_rules_attribute::apply;
 use smol_macros::test;
@@ -85,10 +88,8 @@ async fn test_17_decoding_large_packets() {
         let packet = ConnAck::builder().build();
         stream.write_all(&Bytes::from(packet)).await.unwrap();
 
-        let packet = Publish::builder()
-            .topic(TOPIC.to_string())
-            .payload(Bytes::from_static(b"test_subscribe_and_publish"))
-            .build();
+        let packet =
+            Publish::builder(TOPIC, Bytes::from_static(b"test_subscribe_and_publish")).build();
 
         let split_at = packet.length() as usize - 5;
 

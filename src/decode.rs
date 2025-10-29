@@ -104,32 +104,6 @@ pub fn packet_length(bytes: &[u8]) -> Result<u32, DecodingError> {
     Ok(value + 1 + index as u32 + 1)
 }
 
-pub fn utf8(bytes: &[u8]) -> Result<&str, DecodingError> {
-    let bytes = crate::decode::bytes(bytes)?;
-
-    std::str::from_utf8(bytes)
-        .map_err(|_| DecodingError::InvalidValue("Payload is not valid UTF-8".into()))
-}
-
-pub fn bytes(bytes: &[u8]) -> Result<&[u8], DecodingError> {
-    if bytes.len() < 2 {
-        Err(DecodingError::NotEnoughBytes {
-            minimum: 2,
-            actual: bytes.len(),
-        })?;
-    };
-
-    let length: usize = u16::from_be_bytes([bytes[0], bytes[1]]) as usize;
-    if bytes.len() < length + 2 {
-        Err(DecodingError::NotEnoughBytes {
-            minimum: length + 2,
-            actual: bytes.len(),
-        })?;
-    };
-
-    Ok(&bytes[2..2 + length])
-}
-
 pub mod field {
     use super::DecodingError;
 
@@ -179,7 +153,7 @@ pub mod field {
         variable_length_n(&bytes[offset..], n - 1)
     }
     /// Try parsing next field as `&str`.
-    /// The field must starts with 2 bytes indicating the lenght of the `&str`.
+    /// The field must starts with 2 bytes indicating the length of the `&str`.
     pub fn utf8(bytes: &[u8]) -> Result<(&str, usize), DecodingError> {
         let (bytes, offset) = crate::decode::field::bytes(bytes)?;
 

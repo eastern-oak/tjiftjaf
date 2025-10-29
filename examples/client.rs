@@ -1,6 +1,6 @@
 use async_net::TcpStream;
 use futures_lite::FutureExt;
-use tjiftjaf::{Client, Frame, Options, QoS};
+use tjiftjaf::{Client, Options, QoS, packet_identifier};
 
 fn main() {
     simple_logger::init_with_level(log::Level::Debug).unwrap();
@@ -24,6 +24,13 @@ fn main() {
             .await
             .expect("Failed to subscribe to topic.");
 
+        let random_topic = packet_identifier().to_string();
+        handle
+            .subscribe(&random_topic, QoS::AtMostOnceDelivery)
+            .await
+            .expect("Failed to subscribe to topic.");
+
+        let mut n = 0;
         _ = task
             .race(async {
                 loop {
@@ -32,8 +39,16 @@ fn main() {
                         .await
                         .expect("Failed to read packet.");
 
+                    n += 1;
+
                     let payload = String::from_utf8_lossy(packet.payload());
                     println!("{} - {:?}", packet.topic(), payload);
+                    if packet.topic() == "$SYS/broker/uptime" {
+                        handle
+                            .publish(&random_topic, format!("{n} packets received").into())
+                            .await
+                            .unwrap();
+                    }
                 }
             })
             .await;
