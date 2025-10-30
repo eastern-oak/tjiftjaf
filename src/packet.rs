@@ -1,5 +1,4 @@
 use super::decode::{DecodingError, InvalidPacketTypeError, packet_length};
-use crate::packet_v2;
 use crate::packet_v2::connack::ConnAck;
 use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
@@ -7,21 +6,21 @@ use crate::packet_v2::ping_resp::PingResp;
 use crate::packet_v2::puback::PubAck;
 use crate::packet_v2::publish::Publish;
 use crate::packet_v2::suback::SubAck;
+use crate::packet_v2::subscribe::Subscribe;
 use bytes::Bytes;
 use std::error::Error;
 use std::fmt::{self, Display};
-use std::io::Read;
 
 #[derive(Clone)]
 pub enum Packet {
-    Connect(packet_v2::connect::Connect),
-    ConnAck(packet_v2::connack::ConnAck),
-    Subscribe(packet_v2::subscribe::Subscribe),
-    SubAck(packet_v2::suback::SubAck),
-    Publish(packet_v2::publish::Publish),
-    PubAck(packet_v2::puback::PubAck),
-    PingReq(packet_v2::ping_req::PingReq),
-    PingResp(packet_v2::ping_resp::PingResp),
+    Connect(Connect),
+    ConnAck(ConnAck),
+    Subscribe(Subscribe),
+    SubAck(SubAck),
+    Publish(Publish),
+    PubAck(PubAck),
+    PingReq(PingReq),
+    PingResp(PingResp),
     Other(Bytes),
 }
 
@@ -346,14 +345,4 @@ impl Display for InvalidQoS {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} is not a valid value for QoS", self.0)
     }
-}
-
-pub fn packet_identifier() -> u16 {
-    let mut buf = vec![0u8, 2];
-    std::fs::File::open("/dev/urandom")
-        .expect("Failed to open /dev/urandom.")
-        .read_exact(&mut buf)
-        .expect("Failed to obtain random data.");
-
-    (buf[0] as u16 * 256) + buf[1] as u16
 }
