@@ -1,26 +1,26 @@
 use super::decode::{DecodingError, InvalidPacketTypeError, packet_length};
-use crate::packet_v2;
 use crate::packet_v2::connack::ConnAck;
 use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
 use crate::packet_v2::ping_resp::PingResp;
+use crate::packet_v2::puback::PubAck;
 use crate::packet_v2::publish::Publish;
 use crate::packet_v2::suback::SubAck;
+use crate::packet_v2::subscribe::Subscribe;
 use bytes::Bytes;
 use std::error::Error;
 use std::fmt::{self, Display};
-use std::io::Read;
 
 #[derive(Clone)]
 pub enum Packet {
-    Connect(packet_v2::connect::Connect),
-    ConnAck(packet_v2::connack::ConnAck),
-    Subscribe(packet_v2::subscribe::Subscribe),
-    SubAck(packet_v2::suback::SubAck),
-    Publish(packet_v2::publish::Publish),
+    Connect(Connect),
+    ConnAck(ConnAck),
+    Subscribe(Subscribe),
+    SubAck(SubAck),
+    Publish(Publish),
     PubAck(PubAck),
-    PingReq(packet_v2::ping_req::PingReq),
-    PingResp(packet_v2::ping_resp::PingResp),
+    PingReq(PingReq),
+    PingResp(PingResp),
     Other(Bytes),
 }
 
@@ -46,7 +46,7 @@ impl Packet {
             Self::Subscribe(packet) => packet.into_bytes(),
             Self::SubAck(packet) => packet.into_bytes(),
             Self::Publish(packet) => packet.into_bytes(),
-            Self::PubAck(packet) => packet.inner,
+            Self::PubAck(packet) => packet.into(),
             Self::PingReq(packet) => packet.into(),
             Self::PingResp(packet) => packet.into(),
             Self::Other(inner) => inner,
@@ -148,7 +148,7 @@ impl TryFrom<Bytes> for Packet {
             }
             PacketType::Publish => return Ok(Self::Publish(Publish::try_from(value)?)),
             PacketType::PubAck => {
-                return Ok(Self::PubAck(PubAck::new(value)));
+                return Ok(Self::PubAck(PubAck::try_from(value)?));
             }
             _ => {
                 if let 0..=4 = value.len() {
@@ -345,59 +345,4 @@ impl Display for InvalidQoS {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} is not a valid value for QoS", self.0)
     }
-}
-
-#[derive(Clone)]
-pub struct PubAck {
-    inner: Bytes,
-}
-
-impl PubAck {
-    pub fn new(inner: Bytes) -> Self {
-        assert_eq!(inner.len(), 4);
-        assert_eq!(PacketType::from_unchecked(inner[0]), PacketType::Publish);
-        Self { inner }
-    }
-
-    pub const fn packet_type(&self) -> PacketType {
-        PacketType::PubAck
-    }
-
-    // Return the length of the packet.
-    fn length(&self) -> u32 {
-        4
-    }
-
-    pub fn identifier(&self) -> u16 {
-        u16::from_be_bytes(self.inner[3..5].try_into().unwrap())
-    }
-}
-
-impl Frame for PubAck {
-    fn as_bytes(&self) -> &[u8] {
-        &self.inner
-    }
-
-    fn variable_header(&self) -> &[u8] {
-        &self.inner[2..4]
-    }
-}
-
-impl std::fmt::Debug for PubAck {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PUBACK")
-            .field("length", &self.length())
-            .field("packet_identifier", &self.identifier())
-            .finish()
-    }
-}
-
-pub fn packet_identifier() -> u16 {
-    let mut buf = vec![0u8, 2];
-    std::fs::File::open("/dev/urandom")
-        .expect("Failed to open /dev/urandom.")
-        .read_exact(&mut buf)
-        .expect("Failed to obtain random data.");
-
-    (buf[0] as u16 * 256) + buf[1] as u16
 }

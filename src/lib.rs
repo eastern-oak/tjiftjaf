@@ -56,7 +56,7 @@ mod validate;
 
 pub fn packet_identifier() -> u16 {
     let seconds = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_millis(),
+        Ok(n) => n.as_nanos(),
         Err(_) => panic!("SystemTime before UNIX EPOCH!"),
     };
 

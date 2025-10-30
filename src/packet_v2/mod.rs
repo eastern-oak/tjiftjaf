@@ -3,6 +3,7 @@ pub mod connack;
 pub mod connect;
 pub mod ping_req;
 pub mod ping_resp;
+pub mod puback;
 pub mod publish;
 pub mod suback;
 pub mod subscribe;

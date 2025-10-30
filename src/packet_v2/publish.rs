@@ -2,8 +2,7 @@
 use crate::{
     Frame, Packet, PacketType, QoS,
     decode::{self, DecodingError},
-    encode,
-    packet::packet_identifier,
+    encode, packet_identifier,
     packet_v2::UnverifiedFrame,
 };
 use bytes::{BufMut, Bytes, BytesMut};
