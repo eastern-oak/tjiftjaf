@@ -5,6 +5,7 @@ use crate::packet_v2::ping_req::PingReq;
 use crate::packet_v2::ping_resp::PingResp;
 use crate::packet_v2::puback::PubAck;
 use crate::packet_v2::publish::Publish;
+use crate::packet_v2::pubrec::PubRec;
 use crate::packet_v2::suback::SubAck;
 use crate::packet_v2::subscribe::Subscribe;
 use crate::packet_v2::unsuback::UnsubAck;
@@ -20,6 +21,7 @@ pub enum Packet {
     SubAck(SubAck),
     Publish(Publish),
     PubAck(PubAck),
+    PubRec(PubRec),
     PingReq(PingReq),
     PingResp(PingResp),
     UnsubAck(UnsubAck),
@@ -35,6 +37,7 @@ impl Packet {
             Self::SubAck(packet) => packet.packet_type(),
             Self::Publish(packet) => packet.packet_type(),
             Self::PubAck(packet) => packet.packet_type(),
+            Self::PubRec(packet) => packet.packet_type(),
             Self::PingReq(packet) => packet.packet_type(),
             Self::PingResp(packet) => packet.packet_type(),
             Self::UnsubAck(packet) => packet.packet_type(),
@@ -50,6 +53,7 @@ impl Packet {
             Self::SubAck(packet) => packet.into_bytes(),
             Self::Publish(packet) => packet.into_bytes(),
             Self::PubAck(packet) => packet.into(),
+            Self::PubRec(packet) => packet.into(),
             Self::PingReq(packet) => packet.into(),
             Self::PingResp(packet) => packet.into(),
             Self::UnsubAck(packet) => packet.into(),
@@ -65,6 +69,7 @@ impl Packet {
             Self::SubAck(packet) => packet.length() as usize,
             Self::Publish(packet) => packet.length() as usize,
             Self::PubAck(packet) => packet.length() as usize,
+            Self::PubRec(packet) => packet.length() as usize,
             Self::PingReq(packet) => packet.length() as usize,
             Self::PingResp(packet) => packet.length() as usize,
             Self::UnsubAck(packet) => packet.length() as usize,
@@ -80,6 +85,7 @@ impl Packet {
             Self::SubAck(packet) => packet.payload(),
             Self::Publish(packet) => packet.payload(),
             Self::PubAck(packet) => packet.payload(),
+            Self::PubRec(packet) => packet.payload(),
             Self::PingReq(packet) => packet.payload(),
             Self::PingResp(packet) => packet.payload(),
             Self::UnsubAck(packet) => packet.payload(),
@@ -97,6 +103,7 @@ impl std::fmt::Debug for Packet {
             Self::SubAck(packet) => packet.fmt(f),
             Self::Publish(packet) => packet.fmt(f),
             Self::PubAck(packet) => packet.fmt(f),
+            Self::PubRec(packet) => packet.fmt(f),
             Self::PingReq(packet) => packet.fmt(f),
             Self::PingResp(packet) => packet.fmt(f),
             Self::UnsubAck(packet) => packet.fmt(f),

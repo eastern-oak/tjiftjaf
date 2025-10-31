@@ -6,6 +6,7 @@ pub mod ping_req;
 pub mod ping_resp;
 pub mod puback;
 pub mod publish;
+pub mod pubrec;
 pub mod suback;
 pub mod subscribe;
 pub mod unsuback;
