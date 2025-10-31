@@ -1,34 +1,30 @@
 //! Providing [`PubAck`], to acknowledge a [`super::Publish`].
+use crate::packet_v2::ack::Ack;
 use crate::{Frame, Packet, PacketType, decode::DecodingError};
 use bytes::Bytes;
 
 /// A [`PubAck`] packet is the response to a [`Publish`] packet with [`QoS::AtLeastOnceDelivery`].
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct PubAck([u8; 4]);
+pub struct PubAck(Ack);
 
 impl PubAck {
     pub fn new(packet_identifier: u16) -> Self {
-        Self([
-            (PacketType::PubAck as u8) << 4,
-            2, // The remaining length,
-            (packet_identifier >> 8) as u8,
-            packet_identifier as u8,
-        ])
+        Self(Ack::new(PacketType::PubAck, packet_identifier))
     }
 
     /// Retrieve the packet identifier.
     pub fn packet_identifier(&self) -> u16 {
-        ((self.0[2] as u16) << 8) | self.0[3] as u16
+        self.0.packet_identifier()
     }
 }
 
 impl Frame for PubAck {
     fn as_bytes(&self) -> &[u8] {
-        &self.0[..]
+        &self.0.as_bytes()
     }
 
     fn variable_header(&self) -> &[u8] {
-        &self.0[2..]
+        &self.0.variable_header()
     }
 }
 
@@ -44,34 +40,18 @@ impl TryFrom<&[u8]> for PubAck {
     type Error = DecodingError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        if value.len() < 4 {
-            return Err(DecodingError::NotEnoughBytes {
-                minimum: 4,
-                actual: value.len(),
-            });
+        let ack = Ack::try_from(value)?;
+        if ack.packet_type() == PacketType::PubAck {
+            Ok(PubAck(ack))
+        } else {
+            Err(DecodingError::InvalidPacketType(ack.packet_type() as u8))
         }
-
-        let packet_type = value[0];
-        if packet_type != (PacketType::PubAck as u8) << 4 {
-            return Err(DecodingError::InvalidPacketType(packet_type));
-        }
-
-        let remaining_length = value[1];
-        if remaining_length != 2 {
-            return Err(DecodingError::InvalidValue(format!("Length must be 2")));
-        }
-
-        if value.len() > 4 {
-            return Err(DecodingError::TooManyBytes);
-        }
-
-        Ok(Self([packet_type, remaining_length, value[2], value[3]]))
     }
 }
 
 impl From<PubAck> for Bytes {
     fn from(value: PubAck) -> Bytes {
-        Bytes::copy_from_slice(&value.0)
+        Bytes::copy_from_slice(&value.0.as_bytes())
     }
 }
 
@@ -85,7 +65,7 @@ impl std::fmt::Debug for PubAck {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PubAck")
             .field("length", &self.length())
-            .field("packet_identifier", &self.length())
+            .field("packet_identifier", &self.packet_identifier())
             .finish()
     }
 }
