@@ -2,6 +2,7 @@ use crate::decode::DecodingError;
 mod ack;
 pub mod connack;
 pub mod connect;
+pub mod disconnect;
 pub mod ping_req;
 pub mod ping_resp;
 pub mod puback;
