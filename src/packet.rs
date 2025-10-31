@@ -4,8 +4,10 @@ use crate::packet_v2::connect::Connect;
 use crate::packet_v2::ping_req::PingReq;
 use crate::packet_v2::ping_resp::PingResp;
 use crate::packet_v2::puback::PubAck;
+use crate::packet_v2::pubcomp::PubComp;
 use crate::packet_v2::publish::Publish;
 use crate::packet_v2::pubrec::PubRec;
+use crate::packet_v2::pubrel::PubRel;
 use crate::packet_v2::suback::SubAck;
 use crate::packet_v2::subscribe::Subscribe;
 use crate::packet_v2::unsuback::UnsubAck;
@@ -20,8 +22,10 @@ pub enum Packet {
     Subscribe(Subscribe),
     SubAck(SubAck),
     Publish(Publish),
+    PubComp(PubComp),
     PubAck(PubAck),
     PubRec(PubRec),
+    PubRel(PubRel),
     PingReq(PingReq),
     PingResp(PingResp),
     UnsubAck(UnsubAck),
@@ -37,7 +41,9 @@ impl Packet {
             Self::SubAck(packet) => packet.packet_type(),
             Self::Publish(packet) => packet.packet_type(),
             Self::PubAck(packet) => packet.packet_type(),
+            Self::PubComp(packet) => packet.packet_type(),
             Self::PubRec(packet) => packet.packet_type(),
+            Self::PubRel(packet) => packet.packet_type(),
             Self::PingReq(packet) => packet.packet_type(),
             Self::PingResp(packet) => packet.packet_type(),
             Self::UnsubAck(packet) => packet.packet_type(),
@@ -53,7 +59,9 @@ impl Packet {
             Self::SubAck(packet) => packet.into_bytes(),
             Self::Publish(packet) => packet.into_bytes(),
             Self::PubAck(packet) => packet.into(),
+            Self::PubComp(packet) => packet.into(),
             Self::PubRec(packet) => packet.into(),
+            Self::PubRel(packet) => packet.into(),
             Self::PingReq(packet) => packet.into(),
             Self::PingResp(packet) => packet.into(),
             Self::UnsubAck(packet) => packet.into(),
@@ -69,7 +77,9 @@ impl Packet {
             Self::SubAck(packet) => packet.length() as usize,
             Self::Publish(packet) => packet.length() as usize,
             Self::PubAck(packet) => packet.length() as usize,
+            Self::PubComp(packet) => packet.length() as usize,
             Self::PubRec(packet) => packet.length() as usize,
+            Self::PubRel(packet) => packet.length() as usize,
             Self::PingReq(packet) => packet.length() as usize,
             Self::PingResp(packet) => packet.length() as usize,
             Self::UnsubAck(packet) => packet.length() as usize,
@@ -85,7 +95,9 @@ impl Packet {
             Self::SubAck(packet) => packet.payload(),
             Self::Publish(packet) => packet.payload(),
             Self::PubAck(packet) => packet.payload(),
+            Self::PubComp(packet) => packet.payload(),
             Self::PubRec(packet) => packet.payload(),
+            Self::PubRel(packet) => packet.payload(),
             Self::PingReq(packet) => packet.payload(),
             Self::PingResp(packet) => packet.payload(),
             Self::UnsubAck(packet) => packet.payload(),
@@ -103,7 +115,9 @@ impl std::fmt::Debug for Packet {
             Self::SubAck(packet) => packet.fmt(f),
             Self::Publish(packet) => packet.fmt(f),
             Self::PubAck(packet) => packet.fmt(f),
+            Self::PubComp(packet) => packet.fmt(f),
             Self::PubRec(packet) => packet.fmt(f),
+            Self::PubRel(packet) => packet.fmt(f),
             Self::PingReq(packet) => packet.fmt(f),
             Self::PingResp(packet) => packet.fmt(f),
             Self::UnsubAck(packet) => packet.fmt(f),
@@ -141,7 +155,7 @@ impl TryFrom<Bytes> for Packet {
                 2 => {}
                 _ => return Err(DecodingError::TooManyBytes),
             },
-            PacketType::PubRec | PacketType::PubRel | PacketType::PubComp => match value.len() {
+            PacketType::PubComp => match value.len() {
                 0..=3 => {
                     return Err(DecodingError::NotEnoughBytes {
                         minimum: 4,
@@ -158,6 +172,8 @@ impl TryFrom<Bytes> for Packet {
                 return Ok(Self::SubAck(SubAck::try_from(value)?));
             }
             PacketType::Publish => return Ok(Self::Publish(Publish::try_from(value)?)),
+            PacketType::PubRec => return Ok(Self::PubRec(PubRec::try_from(value)?)),
+            PacketType::PubRel => return Ok(Self::PubRel(PubRel::try_from(value)?)),
             PacketType::PubAck => {
                 return Ok(Self::PubAck(PubAck::try_from(value)?));
             }

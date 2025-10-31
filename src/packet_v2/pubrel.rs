@@ -5,11 +5,11 @@ use bytes::Bytes;
 
 /// A [`PubAck`] packet is the response to a [`Publish`] packet with [`QoS::AtLeastOnceDelivery`].
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct PubRec(Ack);
+pub struct PubRel(Ack);
 
-impl PubRec {
+impl PubRel {
     pub fn new(packet_identifier: u16) -> Self {
-        Self(Ack::new(PacketType::PubRec, packet_identifier))
+        Self(Ack::new(PacketType::PubRel, packet_identifier))
     }
 
     /// Retrieve the packet identifier.
@@ -18,7 +18,7 @@ impl PubRec {
     }
 }
 
-impl Frame for PubRec {
+impl Frame for PubRel {
     fn as_bytes(&self) -> &[u8] {
         &self.0.as_bytes()
     }
@@ -28,42 +28,42 @@ impl Frame for PubRec {
     }
 }
 
-impl TryFrom<Bytes> for PubRec {
+impl TryFrom<Bytes> for PubRel {
     type Error = DecodingError;
 
     fn try_from(value: Bytes) -> Result<Self, Self::Error> {
-        PubRec::try_from(value.as_ref())
+        PubRel::try_from(value.as_ref())
     }
 }
 
-impl TryFrom<&[u8]> for PubRec {
+impl TryFrom<&[u8]> for PubRel {
     type Error = DecodingError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let ack = Ack::try_from(value)?;
-        if ack.packet_type() == PacketType::PubRec {
-            Ok(PubRec(ack))
+        if ack.packet_type() == PacketType::PubRel {
+            Ok(PubRel(ack))
         } else {
             Err(DecodingError::InvalidPacketType(ack.packet_type() as u8))
         }
     }
 }
 
-impl From<PubRec> for Bytes {
-    fn from(value: PubRec) -> Bytes {
+impl From<PubRel> for Bytes {
+    fn from(value: PubRel) -> Bytes {
         Bytes::copy_from_slice(&value.0.as_bytes())
     }
 }
 
-impl From<PubRec> for Packet {
-    fn from(value: PubRec) -> Packet {
-        Packet::PubRec(value)
+impl From<PubRel> for Packet {
+    fn from(value: PubRel) -> Packet {
+        Packet::PubRel(value)
     }
 }
 
-impl std::fmt::Debug for PubRec {
+impl std::fmt::Debug for PubRel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PubRec")
+        f.debug_struct("PubRel")
             .field("length", &self.length())
             .field("packet_identifier", &self.packet_identifier())
             .finish()
@@ -72,13 +72,13 @@ impl std::fmt::Debug for PubRec {
 
 #[cfg(test)]
 mod test {
-    use super::PubRec;
+    use super::PubRel;
 
     #[test]
     fn test_encode_and_decode() {
-        let puback = PubRec::new(1568);
+        let puback = PubRel::new(1568);
         // Verify conversion to and from &[u8].
-        PubRec::try_from(puback).unwrap();
+        PubRel::try_from(puback).unwrap();
 
         assert_eq!(puback.packet_identifier(), 1568);
     }
