@@ -1,9 +1,9 @@
-//! Providing [`PubAck`], to acknowledge a [`super::Publish`].
+//! Providing [`PubRec`], to acknowledge a [`super::Publish`].
 use crate::packet_v2::ack::Ack;
 use crate::{Frame, Packet, PacketType, decode::DecodingError};
 use bytes::Bytes;
 
-/// A [`PubAck`] packet is the response to a [`Publish`] packet with [`QoS::AtLeastOnceDelivery`].
+/// A [`PubRec`] packet is the response to a [`Publish`] packet with [`QoS::ExactlyOnceDelivery`].
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct PubRec(Ack);
 
