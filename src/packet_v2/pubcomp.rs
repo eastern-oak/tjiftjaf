@@ -1,15 +1,15 @@
-//! Providing [`PubAck`], to acknowledge a [`super::Publish`].
+//! Providing [`PubComp`], a messages that acknowledges a [`super::PubRel`].
 use crate::packet_v2::ack::Ack;
 use crate::{Frame, Packet, PacketType, decode::DecodingError};
 use bytes::Bytes;
 
-/// A [`PubAck`] packet is the response to a [`Publish`] packet with [`QoS::AtLeastOnceDelivery`].
+///[`PubComp`] is the response to a [`super::PubRel`] packet with [`QoS::OnlyOnceDelivery`].
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct PubAck(Ack);
+pub struct PubComp(Ack);
 
-impl PubAck {
+impl PubComp {
     pub fn new(packet_identifier: u16) -> Self {
-        Self(Ack::new(PacketType::PubAck, packet_identifier))
+        Self(Ack::new(PacketType::PubComp, packet_identifier))
     }
 
     /// Retrieve the packet identifier.
@@ -18,7 +18,7 @@ impl PubAck {
     }
 }
 
-impl Frame for PubAck {
+impl Frame for PubComp {
     fn as_bytes(&self) -> &[u8] {
         &self.0.as_bytes()
     }
@@ -28,42 +28,42 @@ impl Frame for PubAck {
     }
 }
 
-impl TryFrom<Bytes> for PubAck {
+impl TryFrom<Bytes> for PubComp {
     type Error = DecodingError;
 
     fn try_from(value: Bytes) -> Result<Self, Self::Error> {
-        PubAck::try_from(value.as_ref())
+        PubComp::try_from(value.as_ref())
     }
 }
 
-impl TryFrom<&[u8]> for PubAck {
+impl TryFrom<&[u8]> for PubComp {
     type Error = DecodingError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let ack = Ack::try_from(value)?;
-        if ack.packet_type() == PacketType::PubAck {
-            Ok(PubAck(ack))
+        if ack.packet_type() == PacketType::PubComp {
+            Ok(PubComp(ack))
         } else {
             Err(DecodingError::InvalidPacketType(ack.packet_type() as u8))
         }
     }
 }
 
-impl From<PubAck> for Bytes {
-    fn from(value: PubAck) -> Bytes {
+impl From<PubComp> for Bytes {
+    fn from(value: PubComp) -> Bytes {
         Bytes::copy_from_slice(&value.0.as_bytes())
     }
 }
 
-impl From<PubAck> for Packet {
-    fn from(value: PubAck) -> Packet {
-        Packet::PubAck(value)
+impl From<PubComp> for Packet {
+    fn from(value: PubComp) -> Packet {
+        Packet::PubComp(value)
     }
 }
 
-impl std::fmt::Debug for PubAck {
+impl std::fmt::Debug for PubComp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PubAck")
+        f.debug_struct("PubComp")
             .field("length", &self.length())
             .field("packet_identifier", &self.packet_identifier())
             .finish()
@@ -72,13 +72,13 @@ impl std::fmt::Debug for PubAck {
 
 #[cfg(test)]
 mod test {
-    use super::PubAck;
+    use super::PubComp;
 
     #[test]
     fn test_encode_and_decode() {
-        let puback = PubAck::new(1568);
+        let puback = PubComp::new(1568);
         // Verify conversion to and from &[u8].
-        PubAck::try_from(puback).unwrap();
+        PubComp::try_from(puback).unwrap();
 
         assert_eq!(puback.packet_identifier(), 1568);
     }
