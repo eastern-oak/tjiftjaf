@@ -244,7 +244,7 @@ fn arbitrary_topics(u: &mut arbitrary::Unstructured) -> arbitrary::Result<Vec<(S
     let mut topics: Vec<(String, QoS)> = vec![];
     // A `Subscribe` packet can not have more than 255 subscriptions.
     u.arbitrary_loop(Some(1), Some(255), |u| {
-        topics.push(u.arbitrary().unwrap());
+        topics.push(u.arbitrary()?);
 
         Ok(ControlFlow::Continue(()))
     })?;
