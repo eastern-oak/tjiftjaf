@@ -231,9 +231,25 @@ impl UnverifiedFrame for UnverifiedSubscribe {
     }
 }
 
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary, Debug))]
 pub struct Builder {
     packet_identifier: u16,
+    #[cfg_attr(feature = "arbitrary", arbitrary(with = arbitrary_topics))]
     topics: Vec<(String, QoS)>,
+}
+
+#[cfg(feature = "arbitrary")]
+fn arbitrary_topics(u: &mut arbitrary::Unstructured) -> arbitrary::Result<Vec<(String, QoS)>> {
+    use std::ops::ControlFlow;
+    let mut topics: Vec<(String, QoS)> = vec![];
+    // A `Subscribe` packet can not have more than 255 subscriptions.
+    u.arbitrary_loop(Some(1), Some(255), |u| {
+        topics.push(u.arbitrary().unwrap());
+
+        Ok(ControlFlow::Continue(()))
+    })?;
+
+    Ok(topics)
 }
 
 impl Builder {

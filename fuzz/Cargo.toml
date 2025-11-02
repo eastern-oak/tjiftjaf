@@ -1,0 +1,20 @@
+[package]
+name = "tjiftjaf-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+bytes = "1.10.1"
+tjiftjaf = { path = "..", features = ["arbitrary"] }
+
+[[bin]]
+name = "subscribe"
+path = "fuzz_targets/fuzz_subscribe.rs"
+test = false
+doc = false
+bench = false
