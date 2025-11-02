@@ -302,6 +302,7 @@ pub enum ProtocolLevel {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[repr(u8)]
 pub enum QoS {
     AtMostOnceDelivery = 0,
