@@ -255,9 +255,8 @@ pub trait Frame {
             return &inner[0..3];
         } else if inner[3] & 128 == 0 {
             return &inner[0..4];
-        }
-
-        panic!("Illegal packet")
+        };
+        &inner[0..5]
     }
 
     fn offset_variable_header(&self) -> usize {
