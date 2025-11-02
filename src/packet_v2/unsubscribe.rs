@@ -1,40 +1,40 @@
-//! Providing [`Subscribe`], used by client to express interest in one or more topics.
+//! Providing [`Unsubscribe`], used by client to unsubscribe from one or more topics.
 use crate::{
-    Frame, Packet, PacketType, QoS,
+    Frame, Packet, PacketType,
     decode::{self, DecodingError},
     encode, packet_identifier,
     packet_v2::UnverifiedFrame,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
-/// [Subscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718063) allows a client to express interest in one or more topics.
+/// [Unsubscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718072) allows a client unsubscribe from one or more topics.
 ///
 /// # Example
 ///
-/// Use a [`Builder`] to construct `Subscribe`.
+/// Use a [`Builder`] to construct `Unsubscribe`.
 /// ```
 /// use tjiftjaf::QoS;
-/// use tjiftjaf::packet_v2::subscribe::Subscribe;
+/// use tjiftjaf::packet_v2::unsubscribe::Unsubscribe;
 ///
-/// let subscribe = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
-///     .add_topic("topic-2", QoS::AtMostOnceDelivery)
+/// let subscribe = Unsubscribe::builder("topic-1")
+///     .add_topic("topic-2")
 ///     .build();
 /// let mut topics = subscribe.topics();
-/// assert_eq!(topics.next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
-/// assert_eq!(topics.next(), Some(("topic-2", QoS::AtMostOnceDelivery)));
+/// assert_eq!(topics.next(), Some("topic-1"));
+/// assert_eq!(topics.next(), Some("topic-2"));
 /// assert_eq!(topics.next(), None);
 /// ```
 ///
-/// Alternatively, try decoding [`Bytes`] as `Subscribe`.
+/// Alternatively, try decoding [`Bytes`] as `Unsubscribe`.
 /// ```
 /// use tjiftjaf::QoS;
-/// use tjiftjaf::packet_v2::subscribe::Subscribe;
+/// use tjiftjaf::packet_v2::unsubscribe::Unsubscribe;
 /// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[130, 12, 75, 66, 0, 7, 116, 111, 112, 105, 99, 45, 49, 0]);
-/// let packet = Subscribe::try_from(frame).unwrap();
-/// assert_eq!(packet.packet_identifier(), 19266);
-/// assert_eq!(packet.topics().next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
+/// let frame = Bytes::copy_from_slice(&[162, 11,103,235,  0,  7,116,111,112,105, 99, 45, 49]);
+/// let packet = Unsubscribe::try_from(frame).unwrap();
+/// assert_eq!(packet.packet_identifier(), 26603);
+/// assert_eq!(packet.topics().next(), Some("topic-1"));
 /// ```
 #[derive(Clone, PartialEq, Eq)]
 pub struct Unsubscribe {
@@ -130,7 +130,7 @@ pub struct Topics<'a> {
 }
 
 impl<'a> Iterator for Topics<'a> {
-    type Item = (&'a str, QoS);
+    type Item = &'a str;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.offset >= self.topics.len() {
@@ -139,9 +139,7 @@ impl<'a> Iterator for Topics<'a> {
 
         let (topic, offset) = decode::field::utf8(&self.topics[self.offset..]).expect("Failed to extract topic. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
         self.offset += offset;
-        let qos = QoS::try_from(self.topics[self.offset]).expect("Failed to extract QoS. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
-        self.offset += 1;
-        Some((topic, qos))
+        Some(topic)
     }
 }
 
@@ -279,7 +277,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_subscribe() {
+    fn test_unsubscribe() {
         let frame = Unsubscribe::builder("topic-1").build();
         dbg!(frame.as_bytes());
         let _: Unsubscribe = frame.into_bytes().try_into().unwrap();
