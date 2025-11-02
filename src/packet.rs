@@ -1,6 +1,7 @@
 use super::decode::{DecodingError, InvalidPacketTypeError, packet_length};
 use crate::packet_v2::connack::ConnAck;
 use crate::packet_v2::connect::Connect;
+use crate::packet_v2::disconnect::Disconnect;
 use crate::packet_v2::ping_req::PingReq;
 use crate::packet_v2::ping_resp::PingResp;
 use crate::packet_v2::puback::PubAck;
@@ -11,6 +12,7 @@ use crate::packet_v2::pubrel::PubRel;
 use crate::packet_v2::suback::SubAck;
 use crate::packet_v2::subscribe::Subscribe;
 use crate::packet_v2::unsuback::UnsubAck;
+use crate::packet_v2::unsubscribe::Unsubscribe;
 use bytes::Bytes;
 use std::error::Error;
 use std::fmt::{self, Display};
@@ -19,6 +21,7 @@ use std::fmt::{self, Display};
 pub enum Packet {
     Connect(Connect),
     ConnAck(ConnAck),
+    Disconnect(Disconnect),
     Subscribe(Subscribe),
     SubAck(SubAck),
     Publish(Publish),
@@ -29,7 +32,7 @@ pub enum Packet {
     PingReq(PingReq),
     PingResp(PingResp),
     UnsubAck(UnsubAck),
-    Other(Bytes),
+    Unsubscribe(Unsubscribe),
 }
 
 impl Packet {
@@ -37,6 +40,7 @@ impl Packet {
         match self {
             Self::Connect(packet) => packet.packet_type(),
             Self::ConnAck(packet) => packet.packet_type(),
+            Self::Disconnect(packet) => packet.packet_type(),
             Self::Subscribe(packet) => packet.packet_type(),
             Self::SubAck(packet) => packet.packet_type(),
             Self::Publish(packet) => packet.packet_type(),
@@ -47,7 +51,7 @@ impl Packet {
             Self::PingReq(packet) => packet.packet_type(),
             Self::PingResp(packet) => packet.packet_type(),
             Self::UnsubAck(packet) => packet.packet_type(),
-            Self::Other(inner) => PacketType::from_unchecked(inner[0]),
+            Self::Unsubscribe(packet) => packet.packet_type(),
         }
     }
 
@@ -55,6 +59,7 @@ impl Packet {
         match self {
             Self::Connect(packet) => packet.into_bytes(),
             Self::ConnAck(packet) => packet.into(),
+            Self::Disconnect(packet) => packet.into(),
             Self::Subscribe(packet) => packet.into_bytes(),
             Self::SubAck(packet) => packet.into_bytes(),
             Self::Publish(packet) => packet.into_bytes(),
@@ -65,7 +70,7 @@ impl Packet {
             Self::PingReq(packet) => packet.into(),
             Self::PingResp(packet) => packet.into(),
             Self::UnsubAck(packet) => packet.into(),
-            Self::Other(inner) => inner,
+            Self::Unsubscribe(packet) => packet.into(),
         }
     }
 
@@ -73,6 +78,7 @@ impl Packet {
         match self {
             Self::Connect(packet) => packet.length() as usize,
             Self::ConnAck(packet) => packet.length() as usize,
+            Self::Disconnect(packet) => packet.length() as usize,
             Self::Subscribe(packet) => packet.length() as usize,
             Self::SubAck(packet) => packet.length() as usize,
             Self::Publish(packet) => packet.length() as usize,
@@ -83,7 +89,7 @@ impl Packet {
             Self::PingReq(packet) => packet.length() as usize,
             Self::PingResp(packet) => packet.length() as usize,
             Self::UnsubAck(packet) => packet.length() as usize,
-            Self::Other(inner) => inner.len(),
+            Self::Unsubscribe(packet) => packet.length() as usize,
         }
     }
 
@@ -91,6 +97,7 @@ impl Packet {
         match self {
             Self::Connect(packet) => packet.payload(),
             Self::ConnAck(packet) => packet.payload(),
+            Self::Disconnect(packet) => packet.payload(),
             Self::Subscribe(packet) => packet.payload(),
             Self::SubAck(packet) => packet.payload(),
             Self::Publish(packet) => packet.payload(),
@@ -101,7 +108,7 @@ impl Packet {
             Self::PingReq(packet) => packet.payload(),
             Self::PingResp(packet) => packet.payload(),
             Self::UnsubAck(packet) => packet.payload(),
-            Self::Other(_) => unimplemented!(),
+            Self::Unsubscribe(packet) => packet.payload(),
         }
     }
 }
@@ -111,6 +118,7 @@ impl std::fmt::Debug for Packet {
         match self {
             Self::Connect(packet) => packet.fmt(f),
             Self::ConnAck(packet) => packet.fmt(f),
+            Self::Disconnect(packet) => packet.fmt(f),
             Self::Subscribe(packet) => packet.fmt(f),
             Self::SubAck(packet) => packet.fmt(f),
             Self::Publish(packet) => packet.fmt(f),
@@ -121,9 +129,7 @@ impl std::fmt::Debug for Packet {
             Self::PingReq(packet) => packet.fmt(f),
             Self::PingResp(packet) => packet.fmt(f),
             Self::UnsubAck(packet) => packet.fmt(f),
-            Self::Other(inner) => {
-                write!(f, "{:?}", PacketType::try_from(inner[0]).unwrap())
-            }
+            Self::Unsubscribe(packet) => packet.fmt(f),
         }
     }
 }
@@ -144,51 +150,18 @@ impl TryFrom<Bytes> for Packet {
             PacketType::Connect => return Ok(Packet::Connect(Connect::try_from(value)?)),
             PacketType::PingReq => return Ok(Packet::PingReq(PingReq::try_from(value)?)),
             PacketType::PingResp => return Ok(Packet::PingResp(PingResp::try_from(value)?)),
-
-            PacketType::Disconnect => match value.len() {
-                0 | 1 => {
-                    return Err(DecodingError::NotEnoughBytes {
-                        minimum: 2,
-                        actual: value.len(),
-                    });
-                }
-                2 => {}
-                _ => return Err(DecodingError::TooManyBytes),
-            },
-            PacketType::PubComp => match value.len() {
-                0..=3 => {
-                    return Err(DecodingError::NotEnoughBytes {
-                        minimum: 4,
-                        actual: value.len(),
-                    });
-                }
-                4 => {}
-                _ => return Err(DecodingError::TooManyBytes),
-            },
-            PacketType::ConnAck => {
-                return Ok(Self::ConnAck(ConnAck::try_from(value)?));
-            }
-            PacketType::SubAck => {
-                return Ok(Self::SubAck(SubAck::try_from(value)?));
-            }
+            PacketType::Disconnect => return Ok(Packet::Disconnect(Disconnect::try_from(value)?)),
+            PacketType::PubComp => return Ok(Packet::PubComp(PubComp::try_from(value)?)),
+            PacketType::ConnAck => return Ok(Self::ConnAck(ConnAck::try_from(value)?)),
+            PacketType::SubAck => return Ok(Self::SubAck(SubAck::try_from(value)?)),
             PacketType::Publish => return Ok(Self::Publish(Publish::try_from(value)?)),
             PacketType::PubRec => return Ok(Self::PubRec(PubRec::try_from(value)?)),
             PacketType::PubRel => return Ok(Self::PubRel(PubRel::try_from(value)?)),
-            PacketType::PubAck => {
-                return Ok(Self::PubAck(PubAck::try_from(value)?));
-            }
+            PacketType::PubAck => return Ok(Self::PubAck(PubAck::try_from(value)?)),
             PacketType::UnsubAck => return Ok(Self::UnsubAck(UnsubAck::try_from(value)?)),
-            _ => {
-                if let 0..=4 = value.len() {
-                    return Err(DecodingError::NotEnoughBytes {
-                        minimum: 5,
-                        actual: value.len(),
-                    });
-                }
-            }
+            PacketType::Unsubscribe => return Ok(Self::Unsubscribe(Unsubscribe::try_from(value)?)),
+            PacketType::Subscribe => return Ok(Self::Subscribe(Subscribe::try_from(value)?)),
         }
-
-        Ok(Self::Other(value))
     }
 }
 // An mqtt frame consists of 3 parts:
@@ -211,12 +184,6 @@ pub enum PacketType {
     PingReq = 12,
     PingResp = 13,
     Disconnect = 14,
-}
-
-impl PacketType {
-    fn from_unchecked(value: u8) -> Self {
-        Self::try_from(value).unwrap_or_else(|_| panic!("{value} is not a valid MQTT packet type."))
-    }
 }
 
 impl From<PacketType> for u8 {

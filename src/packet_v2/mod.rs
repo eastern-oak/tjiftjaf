@@ -2,6 +2,7 @@ use crate::decode::DecodingError;
 mod ack;
 pub mod connack;
 pub mod connect;
+pub mod disconnect;
 pub mod ping_req;
 pub mod ping_resp;
 pub mod puback;
@@ -12,6 +13,7 @@ pub mod pubrel;
 pub mod suback;
 pub mod subscribe;
 pub mod unsuback;
+pub mod unsubscribe;
 
 // Retrieve the fixed header, variable header, and payload a frame.
 // Since the frame is not verified (yet), these operations are fallible.
