@@ -310,4 +310,20 @@ mod test {
 
         builder.build();
     }
+
+    // Issue #45 tracks a bug when the `Subscribe.topics()` panics
+    // if the message includes a lot of topics.
+    //
+    // This test verifies the fix works. Iterating over the topics must _not_ panic.
+    #[test]
+    fn gh_45_fix_panic_when_iterating_over_the_topics_of_large_subscribe() {
+        let mut builder = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery);
+        for _ in 0..1145729 {
+            builder = builder.add_topic("", QoS::AtMostOnceDelivery);
+        }
+
+        let packet = builder.build();
+        let topics = packet.topics();
+        for _ in topics {}
+    }
 }
