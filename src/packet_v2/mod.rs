@@ -13,6 +13,7 @@ pub mod pubrel;
 pub mod suback;
 pub mod subscribe;
 pub mod unsuback;
+pub mod unsubscribe;
 
 // Retrieve the fixed header, variable header, and payload a frame.
 // Since the frame is not verified (yet), these operations are fallible.
