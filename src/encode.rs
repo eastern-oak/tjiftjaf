@@ -17,7 +17,11 @@ pub fn bytes(value: &[u8]) -> Bytes {
 
     bytes.freeze()
 }
+
 pub fn remaining_length(length: usize) -> Bytes {
+    // TODO: proper validation and error handling.
+    assert!(length <= 268_435_455);
+
     let mut length = length;
     let mut bytes = BytesMut::with_capacity(1);
 

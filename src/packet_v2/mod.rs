@@ -1,4 +1,4 @@
-use crate::decode::DecodingError;
+use crate::decode::{self, DecodingError};
 mod ack;
 pub mod connack;
 pub mod connect;
@@ -37,7 +37,7 @@ pub trait UnverifiedFrame {
         // * the value encoded is this field
         // * the length of this field (between 1 and 3 bytes)
         // * 1 byte for encoding the packet type
-        for n in 1..4 {
+        for n in 1..5 {
             let byte = inner.get(n).ok_or(DecodingError::NotEnoughBytes {
                 minimum: 1,
                 actual: 0,

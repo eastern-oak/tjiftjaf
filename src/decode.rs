@@ -93,13 +93,14 @@ pub fn packet_length(bytes: &[u8]) -> Result<u32, DecodingError> {
         if byte & 128 == 0 {
             break;
         }
-        index += 1;
 
         if index == 3 {
             return Err(DecodingError::InvalidValue(
-                "The variable length field is at maximum 4 bytes long. But the third byte has the continuation bit set which indicates a fourth byte.".into(),
+                "The variable length field is at maximum 4 bytes long. But the fourth byte has the continuation bit set which indicates a fourth byte.".into(),
             ));
         }
+
+        index += 1;
     }
     Ok(value + 1 + index as u32 + 1)
 }
@@ -181,5 +182,34 @@ pub mod field {
         };
 
         Ok((&bytes[2..2 + length], length + 2))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::encode;
+
+    // Verify that the variable length is correctly encoded and decoded.
+    // Depending on the size remaining length, this field takes up between 1 to 4 bytes.
+    //
+    // See https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023
+    #[test]
+    fn encode_decode_variable_length() {
+        let variable_length_field = encode::remaining_length(127);
+        assert_eq!(variable_length_field.len(), 1);
+        assert_eq!(packet_length(&variable_length_field).unwrap(), 129);
+
+        let variable_length_field = encode::remaining_length(16_383);
+        assert_eq!(variable_length_field.len(), 2);
+        assert_eq!(packet_length(&variable_length_field).unwrap(), 16_386);
+
+        let variable_length_field = encode::remaining_length(2_097_151);
+        assert_eq!(variable_length_field.len(), 3);
+        assert_eq!(packet_length(&variable_length_field).unwrap(), 2_097_155);
+
+        let variable_length_field = encode::remaining_length(268_435_455);
+        assert_eq!(variable_length_field.len(), 4);
+        assert_eq!(packet_length(&variable_length_field).unwrap(), 268_435_460);
     }
 }

@@ -289,12 +289,25 @@ mod test {
     #[test]
     fn test_subscribe() {
         let frame = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery).build();
-        dbg!(frame.as_bytes());
         let _: Subscribe = frame.into_bytes().try_into().unwrap();
 
         let frame = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
             .add_topic("topic-2", QoS::AtLeastOnceDelivery)
             .build();
         let _: Subscribe = frame.into_bytes().try_into().unwrap();
+    }
+
+    // Issue #40 tracks a bug when the `Builder` panics
+    // trying to create a `Subscribe` with a lot of topics.
+    //
+    // This test verifies the fix works. `Builder.build()` must _not_ panic.
+    #[test]
+    fn gh_40_fix_panic_when_building_subscribe_with_a_lot_of_topics() {
+        let mut builder = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery);
+        for _ in 0..1145729 {
+            builder = builder.add_topic("", QoS::AtMostOnceDelivery);
+        }
+
+        builder.build();
     }
 }
