@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.1.2 - 2025-11-03
+
+[ee23a7f](ee23a7f8aa20293c01048f2cd7b584c8b6e77331)...[83cdf9a](83cdf9afe6543ee8a3597d46784472f9056dbcbc)
+
+### Changes
+
+- GH-55 Fix hot loop when keep alive interval is 0 (#56) - ([83cdf9a](83cdf9afe6543ee8a3597d46784472f9056dbcbc)) - GH-55 (https://github.com/eastern-oak/tjiftjaf/issues/55)
+
 ## 0.1.1 - 2025-11-02
 
 [195d736](195d736acfe1744669f73ed3c5c9cb7f978210e7)...[6dc5499](6dc5499aecda1ca86681ff2023ef9056592f624a)
