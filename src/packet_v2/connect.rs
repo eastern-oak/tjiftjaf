@@ -686,10 +686,10 @@ impl<A, W> Builder<A, W> {
         fixed_header.put(payload);
 
         UnverifiedConnect {
-            inner: fixed_header.freeze(),
+            inner: fixed_header.freeze()
         }
         .verify()
-        .unwrap_or_else(|e| panic!("`Builder` failed to build `Connect`. This is a bug. Please report it to https://github.com/eastern-oak/tjiftjaf/issues. The error is {e}."))
+        .unwrap_or_else(|e| panic!("`Builder` failed to build `Connect`. This is a bug. Please report it to https://github.com/eastern-oak/tjiftjaf/issues. The error is '{e}'."))
     }
 
     pub fn build_packet(self) -> Packet {
@@ -766,6 +766,56 @@ impl<A, WithWill> Builder<A, WithWill> {
     pub fn retain_will(mut self) -> Self {
         self.flags.set_will_retain();
         self
+    }
+}
+
+impl<A, W> std::fmt::Debug for Builder<A, W> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Builder")
+            .field("client_id", &self.client_id)
+            .field("keep_alive", &self.keep_alive)
+            .field("will_topic", &self.will_topic)
+            .field("will_message", &self.will_message)
+            .field("username", &self.username)
+            .field("password", &self.password)
+            .field("flags", &self.flags)
+            .finish()
+    }
+}
+
+#[cfg(feature = "arbitrary")]
+impl<'a> arbitrary::Arbitrary<'a> for Connect {
+    fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+        let mut builder = Connect::builder();
+        if bool::arbitrary(u)? {
+            builder = builder.clean_session();
+        };
+
+        if bool::arbitrary(u)? {
+            return Ok(builder.build());
+        }
+
+        let mut builder = builder.username(String::arbitrary(u).unwrap());
+        if bool::arbitrary(u)? {
+            builder = builder.password(Vec::<u8>::arbitrary(u).unwrap());
+        }
+
+        if bool::arbitrary(u)? {
+            return Ok(builder.build());
+        }
+
+        let mut builder = builder.will(
+            String::arbitrary(u).unwrap(),
+            Vec::<u8>::arbitrary(u).unwrap(),
+        );
+        if bool::arbitrary(u)? {
+            builder = builder.retain_will();
+        }
+
+        let choices = [QoS::AtMostOnceDelivery, QoS::AtLeastOnceDelivery];
+        builder = builder.will_qos(*u.choose(&choices)?);
+
+        Ok(builder.build())
     }
 }
 

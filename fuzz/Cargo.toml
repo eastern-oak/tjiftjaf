@@ -18,3 +18,10 @@ path = "fuzz_targets/fuzz_subscribe.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "connect"
+path = "fuzz_targets/fuzz_connect.rs"
+test = false
+doc = false
+bench = false
