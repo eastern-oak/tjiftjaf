@@ -128,13 +128,24 @@ impl MqttBinding {
     }
 
     pub fn handle_timeout(&mut self, now: Instant) {
+        if self.options.keep_alive == 0 {
+            return;
+        }
+
         if (now - self.last_io).as_secs() >= self.options.keep_alive as u64 {
             self.transmits.push(Packet::PingReq(PingReq))
         }
     }
 
     pub fn poll_timeout(&mut self) -> Instant {
-        self.last_io + Duration::from_secs(self.options.keep_alive as u64)
+        let mut interval = self.options.keep_alive as u64;
+        if self.options.keep_alive == 0 {
+            interval = 300
+        }
+
+        self.last_io
+            .checked_add(Duration::from_secs(interval))
+            .unwrap()
     }
 
     /// Retrieve an input buffer. The event loop must fill the buffer.
@@ -339,9 +350,8 @@ impl Statistics {
 
 #[cfg(test)]
 mod test {
-    use crate::packet_v2::connack::ConnAck;
-
     use super::*;
+    use crate::packet_v2::connack::ConnAck;
     use std::io::{Cursor, Read};
 
     fn as_str(bytes: &[u8]) -> &str {
@@ -463,5 +473,33 @@ mod test {
                 .into(),
             ConnAck::builder().build().into(),
         ]
+    }
+
+    // Issue #53 tracks a bug where the MqttBinding enters a hot loop
+    // when the keep alive interval is 0.
+    //
+    // This test verifies the fix for that. First, it creates a binding with
+    // a keep alive interval of 5 seconds. `MqttBinding.poll_timeout()` returns
+    // an Instant that's about 5 seconds in the future.
+    //
+    // Then, the test is repeated with a keep alive interval of 0. Now, the Instant
+    // is 300 seconds (a default) in the future instead of 0 seconds.
+    #[test]
+    fn gh_53_test_fix_for_keep_alive_interval_of_0() {
+        let mut options = Options::default();
+        options.keep_alive = 5;
+
+        let mut binding = MqttBinding::from_options(options);
+        let interval = binding.poll_timeout() - Instant::now();
+        assert_eq!(interval.as_secs_f32().round(), 5.0);
+
+        // Now, try again with a keep alive interval of 0 seconds.
+        let mut options = Options::default();
+        options.keep_alive = 0;
+
+        let mut binding = MqttBinding::from_options(options);
+        let interval = binding.poll_timeout() - Instant::now();
+
+        assert_eq!(interval.as_secs_f32().round(), 300.0);
     }
 }
