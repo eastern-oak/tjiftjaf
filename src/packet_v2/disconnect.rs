@@ -90,7 +90,7 @@ mod test {
 
     #[test]
     fn test_variable_header() {
-        // The PingReq message doesn't have a variable header.
-        assert_eq!(Disconnect.variable_header(), &[])
+        // The Disconnect message doesn't have a variable header.
+        assert!(Disconnect.variable_header().is_empty())
     }
 }

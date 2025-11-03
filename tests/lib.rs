@@ -6,8 +6,8 @@ use pretty_assertions::assert_eq;
 use smol::Timer;
 use std::{future, time::Duration};
 use tjiftjaf::{
-    Client, Frame, Options, Packet, PacketType,
-    packet_v2::{connack::ConnAck, publish::Publish},
+    Client, Frame, Packet, PacketType,
+    packet_v2::{connack::ConnAck, connect::Connect, publish::Publish},
 };
 mod broker;
 use macro_rules_attribute::apply;
@@ -20,12 +20,8 @@ async fn create_client(port: u16) -> Client<TcpStream> {
         .await
         .expect("Failed to open TCP connection to broker.");
 
-    let options = Options {
-        client_id: Some("test".to_string()),
-        keep_alive: 5,
-        ..Options::default()
-    };
-    Client::new(options, stream)
+    let connect = Connect::builder().client_id("test").keep_alive(5).build();
+    Client::new(connect, stream)
 }
 
 // Connect a client to a broker.

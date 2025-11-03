@@ -5,7 +5,7 @@
 use super::{MqttBinding, Packet};
 use crate::{
     QoS,
-    packet_v2::{publish::Publish, subscribe::Subscribe},
+    packet_v2::{connect, publish::Publish, subscribe::Subscribe},
 };
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
@@ -35,14 +35,14 @@ impl<S> Client<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    pub fn new(options: Options, socket: S) -> Self {
+    pub fn new(connect: connect::Connect, socket: S) -> Self {
         // TODO: What size do we need?
         let (tx, rx) = async_channel::bounded(100);
         // TODO: What size do we need?
         let (broadcast, receiver) = async_broadcast::broadcast(100);
         Self {
             socket,
-            binding: MqttBinding::from_options(options),
+            binding: MqttBinding::from_connect(connect),
             receiver: rx,
             sender: tx,
             broadcast,
@@ -134,27 +134,6 @@ where
                     return Err(std::io::Error::other("Failed to read message from channel"));
                 }
             }
-        }
-    }
-}
-
-pub struct Options {
-    // A string identifying the client. Client ids are exclusive.
-    // If a client id is re-used, the broker must terminate all other connections using with that client id.
-    pub client_id: Option<String>,
-    pub keep_alive: u16,
-
-    pub username: Option<String>,
-    pub password: Option<Vec<u8>>,
-}
-
-impl Default for Options {
-    fn default() -> Self {
-        Self {
-            client_id: None,
-            keep_alive: 300,
-            username: None,
-            password: None,
         }
     }
 }

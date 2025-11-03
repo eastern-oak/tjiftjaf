@@ -7,6 +7,7 @@ use crate::{
 };
 use bytes::{BufMut, Bytes, BytesMut};
 use core::fmt;
+use std::marker::PhantomData;
 
 /// [Connect](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718028) is the first packet a client sends, after a connection has been established.
 ///
@@ -50,31 +51,105 @@ impl Connect {
         Builder::new()
     }
 
-    /// Serialize `Connect`.
     pub fn into_bytes(self) -> Bytes {
         self.inner.inner
     }
 
+    /// Retrieve the connection flags.
+    ///
+    /// ```
+    /// use tjiftjaf::Connect;
+    ///
+    /// let packet = Connect::builder().username("optimus").build();
+    /// assert_eq!(packet.flags().username(), true);
+    /// assert_eq!(packet.flags().password(), false);
+    /// ```
     pub fn flags(&self) -> Flags {
         self.inner.connect_flags().unwrap()
     }
 
+    /// Retrieve client id.
+    ///
+    /// ```
+    /// use tjiftjaf::Connect;
+    ///
+    /// let packet = Connect::builder().build();
+    /// assert_eq!(packet.client_id(), "");
+    ///
+    /// let packet = Connect::builder().client_id("host-23").build();
+    /// assert_eq!(packet.client_id(), "host-23");
+    /// ```
     pub fn client_id(&self) -> &str {
         self.inner.client_id().unwrap()
     }
 
+    /// Retrieve the keep alive interval in seconds.
+    ///
+    /// ```
+    /// use tjiftjaf::Connect;
+    ///
+    /// let packet = Connect::builder().build();
+    /// assert_eq!(packet.keep_alive(), 0);
+    ///
+    /// let packet = Connect::builder().keep_alive(60).build();
+    /// assert_eq!(packet.keep_alive(), 60);
+    /// ```
     pub fn keep_alive(&self) -> u16 {
         self.inner.keep_alive().unwrap()
     }
 
+    /// Retrieve the username, if configured.
+    ///
+    /// ```
+    /// use tjiftjaf::Connect;
+    ///
+    /// let packet = Connect::builder().build();
+    /// assert_eq!(packet.username(), None);
+    ///
+    /// let packet = Connect::builder().username("optimus").build();
+    /// assert_eq!(packet.username(), Some("optimus"));
+    /// ```
     pub fn username(&self) -> Option<&str> {
         self.inner.username().unwrap()
     }
 
+    /// Retrieve the password, if configured.
+    ///
+    /// ```
+    /// use tjiftjaf::Connect;
+    ///
+    /// let packet = Connect::builder().username("optimus").build();
+    /// assert_eq!(packet.password(), None);
+    ///
+    /// let packet = Connect::builder()
+    ///     .username("optimus")
+    ///     .password("prime")
+    ///     .build();
+    /// assert_eq!(packet.password(), Some("prime".as_bytes()));
+    /// ```
     pub fn password(&self) -> Option<&[u8]> {
         self.inner.password().unwrap()
     }
 
+    /// Retrieve the `Will`, if configured.
+    ///
+    /// ```
+    /// use tjiftjaf::{QoS, Connect};
+    ///
+    /// let packet = Connect::builder().build();
+    /// assert_eq!(packet.will(), None);
+    ///
+    /// let packet = Connect::builder()
+    ///     .will("topic", "optimus died")
+    ///     .retain_will()
+    ///     .build();
+    ///
+    /// let will = packet.will().unwrap();
+    /// assert_eq!(will.topic, "topic");
+    /// assert_eq!(will.message, b"optimus died");
+    /// assert_eq!(will.qos, QoS::AtMostOnceDelivery);
+    /// assert_eq!(will.retain, true);
+    /// ```
     pub fn will(&self) -> Option<Will<'_>> {
         self.inner.will().unwrap()
     }
@@ -296,34 +371,49 @@ impl UnverifiedFrame for UnverifiedConnect {
 pub struct Flags(pub(crate) u8);
 
 impl Flags {
+    /// Whether the username is set.
     pub fn username(&self) -> bool {
         self.0 & 128 == 128
     }
 
-    pub fn set_username(&mut self) {
+    pub(crate) fn set_username(&mut self) {
         self.0 |= 128
     }
 
+    /// Whether the password is set.
     pub fn password(&self) -> bool {
         self.0 & 64 == 64
     }
 
-    pub fn set_password(&mut self) {
+    pub(crate) fn set_password(&mut self) {
         self.0 |= 64
     }
 
+    /// Whether the will retain bit is set.
     pub fn will_retain(&self) -> bool {
         self.0 & 32 == 32
     }
 
-    pub fn will_qos(&self) -> QoS {
-        // TODO
-
-        QoS::AtMostOnceDelivery
+    pub(crate) fn set_will_retain(&mut self) {
+        self.0 |= 32
     }
 
+    /// The QoS of the will.
+    pub fn will_qos(&self) -> QoS {
+        QoS::try_from((self.0 & 24) >> 3).unwrap()
+    }
+
+    pub(crate) fn set_will_qos(&mut self, qos: QoS) {
+        self.0 |= (qos as u8) << 3;
+    }
+
+    /// Whether a will is configured.
     pub fn will_flag(&self) -> bool {
         self.0 & 4 == 4
+    }
+
+    pub(crate) fn set_will_flag(&mut self) {
+        self.0 |= 4
     }
 
     pub fn clean_session(&self) -> bool {
@@ -348,7 +438,7 @@ impl std::fmt::Debug for Flags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Will<'a> {
     pub topic: &'a str,
     // TODO: change to bytes
@@ -358,18 +448,53 @@ pub struct Will<'a> {
     pub qos: QoS,
 }
 
+/// A marker to indicate that [`Builder`] does not include credentials.
+#[derive(Copy, Clone, Debug)]
+pub struct WithoutAuth;
+
+/// A marker to indicate that [`Builder`] includes credentials.
+#[derive(Copy, Clone, Debug)]
+pub struct WithAuth;
+
+/// A marker to indicate that [`Builder`] does not include a configuration for a will.
+#[derive(Copy, Clone, Debug)]
+pub struct WithoutWill;
+
+/// A marker to indicate that [`Builder`] includes a configuration for a will.
+#[derive(Copy, Clone, Debug)]
+pub struct WithWill;
+
 /// Helper type to construct a [`Connect`].
-#[derive(Clone, Debug, Default)]
-pub struct Builder {
+///
+/// ```
+/// use tjiftjaf::packet_v2::connect::Connect;
+///
+/// let packet = Connect::builder()
+///   .client_id("test")
+///   .username("optimus")
+///   .password("prime")
+///   .build();
+///
+/// assert_eq!(packet.client_id(), "test");
+/// assert_eq!(packet.username(), Some("optimus"));
+/// assert_eq!(packet.password(), Some("prime".as_bytes()));
+/// ```
+#[derive(Clone, Default)]
+pub struct Builder<A = WithoutAuth, W = WithoutWill> {
     client_id: String,
     keep_alive: u16,
 
+    will_topic: Option<String>,
+    will_message: Option<Vec<u8>>,
     username: Option<String>,
     password: Option<Vec<u8>>,
     flags: Flags,
+
+    _auth: PhantomData<A>,
+    _will: PhantomData<W>,
 }
 
-impl Builder {
+impl Builder<WithoutAuth, WithoutWill> {
     pub fn new() -> Self {
         Builder {
             client_id: String::new(),
@@ -377,37 +502,115 @@ impl Builder {
 
             username: None,
             password: None,
+            will_topic: None,
+            will_message: None,
             flags: Flags::default(),
+            _auth: PhantomData,
+            _will: PhantomData,
         }
     }
+}
 
-    /// Configure the client id
+impl<A, W> Builder<A, W> {
+    /// Configure the client id.
+    ///
+    /// ```
+    /// use tjiftjaf::Connect;
+    ///
+    /// let packet = Connect::builder().build();
+    /// assert_eq!(packet.client_id(), "");
+    ///
+    /// let packet = Connect::builder().client_id("host-23").build();
+    /// assert_eq!(packet.client_id(), "host-23");
+    /// ```
     pub fn client_id(mut self, client_id: impl ToString) -> Self {
         self.client_id = client_id.to_string();
         self
     }
 
     /// Configure the keep alive interval.
+    ///
+    /// ```
+    /// use tjiftjaf::Connect;
+    ///
+    /// let packet = Connect::builder().build();
+    /// assert_eq!(packet.keep_alive(), 0);
+    ///
+    /// let packet = Connect::builder().keep_alive(60).build();
+    /// assert_eq!(packet.keep_alive(), 60);
+    /// ```
     pub fn keep_alive(mut self, interval: u16) -> Self {
         self.keep_alive = interval;
         self
     }
 
     /// Configure the username.
-    pub fn username(mut self, username: impl ToString) -> Self {
-        self.username = Some(username.to_string());
+    ///
+    /// ```
+    /// use tjiftjaf::Connect;
+    ///
+    /// let packet = Connect::builder().build();
+    /// assert_eq!(packet.username(), None);
+    ///
+    /// let packet = Connect::builder().username("optimus").build();
+    /// assert_eq!(packet.username(), Some("optimus"));
+    /// ```
+    pub fn username(mut self, username: impl ToString) -> Builder<WithAuth, W> {
+        let auth: PhantomData<WithAuth> = PhantomData;
         self.flags.set_username();
-        self
+        Builder {
+            client_id: self.client_id,
+            keep_alive: self.keep_alive,
+            will_topic: self.will_topic,
+            will_message: self.will_message,
+            username: Some(username.to_string()),
+            password: self.password,
+            flags: self.flags,
+            _auth: auth,
+            _will: self._will,
+        }
     }
 
-    /// Configure the password.
-    pub fn password(mut self, password: impl Into<Vec<u8>>) -> Self {
-        self.password = Some(password.into());
-        self.flags.set_password();
-        self
+    /// Configure the will.
+    ///
+    /// ```
+    /// use tjiftjaf::{QoS, Connect};
+    ///
+    /// let packet = Connect::builder().build();
+    /// assert_eq!(packet.will(), None);
+    ///
+    /// let packet = Connect::builder()
+    ///     .will("topic", "optimus died")
+    ///     .retain_will()
+    ///     .build();
+    ///
+    /// let will = packet.will().unwrap();
+    /// assert_eq!(will.topic, "topic");
+    /// assert_eq!(will.message, b"optimus died");
+    /// assert_eq!(will.qos, QoS::AtMostOnceDelivery);
+    /// assert_eq!(will.retain, true);
+    /// ```
+    pub fn will(
+        mut self,
+        topic: impl Into<String>,
+        message: impl Into<Vec<u8>>,
+    ) -> Builder<A, WithWill> {
+        let will: PhantomData<WithWill> = PhantomData;
+        self.flags.set_will_flag();
+        Builder {
+            client_id: self.client_id,
+            keep_alive: self.keep_alive,
+            will_topic: Some(topic.into()),
+            will_message: Some(message.into()),
+            username: self.username,
+            password: self.password,
+            flags: self.flags,
+            _auth: self._auth,
+            _will: will,
+        }
     }
 
-    /// Try building a `Connect`.
+    /// Build a `Connect`.
     pub fn build(mut self) -> Connect {
         let mut fixed_header = BytesMut::with_capacity(2);
         fixed_header.put_u8((PacketType::Connect as u8) << 4);
@@ -431,11 +634,15 @@ impl Builder {
         variable_header.put_u16(self.keep_alive);
 
         let mut payload: BytesMut = encode::utf8(self.client_id).into();
-        // TODO: Optionally add to payload
-        // * will topic
-        // * will message
-        if self.flags.username() {
-            let username = self.username.unwrap();
+        if let Some(will_topic) = self.will_topic {
+            payload.put_slice(&encode::utf8(will_topic));
+        }
+
+        if let Some(will_message) = self.will_message {
+            payload.put_slice(&encode::bytes(&will_message));
+        }
+
+        if let Some(username) = self.username {
             payload.put_slice(&encode::utf8(username));
 
             if let Some(password) = self.password {
@@ -452,29 +659,100 @@ impl Builder {
             inner: fixed_header.freeze(),
         }
         .verify()
-        .unwrap()
+        .unwrap_or_else(|e| panic!("`Builder` failed to build `Connect`. This is a bug. Please report it to https://github.com/eastern-oak/tjiftjaf/issues. The error is {e}."))
     }
 
     pub fn build_packet(self) -> Packet {
         Packet::Connect(self.build())
     }
 }
+
+impl<WithAuth, W> Builder<WithAuth, W> {
+    /// Configure the password.
+    ///
+    /// ```
+    /// use tjiftjaf::Connect;
+    ///
+    /// let packet = Connect::builder().username("optimus").build();
+    /// assert_eq!(packet.password(), None);
+    ///
+    /// let packet = Connect::builder()
+    ///     .username("optimus")
+    ///     .password("prime")
+    ///     .build();
+    /// assert_eq!(packet.password(), Some("prime".as_bytes()));
+    /// ```
+    pub fn password(mut self, password: impl Into<Vec<u8>>) -> Self {
+        self.flags.set_password();
+        self.password = Some(password.into());
+        self
+    }
+}
+
+impl<A, WithWill> Builder<A, WithWill> {
+    /// Configure the `QoS` of the will message.
+    /// ```
+    /// use tjiftjaf::{QoS, Connect};
+    ///
+    /// let packet = Connect::builder().build();
+    /// assert_eq!(packet.will(), None);
+    ///
+    /// let packet = Connect::builder()
+    ///     .will("topic", "optimus died")
+    ///     .will_qos(QoS::ExactlyOnceDelivery)
+    ///     .build();
+    ///
+    /// let will = packet.will().unwrap();
+    /// assert_eq!(will.topic, "topic");
+    /// assert_eq!(will.message, b"optimus died");
+    /// assert_eq!(will.qos, QoS::ExactlyOnceDelivery);
+    /// assert_eq!(will.retain, false);
+    /// ```
+    pub fn will_qos(mut self, qos: QoS) -> Self {
+        self.flags.set_will_qos(qos);
+        self
+    }
+
+    /// Retain the will topic and will message on the server.
+    /// That allows the message to be delivered to future subscribers to the will topic.
+    ///
+    /// ```
+    /// use tjiftjaf::{QoS, Connect};
+    ///
+    /// let packet = Connect::builder().build();
+    /// assert_eq!(packet.will(), None);
+    ///
+    /// let packet = Connect::builder()
+    ///     .will("topic", "optimus died")
+    ///     .retain_will()
+    ///     .build();
+    ///
+    /// let will = packet.will().unwrap();
+    /// assert_eq!(will.topic, "topic");
+    /// assert_eq!(will.message, b"optimus died");
+    /// assert_eq!(will.qos, QoS::AtMostOnceDelivery);
+    /// assert_eq!(will.retain, true);
+    /// ```
+    pub fn retain_will(mut self) -> Self {
+        self.flags.set_will_retain();
+        self
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::{Connect, Packet, connect, packet::Frame};
+    use crate::{Connect, packet::Frame};
     use bytes::Bytes;
 
     #[test]
     fn test_connect() {
-        let Packet::Connect(packet) = connect("test".to_string(), 300) else {
-            panic!()
-        };
+        let packet = Connect::builder().build();
 
         let bytes = Bytes::copy_from_slice(packet.as_bytes());
         let connect = Connect::try_from(bytes).unwrap();
         assert!(connect.will().is_none());
 
-        let packet = Connect::builder().username("admin".to_string()).build();
+        let packet = Connect::builder().username("admin").build();
         let bytes = Bytes::copy_from_slice(packet.as_bytes());
 
         let connect = Connect::try_from(bytes).unwrap();
