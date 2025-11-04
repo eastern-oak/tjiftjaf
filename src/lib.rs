@@ -4,19 +4,15 @@
 //!
 //! ```no_run
 //! use async_net::TcpStream;
-//! use tjiftjaf::{Frame, Client, Options, QoS};
+//! use tjiftjaf::{Frame, Client, packet_v2::connect::Connect, QoS};
 //!
 //!    smol::block_on(async {
 //!        let stream = TcpStream::connect("test.mosquitto.org:1883")
 //!            .await
 //!            .expect("Failed connecting to MQTT broker.");
 //!
-//!        let options = Options {
-//!            client_id: None,
-//!            keep_alive: 300,
-//!            ..Options::default()
-//!        };
-//!        let client = Client::new(options, stream);
+//!        let connect = Connect::builder().client_id("test").keep_alive(5).build();
+//!        let client = Client::new(connect, stream);
 //!
 //!        // Spawn the event loop that monitors the socket.
 //!        // `handle` allows for sending and receiving MQTT packets.
@@ -41,17 +37,17 @@
 mod client;
 mod decode;
 mod encode;
+use crate::packet_v2::{publish::Publish, subscribe::Subscribe};
 use bytes::{BufMut, Bytes, BytesMut};
-pub use client::{Client, ClientHandle, Options};
+pub use client::{Client, ClientHandle};
 use log::{debug, error};
 pub use packet::*;
-use packet_v2::{connect::Connect, ping_req::PingReq};
+use packet_v2::ping_req::PingReq;
 use std::time::{Duration, Instant, SystemTime};
-
-use crate::packet_v2::{publish::Publish, subscribe::Subscribe};
 
 pub mod packet;
 pub mod packet_v2;
+pub use crate::packet_v2::connect::{self, Connect};
 mod validate;
 
 pub fn packet_identifier() -> u16 {
@@ -108,38 +104,37 @@ pub struct MqttBinding {
     statistics: Statistics,
 
     last_io: Instant,
-
-    options: Options,
+    connect: connect::Connect,
 }
 
 // The driver must do 2 things:
 // * request a buffer, it'll need to read bytes from the socket and fill the buffer until it's fill.
 // * request a buffer to write,
 impl MqttBinding {
-    pub fn from_options(options: Options) -> Self {
+    pub fn from_connect(connect: connect::Connect) -> Self {
         Self {
-            options,
             connection_status: ConnectionStatus::default(),
             state: State::default(),
             transmits: vec![],
             statistics: Statistics::default(),
             last_io: Instant::now(),
+            connect,
         }
     }
 
     pub fn handle_timeout(&mut self, now: Instant) {
-        if self.options.keep_alive == 0 {
+        if self.connect.keep_alive() == 0 {
             return;
         }
 
-        if (now - self.last_io).as_secs() >= self.options.keep_alive as u64 {
+        if (now - self.last_io).as_secs() >= self.connect.keep_alive() as u64 {
             self.transmits.push(Packet::PingReq(PingReq))
         }
     }
 
     pub fn poll_timeout(&mut self) -> Instant {
-        let mut interval = self.options.keep_alive as u64;
-        if self.options.keep_alive == 0 {
+        let mut interval = self.connect.keep_alive() as u64;
+        if interval == 0 {
             interval = 300
         }
 
@@ -172,21 +167,7 @@ impl MqttBinding {
         if self.connection_status == ConnectionStatus::NotConnected {
             self.connection_status = ConnectionStatus::Connecting;
 
-            let mut builder = Connect::builder().keep_alive(self.options.keep_alive);
-            if let Some(client_id) = self.options.client_id.clone() {
-                builder = builder.client_id(client_id);
-            }
-
-            if let Some(username) = self.options.username.clone() {
-                builder = builder.username(username);
-            }
-
-            if let Some(password) = self.options.password.clone() {
-                builder = builder.password(password);
-            }
-
-            let packet = builder.build_packet();
-
+            let packet: Packet = self.connect.clone().into();
             debug!("<-- {packet:?}");
             self.statistics.record_outbound_packet(&packet);
 
@@ -360,7 +341,7 @@ mod test {
 
     fn decode_message(packet: Packet) -> Packet {
         let bytes = packet.into_bytes();
-        let mut binding = MqttBinding::from_options(Options::default());
+        let mut binding = MqttBinding::from_connect(Connect::builder().build());
         let mut offset = 0;
 
         loop {
@@ -437,7 +418,7 @@ mod test {
     /// should correctly decode the `Bytes` back into the `Packet` we started with.
     #[test]
     fn test_mqtt_binding_decoding_packets() {
-        let mut binding = MqttBinding::from_options(Options::default());
+        let mut binding = MqttBinding::from_connect(Connect::builder().build());
 
         for test in valid_packets() {
             let mut input = Cursor::new(test.clone().into_bytes());
@@ -486,18 +467,16 @@ mod test {
     // is 300 seconds (a default) in the future instead of 0 seconds.
     #[test]
     fn gh_53_test_fix_for_keep_alive_interval_of_0() {
-        let mut options = Options::default();
-        options.keep_alive = 5;
+        let connect = Connect::builder().keep_alive(5).build();
 
-        let mut binding = MqttBinding::from_options(options);
+        let mut binding = MqttBinding::from_connect(connect);
         let interval = binding.poll_timeout() - Instant::now();
         assert_eq!(interval.as_secs_f32().round(), 5.0);
 
         // Now, try again with a keep alive interval of 0 seconds.
-        let mut options = Options::default();
-        options.keep_alive = 0;
+        let connect = Connect::builder().keep_alive(0).build();
 
-        let mut binding = MqttBinding::from_options(options);
+        let mut binding = MqttBinding::from_connect(connect);
         let interval = binding.poll_timeout() - Instant::now();
 
         assert_eq!(interval.as_secs_f32().round(), 300.0);

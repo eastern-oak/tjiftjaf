@@ -1,6 +1,6 @@
 use async_net::TcpStream;
 use futures_lite::FutureExt;
-use tjiftjaf::{Client, Options, QoS, packet_identifier};
+use tjiftjaf::{Client, QoS, packet_identifier, packet_v2::connect::Connect};
 
 fn main() {
     simple_logger::init_with_level(log::Level::Debug).unwrap();
@@ -9,11 +9,12 @@ fn main() {
             .await
             .expect("Failed connecting to MQTT broker.");
 
-        let mut options = Options::default();
-        options.client_id = Some("tjiftjaf".into());
-        options.username = Some("ro".into());
-        options.password = Some("readonly".into());
-        let client = Client::new(options, stream);
+        let connect = Connect::builder()
+            .client_id("tjiftjaf")
+            .username("ro")
+            .password("readonly")
+            .build();
+        let client = Client::new(connect, stream);
 
         // Spawn the event loop that monitors the socket.
         // `handle` allows for sending and receiving MQTT packets.

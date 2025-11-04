@@ -94,6 +94,6 @@ mod test {
     #[test]
     fn test_variable_header() {
         // The PingReq message doesn't have a variable header.
-        assert_eq!(PingReq.variable_header(), &[])
+        assert!(PingReq.variable_header().is_empty())
     }
 }
