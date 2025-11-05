@@ -610,6 +610,34 @@ impl<A, W> Builder<A, W> {
         }
     }
 
+    /// Set the clean session flag.
+    ///
+    /// ```
+    /// use tjiftjaf::{QoS, Connect};
+    ///
+    /// let packet = Connect::builder().build();
+    ///
+    /// // Without client id, the clean session flag is always true.
+    /// assert_eq!(packet.client_id(), "");
+    /// assert_eq!(packet.flags().clean_session(), true);
+    ///
+    /// let packet = Connect::builder()
+    ///     .client_id("client-1")
+    ///     .build();
+    /// assert_eq!(packet.flags().clean_session(), false);
+    ///
+    /// let packet = Connect::builder()
+    ///     .client_id("client-1")
+    ///     .clean_session()
+    ///     .build();
+    ///
+    /// assert_eq!(packet.flags().clean_session(), true);
+    /// ```
+    pub fn clean_session(mut self) -> Self {
+        self.flags.set_clean_session();
+        self
+    }
+
     /// Build a `Connect`.
     pub fn build(mut self) -> Connect {
         let mut fixed_header = BytesMut::with_capacity(2);
