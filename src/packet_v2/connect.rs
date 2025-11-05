@@ -650,7 +650,9 @@ impl<A, W> Builder<A, W> {
             }
         }
 
-        fixed_header.put_u8((variable_header.len() + payload.len()) as u8);
+        fixed_header.put(encode::remaining_length(
+            variable_header.len() + payload.len(),
+        ));
 
         fixed_header.put(variable_header);
         fixed_header.put(payload);
@@ -758,5 +760,18 @@ mod test {
         let connect = Connect::try_from(bytes).unwrap();
         assert_eq!(connect.username(), Some("admin"));
         assert_eq!(connect.password(), None);
+    }
+
+    /// #61 tracks a bug where `connect::Builder.build()` encoded the length
+    /// of the packet in a single byte. This is wrong. The encoded length can take
+    /// up to 4 bytes for larger packets.
+    ///
+    /// This test creates a large packet, encodes it and then decodes it again.
+    /// Before the fix, the last step would fail because the encoded length in the packet
+    /// wouldn't match the actual length.
+    #[test]
+    fn test_gh_61_fix_for_building_long_connect_packet() {
+        let packet = Connect::builder().will("topic", [0; 255]).build();
+        assert!(Connect::try_from(Bytes::copy_from_slice(packet.as_bytes())).is_ok());
     }
 }
