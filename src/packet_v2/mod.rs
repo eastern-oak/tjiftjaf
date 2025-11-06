@@ -1,4 +1,4 @@
-use crate::decode::DecodingError;
+pub use crate::decode::DecodingError;
 mod ack;
 pub mod connack;
 pub mod connect;

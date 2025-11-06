@@ -34,9 +34,6 @@
 //!        }
 //!    })
 //! ```
-mod client;
-mod decode;
-mod encode;
 use crate::packet_v2::{publish::Publish, subscribe::Subscribe};
 use bytes::{BufMut, Bytes, BytesMut};
 pub use client::{Client, ClientHandle};
@@ -48,6 +45,9 @@ use std::time::{Duration, Instant, SystemTime};
 pub mod packet;
 pub mod packet_v2;
 pub use crate::packet_v2::connect::{self, Connect};
+mod client;
+pub mod decode;
+mod encode;
 mod validate;
 
 pub fn packet_identifier() -> u16 {
