@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.0 - 2025-11-11
+
+[591cc48](591cc48c1080258318ea7751ad1bf8e0dd3c1d99)...[ad31189](ad31189937f3229a8922412f5675f81b4f266852)
+
+### Changes
+
+- GH-72 Harmonize `impl Debug` for all packets (#73) - ([8087f40](8087f40a32779fdcceba5b85b2b794d2af9cabaa)) - GH-72 (https://github.com/eastern-oak/tjiftjaf/issues/72)
+- GH-74 `Client` to support QoS 1 and QoS 2 (#75) - ([ad31189](ad31189937f3229a8922412f5675f81b4f266852)) - GH-74 (https://github.com/eastern-oak/tjiftjaf/issues/74)
+
 ## 0.2.0 - 2025-11-05
 
 [65e2fc7](65e2fc77e252e565c2ff526efb9175a4b1da73ed)...[c340517](c340517340172ff5022b1be1293dec510f461400)
