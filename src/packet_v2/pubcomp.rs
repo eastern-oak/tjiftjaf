@@ -63,7 +63,7 @@ impl From<PubComp> for Packet {
 
 impl std::fmt::Debug for PubComp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PubComp")
+        f.debug_struct("PUBCOMP")
             .field("length", &self.length())
             .field("packet_identifier", &self.packet_identifier())
             .finish()
