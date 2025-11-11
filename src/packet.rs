@@ -1,4 +1,5 @@
 use super::decode::{DecodingError, InvalidPacketTypeError, packet_length};
+use crate::decode;
 use crate::packet_v2::connack::ConnAck;
 use crate::packet_v2::connect::Connect;
 use crate::packet_v2::disconnect::Disconnect;
@@ -339,5 +340,17 @@ impl Error for InvalidQoS {}
 impl Display for InvalidQoS {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} is not a valid value for QoS", self.0)
+    }
+}
+
+pub fn min_bytes_required(payload: &[u8]) -> u32 {
+    if payload.len() < 2 {
+        return 2 - payload.len() as u32;
+    }
+
+    match decode::packet_length(&payload[1..]) {
+        Ok(length) => length - payload.len() as u32,
+        Err(DecodingError::NotEnoughBytes { .. }) => 127 - payload.len() as u32,
+        Err(error) => panic!("{error:?}"),
     }
 }

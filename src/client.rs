@@ -5,7 +5,10 @@
 use super::{MqttBinding, Packet};
 use crate::{
     QoS,
-    packet_v2::{connect, publish::Publish, subscribe::Subscribe},
+    packet_v2::{
+        connect, puback::PubAck, pubcomp::PubComp, publish::Publish, pubrec::PubRec,
+        pubrel::PubRel, subscribe::Subscribe,
+    },
 };
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
@@ -117,6 +120,33 @@ where
                         .binding
                         .try_decode(buffer.freeze().slice(0..bytes_read), Instant::now())
                     {
+                        if let Packet::Publish(publish) = &packet {
+                            match (publish.qos(), publish.packet_identifier()) {
+                                (QoS::AtMostOnceDelivery, _) => {}
+                                (QoS::AtLeastOnceDelivery, Some(packet_identifier)) => {
+                                    self.binding.send(PubAck::new(packet_identifier).into());
+                                }
+                                (QoS::ExactlyOnceDelivery, Some(packet_identifier)) => {
+                                    self.binding.send(PubRec::new(packet_identifier).into());
+                                }
+                                (qos, maybe_packet_identifier) => {
+                                    panic!(
+                                        "Somehow this PUBLISH packet has {qos:?} and {maybe_packet_identifier:?}. That combination is not allowed and the tjiftjaf crate must not allow to create such packet. Please report a bug to https://github.com/eastern-oak/tjiftjaf/issues. {packet:?} "
+                                    )
+                                }
+                            }
+                        };
+
+                        if let Packet::PubRec(packet) = &packet {
+                            self.binding
+                                .send(PubRel::new(packet.packet_identifier()).into());
+                        }
+
+                        if let Packet::PubRel(packet) = &packet {
+                            self.binding
+                                .send(PubComp::new(packet.packet_identifier()).into());
+                        }
+
                         if self.broadcast.broadcast(packet).await.is_err() {
                             // TODO: Change error type. std::io::Error is not really fitting here.
                             return Err(std::io::Error::other("Failed to broadcast message"));

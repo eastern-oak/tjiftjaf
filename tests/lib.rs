@@ -10,8 +10,11 @@ use tjiftjaf::{
     packet_v2::{connack::ConnAck, connect::Connect, publish::Publish},
 };
 mod broker;
+mod wiretap;
 use macro_rules_attribute::apply;
 use smol_macros::test;
+
+use crate::wiretap::wiretapped_client;
 
 const TOPIC: &'static str = "topic";
 
@@ -118,4 +121,56 @@ async fn test_17_decoding_large_packets() {
 
     // Verify that the packet contains the expected payload.
     assert_eq!(publish.payload(), b"test_subscribe_and_publish");
+}
+
+// When a peer emits a PUBLISH with QOS of 1, the receiver must acknowledge
+// this message with a PUBACK.
+//
+// When peer A emits a PUBLISH with QOS of 2, peer B must acknowledge
+// the message with a PUBREC. In turn, the peer A acknowledges the PUBREC
+// by emitting a PUBREL. Lastly, peer B must acknowledge that message
+// using a PUBCOMP.
+//
+// This test verifies that both sequences are implemented correctly.
+#[apply(test!)]
+async fn test_qos_1_and_qos_2() {
+    let broker = Broker::new();
+    let (client, mut history) = wiretapped_client(broker.port).await;
+    let (handle_a, task) = client.spawn();
+
+    let _handle = smol::spawn(task);
+
+    // After connecting, the broker returns a CONNACK packet.
+    let _ = history.find(PacketType::ConnAck).await;
+
+    handle_a
+        .subscribe(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
+        .await
+        .unwrap();
+    let _ = history.find(PacketType::SubAck).await;
+
+    handle_a
+        .publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        .await
+        .unwrap();
+
+    let _ = history.find(PacketType::Publish).await;
+    let _ = history.find(PacketType::PubAck).await;
+
+    // Now subscribe with QoS of 2.
+    handle_a
+        .subscribe(TOPIC, tjiftjaf::QoS::ExactlyOnceDelivery)
+        .await
+        .unwrap();
+    let _ = history.find(PacketType::SubAck).await;
+
+    let packet = Publish::builder(TOPIC, "yolo")
+        .qos(tjiftjaf::QoS::ExactlyOnceDelivery)
+        .build_packet();
+
+    handle_a.send(packet).await.unwrap();
+
+    let _ = history.find(PacketType::PubRec).await;
+    let _ = history.find(PacketType::PubRel).await;
+    let _ = history.find(PacketType::PubComp).await;
 }
