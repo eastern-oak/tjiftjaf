@@ -2,10 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
 ## 0.3.0 - 2025-11-11
 
 [591cc48](591cc48c1080258318ea7751ad1bf8e0dd3c1d99)...[ad31189](ad31189937f3229a8922412f5675f81b4f266852)
