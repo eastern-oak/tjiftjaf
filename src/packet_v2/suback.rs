@@ -111,10 +111,10 @@ impl From<SubAck> for Packet {
 
 impl std::fmt::Debug for SubAck {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SubAck")
+        f.debug_struct("SUBACK")
             .field("length", &self.length())
             .field("packet_identifier", &self.packet_identifier())
-            .field("return_code", &self.return_codes())
+            .field("return_codes", &self.return_codes())
             .finish()
     }
 }

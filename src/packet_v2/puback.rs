@@ -63,7 +63,7 @@ impl From<PubAck> for Packet {
 
 impl std::fmt::Debug for PubAck {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PubAck")
+        f.debug_struct("PUBACK")
             .field("length", &self.length())
             .field("packet_identifier", &self.packet_identifier())
             .finish()

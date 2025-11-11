@@ -63,7 +63,7 @@ impl From<UnsubAck> for Packet {
 
 impl std::fmt::Debug for UnsubAck {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("UnsubAck")
+        f.debug_struct("UNSUBACK")
             .field("length", &self.length())
             .field("packet_identifier", &self.packet_identifier())
             .finish()

@@ -63,7 +63,7 @@ impl From<PubRel> for Packet {
 
 impl std::fmt::Debug for PubRel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PubRel")
+        f.debug_struct("PUBREL")
             .field("length", &self.length())
             .field("packet_identifier", &self.packet_identifier())
             .finish()
