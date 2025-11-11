@@ -102,8 +102,12 @@ impl std::fmt::Debug for Publish {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PUBLISH")
             .field("length", &self.length())
+            .field("packet_identifier", &self.packet_identifier())
             .field("topic", &self.topic())
             .field("payload_length", &self.payload().len())
+            .field("qos", &self.qos())
+            .field("retain", &self.retain())
+            .field("duplicate", &self.duplicate())
             .finish()
     }
 }

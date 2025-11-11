@@ -66,7 +66,7 @@ impl From<Disconnect> for Packet {
 
 impl std::fmt::Debug for Disconnect {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Disconnect")
+        f.debug_struct("DISCONNECT")
             .field("length", &self.length())
             .finish()
     }
