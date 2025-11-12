@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.1 - 2025-11-12
+
+[3736db2](3736db25dad92b672273a978d42207bdd7f0d0ee)...[2bd44ab](2bd44ab1624e684b29c6ce14b28431bda6fe64cf)
+
+### Changes
+
+- GH-77 Fix spin loop when keep alive interval is 0 (#78) - ([2bd44ab](2bd44ab1624e684b29c6ce14b28431bda6fe64cf)) - GH-77 (https://github.com/eastern-oak/tjiftjaf/issues/77) GH-77 (https://github.com/eastern-oak/tjiftjaf/issues/77) GH-53 (https://github.com/eastern-oak/tjiftjaf/issues/53)
+
 ## 0.3.0 - 2025-11-11
 
 [591cc48](591cc48c1080258318ea7751ad1bf8e0dd3c1d99)...[ad31189](ad31189937f3229a8922412f5675f81b4f266852)
