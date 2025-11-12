@@ -129,7 +129,7 @@ impl MqttBinding {
             // `MqttBinding.poll_timeout()` returns an value 30 years from now.
             //
             // So if keep_alive is 0 _and_ there is no IO for 30 years, then the binding
-            // violates the spec by emimtting a PINGREQ.
+            // violates the spec by emitting a PINGREQ.
             self.transmits.push(Packet::PingReq(PingReq))
         }
     }
