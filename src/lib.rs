@@ -123,11 +123,13 @@ impl MqttBinding {
     }
 
     pub fn handle_timeout(&mut self, now: Instant) {
-        if self.connect.keep_alive() == 0 {
-            return;
-        }
-
         if (now - self.last_io).as_secs() >= self.connect.keep_alive() as u64 {
+            // Always schedule a PINGREQ request, even if `self.keep_alive()` is 0.
+            // That is against the specification. However, when this value is 0 seconds,
+            // `MqttBinding.poll_timeout()` returns an value 30 years from now.
+            //
+            // So if keep_alive is 0 _and_ there is no IO for 30 years, then the binding
+            // violates the spec by emimtting a PINGREQ.
             self.transmits.push(Packet::PingReq(PingReq))
         }
     }
@@ -135,7 +137,17 @@ impl MqttBinding {
     pub fn poll_timeout(&mut self) -> Instant {
         let mut interval = self.connect.keep_alive() as u64;
         if interval == 0 {
-            interval = 300
+            // If keep_alive() interval is 0 seconds, the client is not supposed
+            // to emit PINGREQ requests. Therefore, binding does not have to be woken up
+            // X seconds after the last IO to schedule a PINGREQ.
+            //
+            // Unfortunately, there is not a way to obtain the maximum value of `Instant`.
+            // For example,  `Instant::MAX` does not exists. So we return an `Instant`
+            // roughly 30 years from now. It is inspired by Tokio's `Instant::far_future()`
+            // https://github.com/tokio-rs/tokio/blob/365269adaf6ec75743c0693f2378c3c6d04f806b/tokio/src/time/instant.rs#L57-L63
+            //
+            // See also https://internals.rust-lang.org/t/instant-systemtime-min-max/21375/16
+            interval = 86400 * 365 * 30
         }
 
         self.last_io
@@ -215,6 +227,8 @@ impl MqttBinding {
                 if bytes_remaining == 0 {
                     match Packet::try_from(buf) {
                         Ok(packet) => {
+                            debug!("--> {packet:?}");
+
                             return Some(packet);
                         }
                         Err(error) => {
@@ -464,7 +478,7 @@ mod test {
     // an Instant that's about 5 seconds in the future.
     //
     // Then, the test is repeated with a keep alive interval of 0. Now, the Instant
-    // is 300 seconds (a default) in the future instead of 0 seconds.
+    // is 30 years in the future instead of 0 seconds.
     #[test]
     fn gh_53_test_fix_for_keep_alive_interval_of_0() {
         let connect = Connect::builder().keep_alive(5).build();
@@ -479,6 +493,6 @@ mod test {
         let mut binding = MqttBinding::from_connect(connect);
         let interval = binding.poll_timeout() - Instant::now();
 
-        assert_eq!(interval.as_secs_f32().round(), 300.0);
+        assert_eq!(interval.as_secs_f32().round(), 946080000.0);
     }
 }
