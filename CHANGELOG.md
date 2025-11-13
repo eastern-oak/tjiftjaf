@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.2 - 2025-11-13
+
+[acf9c0c](acf9c0cc59fa408023979984812c879722bad671)...[4ca0d4f](4ca0d4fd6aaf4ab2d3c2dd4f36015c634bdd8f94)
+
+### Changes
+
+- GH-49 Add CI config - ([e55c1c6](e55c1c67b9d83b687bc82631e6ad649ea2623d76)) - GH-49 (https://github.com/eastern-oak/tjiftjaf/issues/49)
+- GH-49 Fix all clippy warnings - ([dea588b](dea588b4095e7cda913f54e03ace7c3c51a79547)) - GH-49 (https://github.com/eastern-oak/tjiftjaf/issues/49)
+
 ## 0.3.1 - 2025-11-12
 
 [3736db2](3736db25dad92b672273a978d42207bdd7f0d0ee)...[2bd44ab](2bd44ab1624e684b29c6ce14b28431bda6fe64cf)
