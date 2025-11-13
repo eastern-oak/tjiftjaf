@@ -20,11 +20,11 @@ impl PubComp {
 
 impl Frame for PubComp {
     fn as_bytes(&self) -> &[u8] {
-        &self.0.as_bytes()
+        self.0.as_bytes()
     }
 
     fn variable_header(&self) -> &[u8] {
-        &self.0.variable_header()
+        self.0.variable_header()
     }
 }
 
@@ -51,7 +51,7 @@ impl TryFrom<&[u8]> for PubComp {
 
 impl From<PubComp> for Bytes {
     fn from(value: PubComp) -> Bytes {
-        Bytes::copy_from_slice(&value.0.as_bytes())
+        Bytes::copy_from_slice(value.0.as_bytes())
     }
 }
 
@@ -75,6 +75,7 @@ mod test {
     use super::PubComp;
 
     #[test]
+    #[allow(clippy::useless_conversion)]
     fn test_encode_and_decode() {
         let puback = PubComp::new(1568);
         // Verify conversion to and from &[u8].

@@ -148,20 +148,20 @@ impl TryFrom<Bytes> for Packet {
             .try_into()?;
 
         match packet_type {
-            PacketType::Connect => return Ok(Packet::Connect(Connect::try_from(value)?)),
-            PacketType::PingReq => return Ok(Packet::PingReq(PingReq::try_from(value)?)),
-            PacketType::PingResp => return Ok(Packet::PingResp(PingResp::try_from(value)?)),
-            PacketType::Disconnect => return Ok(Packet::Disconnect(Disconnect::try_from(value)?)),
-            PacketType::PubComp => return Ok(Packet::PubComp(PubComp::try_from(value)?)),
-            PacketType::ConnAck => return Ok(Self::ConnAck(ConnAck::try_from(value)?)),
-            PacketType::SubAck => return Ok(Self::SubAck(SubAck::try_from(value)?)),
-            PacketType::Publish => return Ok(Self::Publish(Publish::try_from(value)?)),
-            PacketType::PubRec => return Ok(Self::PubRec(PubRec::try_from(value)?)),
-            PacketType::PubRel => return Ok(Self::PubRel(PubRel::try_from(value)?)),
-            PacketType::PubAck => return Ok(Self::PubAck(PubAck::try_from(value)?)),
-            PacketType::UnsubAck => return Ok(Self::UnsubAck(UnsubAck::try_from(value)?)),
-            PacketType::Unsubscribe => return Ok(Self::Unsubscribe(Unsubscribe::try_from(value)?)),
-            PacketType::Subscribe => return Ok(Self::Subscribe(Subscribe::try_from(value)?)),
+            PacketType::Connect => Ok(Packet::Connect(Connect::try_from(value)?)),
+            PacketType::PingReq => Ok(Packet::PingReq(PingReq::try_from(value)?)),
+            PacketType::PingResp => Ok(Packet::PingResp(PingResp::try_from(value)?)),
+            PacketType::Disconnect => Ok(Packet::Disconnect(Disconnect::try_from(value)?)),
+            PacketType::PubComp => Ok(Packet::PubComp(PubComp::try_from(value)?)),
+            PacketType::ConnAck => Ok(Self::ConnAck(ConnAck::try_from(value)?)),
+            PacketType::SubAck => Ok(Self::SubAck(SubAck::try_from(value)?)),
+            PacketType::Publish => Ok(Self::Publish(Publish::try_from(value)?)),
+            PacketType::PubRec => Ok(Self::PubRec(PubRec::try_from(value)?)),
+            PacketType::PubRel => Ok(Self::PubRel(PubRel::try_from(value)?)),
+            PacketType::PubAck => Ok(Self::PubAck(PubAck::try_from(value)?)),
+            PacketType::UnsubAck => Ok(Self::UnsubAck(UnsubAck::try_from(value)?)),
+            PacketType::Unsubscribe => Ok(Self::Unsubscribe(Unsubscribe::try_from(value)?)),
+            PacketType::Subscribe => Ok(Self::Subscribe(Subscribe::try_from(value)?)),
         }
     }
 }

@@ -1,15 +1,11 @@
-use std::time::Duration;
-
+use crate::env::broker::wait_server_listening;
 use async_channel::{Receiver, Sender};
 use async_net::{TcpListener, TcpStream};
 use bytes::{BufMut, BytesMut};
 use futures_lite::{AsyncReadExt, AsyncWriteExt, FutureExt, StreamExt};
-use smol::{Timer, spawn};
+use smol::spawn;
 use tjiftjaf::{Client, Connect, Packet, PacketType, packet};
 
-#[path = "broker.rs"]
-mod broker;
-use broker::wait_server_listening;
 /// Start a proxy and connect `Client` through that proxy to the broker.
 /// The interaction between `Client` and broker is recorded in a `Transcription`.
 pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) {
@@ -20,7 +16,6 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
         .await
         .expect("Failed to bind proxy to a random port.");
     let proxy_port = proxy.local_addr().unwrap().port();
-    println!("Proxy is listening on port {proxy_port}");
 
     let history = Transcription::new();
     let history_handler = history.handler();
@@ -30,10 +25,8 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
         // by `wait_server_listening()`. This method knocks on the port of the server
         // to figure out if it's up.
         let _ = proxy.incoming().next().await.unwrap().unwrap();
-        println!("Knock knock");
 
         let mut client = proxy.incoming().next().await.unwrap().unwrap();
-        println!("who is there?");
         // Open a connection to the broker.
         let mut broker = TcpStream::connect(format!("127.0.0.1:{port}"))
             .await
@@ -57,18 +50,17 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
                         break;
                     }
 
-                    let mut buf = Vec::with_capacity(bytes_required);
-                    buf.resize(bytes_required, 0);
+                    let mut buf = vec![0; bytes_required];
                     client.read_exact(&mut buf).await.unwrap_or_else(|e| {
                         panic!("Failed to read data from client's TCP connection: {e:?}")
                     });
                     client_parser.push(&buf);
                 }
 
-                return client_parser
+                client_parser
                     .parse()
                     .map(Winner::Client)
-                    .unwrap_or_else(|error| panic!("Wiretap failed to parse packet: {error:?}"));
+                    .unwrap_or_else(|error| panic!("Wiretap failed to parse packet: {error:?}"))
             };
             let future_2 = async {
                 loop {
@@ -77,18 +69,17 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
                         break;
                     }
 
-                    let mut buf = Vec::with_capacity(bytes_required);
-                    buf.resize(bytes_required, 0);
+                    let mut buf = vec![0; bytes_required];
                     broker.read_exact(&mut buf).await.unwrap_or_else(|e| {
                         panic!("Failed to read data from broker's TCP connection: {e:?}")
                     });
                     broker_parser.push(&buf);
                 }
 
-                return broker_parser
+                broker_parser
                     .parse()
                     .map(Winner::Broker)
-                    .unwrap_or_else(|error| panic!("Wiretap failed to parse packet: {error:?}"));
+                    .unwrap_or_else(|error| panic!("Wiretap failed to parse packet: {error:?}"))
             };
 
             let winner = future_1.race(future_2).await;
@@ -182,16 +173,6 @@ impl Transcription {
     /// When no immediate match is found, this method waits for new packets to arrive.
     pub async fn find(&mut self, packet_type: PacketType) -> Packet {
         self.find_with(|packet| packet.packet_type() == packet_type)
-            .await
-    }
-
-    /// Find a `Packet` that matches the given path.
-    /// This method doesn't wait for new requests, it only checks the predicate with all requests
-    /// already in the history. When no match is found, an error is returned.
-    ///
-    /// This method is useful to validating the absence of a packet.
-    pub async fn try_find(&mut self, packet_type: PacketType) -> Result<Packet, NotFoundError> {
-        self.try_find_with(|packet| packet.packet_type() == packet_type)
             .await
     }
 
@@ -295,11 +276,9 @@ impl Parser {
         match Packet::try_from(self.inner.clone().freeze()) {
             Ok(packet) => {
                 self.inner = BytesMut::new();
-                return Ok(packet);
+                Ok(packet)
             }
-            Err(error) => {
-                return Err(error);
-            }
+            Err(error) => Err(error),
         }
     }
 }

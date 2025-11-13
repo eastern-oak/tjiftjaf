@@ -273,7 +273,7 @@ impl MqttBinding {
                 header: prefix,
                 bytes_remaining: length,
             } => {
-                if buf.len() < length.clone() as usize {
+                if buf.len() < *length as usize {
                     let remaining_length = length - buf.len() as u32;
                     let mut partial_packet = BytesMut::new();
                     partial_packet.put(prefix.clone());
@@ -363,7 +363,7 @@ mod test {
             let size = buffer.len();
 
             buffer.copy_from_slice(&bytes[offset..offset + size]);
-            offset = offset + size;
+            offset += size;
             if let Some(packet) = binding.try_decode(buffer.freeze(), Instant::now()) {
                 return packet;
             }
@@ -372,10 +372,7 @@ mod test {
 
     #[test]
     fn test_publish() {
-        let packet = publish(
-            "zigbee2mqtt/light/state".into(),
-            Bytes::from(r#"{"state":"on"}"#),
-        );
+        let packet = publish("zigbee2mqtt/light/state", Bytes::from(r#"{"state":"on"}"#));
 
         let packet = decode_message(packet);
 
@@ -384,10 +381,7 @@ mod test {
         // assert_eq!(packet.topic(), "$SYS/broker/uptime");
         assert_eq!(as_str(packet.payload()), r#"{"state":"on"}"#);
 
-        let packet = publish(
-            "$SYS/broker/uptime".into(),
-            Bytes::from(r#"388641 seconds"#),
-        );
+        let packet = publish("$SYS/broker/uptime", Bytes::from(r#"388641 seconds"#));
 
         let packet = decode_message(packet);
         assert_eq!(packet.packet_type(), PacketType::Publish);
@@ -396,7 +390,7 @@ mod test {
         assert_eq!(as_str(packet.payload()), "388641 seconds");
 
         let packet = publish(
-            "zigbee2mqtt/binary-switch".into(),
+            "zigbee2mqtt/binary-switch",
             Bytes::from(r#"{"action":"off","battery":100,"linkquality":3,"voltage":1400}"#),
         );
         let packet = decode_message(packet);

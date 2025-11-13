@@ -1,22 +1,21 @@
 use async_net::{TcpListener, TcpStream};
-use broker::Broker;
 use bytes::Bytes;
+use env::broker::Broker;
+use env::wiretap::wiretapped_client;
 use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
+use macro_rules_attribute::apply;
 use pretty_assertions::assert_eq;
 use smol::Timer;
+use smol_macros::test;
 use std::{future, time::Duration};
 use tjiftjaf::{
     Client, Frame, Packet, PacketType,
     packet_v2::{connack::ConnAck, connect::Connect, publish::Publish},
 };
-mod broker;
-mod wiretap;
-use macro_rules_attribute::apply;
-use smol_macros::test;
 
-use crate::wiretap::wiretapped_client;
+mod env;
 
-const TOPIC: &'static str = "topic";
+const TOPIC: &str = "topic";
 
 async fn create_client(port: u16) -> Client<TcpStream> {
     let stream = TcpStream::connect(format!("127.0.0.1:{}", port))

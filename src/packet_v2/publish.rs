@@ -305,10 +305,7 @@ impl Builder {
 
         // The Packet Identifier field is only present in PUBLISH Packets where the QoS level is 1 or 2. Section 2.3.1 provides more information about Packet Identifiers.
         if self.qos != QoS::AtMostOnceDelivery {
-            variable_header.put_u16(
-                self.packet_identifier
-                    .unwrap_or_else(|| packet_identifier()),
-            );
+            variable_header.put_u16(self.packet_identifier.unwrap_or_else(packet_identifier));
         }
 
         let mut payload = BytesMut::new();
