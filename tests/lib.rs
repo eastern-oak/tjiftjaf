@@ -73,7 +73,7 @@ async fn test_subscribe_and_publish() {
 // This interval allows the `Client` to process each TCP frames separately.
 #[apply(test!)]
 async fn test_17_decoding_large_packets() {
-    let server = TcpListener::bind("localhost:0").await.unwrap();
+    let server = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let client = create_client(server.local_addr().unwrap().port());
 
     // A task where the `server` accepts an incoming connection.
@@ -83,7 +83,7 @@ async fn test_17_decoding_large_packets() {
         let mut stream = server.incoming().next().await.unwrap().unwrap();
         let mut buf = vec![0u8; 1024];
 
-        dbg!(stream.read(&mut buf).await.unwrap());
+        stream.read(&mut buf).await.unwrap();
         let packet = ConnAck::builder().build();
         stream.write_all(&Bytes::from(packet)).await.unwrap();
 
