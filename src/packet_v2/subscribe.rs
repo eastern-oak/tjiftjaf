@@ -153,7 +153,7 @@ struct UnverifiedSubscribe {
 impl UnverifiedSubscribe {
     fn try_packet_identifier(&self) -> Result<u16, DecodingError> {
         let header = self.try_variable_header()?;
-        decode::u16(&header)
+        decode::u16(header)
     }
 
     fn verify_header(&self) -> Result<(), DecodingError> {

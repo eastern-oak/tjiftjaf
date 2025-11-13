@@ -20,11 +20,11 @@ impl UnsubAck {
 
 impl Frame for UnsubAck {
     fn as_bytes(&self) -> &[u8] {
-        &self.0.as_bytes()
+        self.0.as_bytes()
     }
 
     fn variable_header(&self) -> &[u8] {
-        &self.0.variable_header()
+        self.0.variable_header()
     }
 }
 
@@ -51,7 +51,7 @@ impl TryFrom<&[u8]> for UnsubAck {
 
 impl From<UnsubAck> for Bytes {
     fn from(value: UnsubAck) -> Bytes {
-        Bytes::copy_from_slice(&value.0.as_bytes())
+        Bytes::copy_from_slice(value.0.as_bytes())
     }
 }
 
@@ -75,6 +75,7 @@ mod test {
     use super::UnsubAck;
 
     #[test]
+    #[allow(clippy::useless_conversion)]
     fn test_encode_and_decode() {
         let puback = UnsubAck::new(1568);
         // Verify conversion to and from &[u8].

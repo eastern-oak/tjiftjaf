@@ -86,6 +86,12 @@ impl Drop for Broker {
     }
 }
 
+impl Default for Broker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Broker {
     /// Start a new MQTT broker that accepts connection on a random port.
     pub fn new() -> Self {

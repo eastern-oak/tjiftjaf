@@ -127,7 +127,7 @@ struct UnverifiedSubAck {
 impl UnverifiedSubAck {
     fn try_packet_identifier(&self) -> Result<u16, DecodingError> {
         let header = self.try_variable_header()?;
-        decode::u16(&header)
+        decode::u16(header)
     }
 
     fn verify_header(&self) -> Result<(), DecodingError> {
@@ -151,7 +151,7 @@ impl UnverifiedSubAck {
     fn try_return_codes(&self) -> Result<Vec<ReturnCode>, DecodingError> {
         self.try_payload()?
             .iter()
-            .map(|code| ReturnCode::try_from(code))
+            .map(ReturnCode::try_from)
             .collect::<Result<Vec<ReturnCode>, InvalidReturnCode>>()
             .map_err(|error| {
                 DecodingError::InvalidValue(format!("{} is not a valid ReturnCode", error.0))
