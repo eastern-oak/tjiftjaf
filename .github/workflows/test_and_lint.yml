@@ -1,0 +1,29 @@
+name: Test and lint
+
+on:
+  push:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint-and-test:
+    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v5
+    - uses: dtolnay/rust-toolchain@1.91.0
+      with:
+        components: clippy,rustfmt
+
+    - name: Print version info
+      run: rustc --version && cargo --version
+
+    - name: Verify that code is formatted correctly.
+      run: cargo fmt --verbose --check
+
+    - name: Verify that code is linted correctly.
+      run: cargo clippy --all-targets -- --deny=warnings
+
+    - name: Run tests
+      run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all-targets --verbose       

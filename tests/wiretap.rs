@@ -1,31 +1,43 @@
+use std::time::Duration;
+
 use async_channel::{Receiver, Sender};
 use async_net::{TcpListener, TcpStream};
 use bytes::{BufMut, BytesMut};
 use futures_lite::{AsyncReadExt, AsyncWriteExt, FutureExt, StreamExt};
-use smol::spawn;
+use smol::{Timer, spawn};
 use tjiftjaf::{Client, Connect, Packet, PacketType, packet};
 
+#[path = "broker.rs"]
+mod broker;
+use broker::wait_server_listening;
 /// Start a proxy and connect `Client` through that proxy to the broker.
 /// The interaction between `Client` and broker is recorded in a `Transcription`.
 pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) {
     // Bind the proxy to a random available port.
-    let addr = "localhost:0";
+    let addr = "127.0.0.1:0";
 
     let proxy = TcpListener::bind(addr)
         .await
         .expect("Failed to bind proxy to a random port.");
     let proxy_port = proxy.local_addr().unwrap().port();
+    println!("Proxy is listening on port {proxy_port}");
 
     let history = Transcription::new();
     let history_handler = history.handler();
 
     spawn(async move {
-        // Open a connection to the broker.
-        let mut broker = TcpStream::connect(format!("localhost:{port}"))
-            .await
-            .expect("Failed to open TCP connection to broker.");
+        // Ignore the first client that connects. That is the client created
+        // by `wait_server_listening()`. This method knocks on the port of the server
+        // to figure out if it's up.
+        let _ = proxy.incoming().next().await.unwrap().unwrap();
+        println!("Knock knock");
 
         let mut client = proxy.incoming().next().await.unwrap().unwrap();
+        println!("who is there?");
+        // Open a connection to the broker.
+        let mut broker = TcpStream::connect(format!("127.0.0.1:{port}"))
+            .await
+            .expect("Failed to open TCP connection to broker.");
 
         enum Winner {
             // The client has some data for the broker.
@@ -123,9 +135,13 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
     })
     .detach();
 
+    // Wait until proxy is up before continuing.
+    // In particular on slow machines this synchronization is important.
+    wait_server_listening(proxy_port);
+
     let stream = TcpStream::connect(format!("127.0.0.1:{}", proxy_port))
         .await
-        .expect("Failed to open TCP connection to broker.");
+        .expect("Failed to open TCP connection to broker on port {proxy_port}.");
 
     let connect = Connect::builder().client_id("test").keep_alive(5).build();
     (Client::new(connect, stream), history)

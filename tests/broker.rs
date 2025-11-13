@@ -64,7 +64,7 @@ fn get_broker_config(port: u16) -> Config {
 }
 
 // Waits until a connection can be opened to `port`
-fn wait_server_listening(port: u16) {
+pub fn wait_server_listening(port: u16) {
     while TcpStream::connect_timeout(
         &SocketAddr::from(([127, 0, 0, 1], port)),
         Duration::from_secs(1),
@@ -74,6 +74,7 @@ fn wait_server_listening(port: u16) {
         thread::sleep(Duration::from_millis(10))
     }
 }
+
 /// Mqtt broker used for tests, it spawns a background server in a random free port.
 pub struct Broker {
     pub port: u16,
