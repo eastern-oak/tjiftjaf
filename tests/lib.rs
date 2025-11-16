@@ -9,7 +9,8 @@ use smol::Timer;
 use smol_macros::test;
 use std::{future, time::Duration};
 use tjiftjaf::{
-    Client, Frame, Packet, PacketType,
+    Frame, Packet, PacketType,
+    asynchronous::Client,
     packet_v2::{connack::ConnAck, connect::Connect, publish::Publish},
 };
 

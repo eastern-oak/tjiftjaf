@@ -2,7 +2,6 @@
 use crate::packet_v2::{publish::Publish, subscribe::Subscribe};
 use async_channel::{RecvError, SendError};
 use bytes::{BufMut, Bytes, BytesMut};
-pub use client::{Client, ClientHandle};
 use log::{debug, error, trace};
 pub use packet::*;
 use packet_v2::ping_req::PingReq;
@@ -11,7 +10,6 @@ use std::{
     fmt::Display,
     time::{Duration, Instant, SystemTime},
 };
-
 pub mod packet;
 pub mod packet_v2;
 pub use crate::packet_v2::connect::{self, Connect};
@@ -22,6 +20,9 @@ mod validate;
 
 #[cfg(feature = "blocking")]
 pub mod blocking;
+
+#[cfg(feature = "async")]
+pub mod asynchronous;
 
 pub fn packet_identifier() -> u16 {
     let seconds = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {

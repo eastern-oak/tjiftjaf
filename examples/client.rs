@@ -2,7 +2,7 @@ use async_net::TcpStream;
 use futures_lite::FutureExt;
 use log::info;
 use std::env;
-use tjiftjaf::{Client, QoS, packet_identifier, packet_v2::connect::Connect};
+use tjiftjaf::{QoS, asynchronous::Client, packet_identifier, packet_v2::connect::Connect};
 
 fn main() {
     simple_logger::init_with_level(log::Level::Debug).unwrap();
