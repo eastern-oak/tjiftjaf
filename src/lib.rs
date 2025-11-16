@@ -22,7 +22,7 @@ mod validate;
 pub mod blocking;
 
 #[cfg(feature = "async")]
-pub mod asynchronous;
+pub mod aio;
 
 pub fn packet_identifier() -> u16 {
     let seconds = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
