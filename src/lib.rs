@@ -326,7 +326,7 @@ impl Display for HandlerError {
     }
 }
 
-#[cfg(feature = "blocking")]
+#[cfg(any(feature = "blocking", feature = "async"))]
 impl From<async_channel::RecvError> for HandlerError {
     fn from(value: async_channel::RecvError) -> Self {
         HandlerError(format!(
@@ -335,7 +335,7 @@ impl From<async_channel::RecvError> for HandlerError {
     }
 }
 
-#[cfg(feature = "blocking")]
+#[cfg(any(feature = "blocking", feature = "async"))]
 impl<T> From<async_channel::SendError<T>> for HandlerError {
     fn from(value: async_channel::SendError<T>) -> Self {
         HandlerError(format!(
