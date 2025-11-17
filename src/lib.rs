@@ -1,8 +1,6 @@
 #![doc = include_str!("../README.md")]
 use crate::packet_v2::{publish::Publish, subscribe::Subscribe};
-use async_channel::{RecvError, SendError};
 use bytes::{BufMut, Bytes, BytesMut};
-pub use client::{Client, ClientHandle};
 use log::{debug, error, trace};
 pub use packet::*;
 use packet_v2::ping_req::PingReq;
@@ -11,7 +9,6 @@ use std::{
     fmt::Display,
     time::{Duration, Instant, SystemTime},
 };
-
 pub mod packet;
 pub mod packet_v2;
 pub use crate::packet_v2::connect::{self, Connect};
@@ -22,6 +19,9 @@ mod validate;
 
 #[cfg(feature = "blocking")]
 pub mod blocking;
+
+#[cfg(feature = "async")]
+pub mod aio;
 
 pub fn packet_identifier() -> u16 {
     let seconds = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
@@ -326,16 +326,18 @@ impl Display for HandlerError {
     }
 }
 
-impl From<RecvError> for HandlerError {
-    fn from(value: RecvError) -> Self {
+#[cfg(feature = "blocking")]
+impl From<async_channel::RecvError> for HandlerError {
+    fn from(value: async_channel::RecvError) -> Self {
         HandlerError(format!(
             "Handler failed receiving packet from Client: {value:?}"
         ))
     }
 }
 
-impl<T> From<SendError<T>> for HandlerError {
-    fn from(value: SendError<T>) -> Self {
+#[cfg(feature = "blocking")]
+impl<T> From<async_channel::SendError<T>> for HandlerError {
+    fn from(value: async_channel::SendError<T>) -> Self {
         HandlerError(format!(
             "Handler failed to send packet to Client: {value:?}"
         ))

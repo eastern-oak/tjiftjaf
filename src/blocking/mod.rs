@@ -176,7 +176,7 @@ impl ClientHandle {
     ///
     /// ```no_run
     /// # use std::net::TcpStream;
-    /// # use tjiftjaf::{Connect, blocking::Client, packet_identifier};
+    /// # use tjiftjaf::{Connect, blocking::Client, packet_identifier, QoS};
     /// # let stream = TcpStream::connect("localhost:1883").unwrap();
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
@@ -198,12 +198,13 @@ impl ClientHandle {
     /// Publish `payload` to the given `topic`.
     ///
     /// ```no_run
+    /// use bytes::Bytes;
     /// # use std::net::TcpStream;
     /// # use tjiftjaf::{Connect, blocking::Client, packet_identifier};
     /// # let stream = TcpStream::connect("localhost:1883").unwrap();
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, _task) = client.spawn();
+    /// # let (mut handle, _task) = client.spawn().unwrap();
     /// handle
     ///     .publish("sensor/temperature/1", Bytes::from("26.1"))
     ///     .unwrap();
@@ -237,11 +238,11 @@ impl ClientHandle {
     ///
     /// ```no_run
     /// # use std::net::TcpStream;
-    /// # use tjiftjaf::{Connect, blocking::Client, packet_identifier};
+    /// # use tjiftjaf::{Connect, blocking::Client, packet_identifier, QoS};
     /// # let stream = TcpStream::connect("localhost:1883").unwrap();
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, _task) = client.spawn();
+    /// # let (mut handle, _task) = client.spawn().unwrap();
     /// handle.subscribe("sensor/temperature/1", QoS::AtMostOnceDelivery).unwrap();
     /// while let Ok(publish) = handle.publication() {
     ///    println!(
