@@ -26,7 +26,7 @@ jobs:
       run: cargo clippy --all-targets --all-features -- --deny=warnings
 
     - name: Run tests for all features
-      run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all-targets -all-features --verbose
+      run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all-targets --all-features --verbose
 
     - name: Run tests without any features
       run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all --no-default-features --verbose
