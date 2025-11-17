@@ -1,5 +1,7 @@
 #![doc = include_str!("../README.md")]
+#[doc(inline)]
 pub use crate::decode::DecodingError;
+#[doc(inline)]
 pub use crate::packet::{
     Frame, Packet, PacketType, ProtocolLevel, QoS, connack::ConnAck, connect::Connect,
     disconnect::Disconnect, ping_req::PingReq, ping_resp::PingResp, puback::PubAck,
