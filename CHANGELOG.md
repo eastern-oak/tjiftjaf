@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.5.0 - 2025-11-17
+
+[2b9fc73](2b9fc7386ce11453aafedc56e12c2345f9eba80e)...[ddc67b0](ddc67b0f5d95a00ea87819c0e10350abbed0a4a9)
+
+### Breaking changes
+
+- GH-84 Remove `impl Clone` from `aio::ClientHandler` (#90) - ([b7300c7](b7300c7b0f8f8199a395c702f2f13f4e9c5d4525)) - GH-84 (https://github.com/eastern-oak/tjiftjaf/issues/84)
+- GH-89 Merge `packet.rs` and `packet_v2` mod into `packet` mod - ([578fe13](578fe135955896dc3bd497327fd15b988a780748)) - GH-89 (https://github.com/eastern-oak/tjiftjaf/issues/89)
+
+### Changes
+- GH-93 Add example that uses `tokio` (#96) - ([ddc67b0](ddc67b0f5d95a00ea87819c0e10350abbed0a4a9)) - GH-93 (https://github.com/eastern-oak/tjiftjaf/issues/93)
+
 ## 0.4.0 - 2025-11-17
 
 [d566d82](d566d8255195153bd2a31cc21e28a14c0d284b71)...[5a16fe1](5a16fe167b412fe23305ba38d1aa0d927156e197)
