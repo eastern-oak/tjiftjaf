@@ -140,7 +140,7 @@ where
 
                         if sender.send(packet).await.is_err() {
                             // TODO: Change error type. std::io::Error is not really fitting here.
-                            return Err(std::io::Error::other("Failed to broadcast message"));
+                            return Err(std::io::Error::other("Failed to send message to handler"));
                         }
                     }
                 }
