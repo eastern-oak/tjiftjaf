@@ -36,7 +36,7 @@ name = "blocking_client"
 required-features = ["blocking"]
 
 [[example]]
-name = "client"
+name = "client_with_smol"
 required-features = ["async"]
 
 [[example]]
