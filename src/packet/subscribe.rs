@@ -14,8 +14,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 ///
 /// Use a [`Builder`] to construct `Subscribe`.
 /// ```
-/// use tjiftjaf::QoS;
-/// use tjiftjaf::packet_v2::subscribe::Subscribe;
+/// use tjiftjaf::{Subscribe, QoS};
 ///
 /// let subscribe = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
 ///     .add_topic("topic-2", QoS::AtMostOnceDelivery)
@@ -28,8 +27,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 ///
 /// Alternatively, try decoding [`Bytes`] as `Subscribe`.
 /// ```
-/// use tjiftjaf::QoS;
-/// use tjiftjaf::packet_v2::subscribe::Subscribe;
+/// use tjiftjaf::{Subscribe, QoS};
 /// use bytes::Bytes;
 ///
 /// let frame = Bytes::copy_from_slice(&[130, 12, 75, 66, 0, 7, 116, 111, 112, 105, 99, 45, 49, 0]);
@@ -63,8 +61,7 @@ impl Subscribe {
     /// # Example
     ///
     /// ```
-    /// use tjiftjaf::QoS;
-    /// use tjiftjaf::packet_v2::subscribe::Subscribe;
+    /// use tjiftjaf::{Subscribe, QoS};
     ///
     /// let subscribe = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
     ///     .add_topic("topic-2", QoS::AtMostOnceDelivery)

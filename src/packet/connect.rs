@@ -15,7 +15,7 @@ use std::marker::PhantomData;
 ///
 /// Use a [`Builder`] to construct `Connect`.
 /// ```
-/// use tjiftjaf::packet_v2::connect::Connect;
+/// use tjiftjaf::Connect;
 ///
 /// let packet = Connect::builder()
 ///   .client_id("test")
@@ -30,7 +30,7 @@ use std::marker::PhantomData;
 ///
 /// Alternatively, try decoding [`Bytes`] as `Connect`.
 /// ```
-/// use tjiftjaf::packet_v2::connect::Connect;
+/// use tjiftjaf::Connect;
 /// use bytes::Bytes;
 ///
 /// let frame = Bytes::copy_from_slice(&[16, 16, 0, 4, 77, 81, 84, 84, 4, 2, 1, 44, 0, 4, 116, 101, 115, 116]);
@@ -467,7 +467,7 @@ pub struct WithWill;
 /// Helper type to construct a [`Connect`].
 ///
 /// ```
-/// use tjiftjaf::packet_v2::connect::Connect;
+/// use tjiftjaf::Connect;
 ///
 /// let packet = Connect::builder()
 ///   .client_id("test")

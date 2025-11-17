@@ -15,8 +15,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 ///
 /// Use a [`Builder`] to construct `Publish`.
 /// ```
-/// use tjiftjaf::QoS;
-/// use tjiftjaf::packet_v2::publish::Publish;
+/// use tjiftjaf::{QoS, Publish};
 ///
 /// let packet = Publish::builder("test/topic", "Hello MQTT!")
 ///     .qos(QoS::AtMostOnceDelivery)
@@ -32,7 +31,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 /// Alternatively, decode `Publish` from some bytes:
 ///
 /// ```
-/// use tjiftjaf::packet_v2::publish::Publish;
+/// use tjiftjaf::Publish;
 /// use bytes::Bytes;
 ///
 /// let frame = Bytes::copy_from_slice(&[49, 23, 0, 10, 116, 101, 115, 116, 47, 116, 111, 112, 105, 99, 72, 101, 108, 108, 111, 32, 77, 81, 84, 84, 33]);
