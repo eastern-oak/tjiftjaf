@@ -1,3 +1,4 @@
+/// Run with `cargo run --example client_with_tokio`
 use log::info;
 use std::env;
 use tjiftjaf::{
