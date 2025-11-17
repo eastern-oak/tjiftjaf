@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 
 - GH-60 Gate the async client behind a feature flag (#85) - ([5a16fe1](5a16fe167b412fe23305ba38d1aa0d927156e197)) - GH-60 (https://github.com/eastern-oak/tjiftjaf/issues/60)
 
-##s Changes
+### Changes
 - GH-59 Add blocking `Client` - ([ef7025b](ef7025ba65426733004e84bafcc83b12da1efbf1)) - GH-59 (https://github.com/eastern-oak/tjiftjaf/issues/59)
 
 ## 0.3.2 - 2025-11-13
