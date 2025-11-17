@@ -1,22 +1,27 @@
 use super::decode::{DecodingError, InvalidPacketTypeError, packet_length};
-use crate::decode;
-use crate::packet_v2::connack::ConnAck;
-use crate::packet_v2::connect::Connect;
-use crate::packet_v2::disconnect::Disconnect;
-use crate::packet_v2::ping_req::PingReq;
-use crate::packet_v2::ping_resp::PingResp;
-use crate::packet_v2::puback::PubAck;
-use crate::packet_v2::pubcomp::PubComp;
-use crate::packet_v2::publish::Publish;
-use crate::packet_v2::pubrec::PubRec;
-use crate::packet_v2::pubrel::PubRel;
-use crate::packet_v2::suback::SubAck;
-use crate::packet_v2::subscribe::Subscribe;
-use crate::packet_v2::unsuback::UnsubAck;
-use crate::packet_v2::unsubscribe::Unsubscribe;
+use crate::{
+    ConnAck, Connect, Disconnect, PingReq, PingResp, PubAck, PubComp, PubRec, PubRel, Publish,
+    SubAck, Subscribe, UnsubAck, Unsubscribe, decode,
+};
 use bytes::Bytes;
 use std::error::Error;
 use std::fmt::{self, Display};
+
+mod ack;
+pub mod connack;
+pub mod connect;
+pub mod disconnect;
+pub mod ping_req;
+pub mod ping_resp;
+pub mod puback;
+pub mod pubcomp;
+pub mod publish;
+pub mod pubrec;
+pub mod pubrel;
+pub mod suback;
+pub mod subscribe;
+pub mod unsuback;
+pub mod unsubscribe;
 
 #[derive(Clone)]
 pub enum Packet {
@@ -352,5 +357,66 @@ pub fn min_bytes_required(payload: &[u8]) -> u32 {
         Ok(length) => length - payload.len() as u32,
         Err(DecodingError::NotEnoughBytes { .. }) => 127 - payload.len() as u32,
         Err(error) => panic!("{error:?}"),
+    }
+}
+
+// Retrieve the fixed header, variable header, and payload a frame.
+// Since the frame is not verified (yet), these operations are fallible.
+pub trait UnverifiedFrame {
+    fn as_bytes(&self) -> &[u8];
+
+    // Return the actual length of the frame.
+    fn length(&self) -> usize {
+        self.as_bytes().len()
+    }
+
+    /// Return a slice containing the fixed header.
+    fn try_header(&self) -> Result<&[u8], DecodingError> {
+        let inner = self.as_bytes();
+
+        // Decode the "remaining length" field. This field is between
+        // 1 and 3 bytes long and contains the number that follow _after_
+        // this field.
+        //
+        // The length of the entire packet is:
+        // * the value encoded is this field
+        // * the length of this field (between 1 and 3 bytes)
+        // * 1 byte for encoding the packet type
+        for n in 1..5 {
+            let byte = inner.get(n).ok_or(DecodingError::NotEnoughBytes {
+                minimum: 1,
+                actual: 0,
+            })?;
+
+            if byte & 128 == 0 {
+                // TODO: Make lookup infallible.
+                return Ok(&self.as_bytes()[0..n + 1]);
+            }
+        }
+
+        Err(DecodingError::InvalidRemainingLength)
+    }
+
+    fn try_offset_variable_header(&self) -> Result<usize, DecodingError> {
+        self.try_header().map(|header| header.len())
+    }
+
+    // Return the bytes forming the variable header.
+    // The slice might be empty for packets without payload.
+    fn try_variable_header(&self) -> Result<&[u8], DecodingError>;
+
+    fn try_offset_payload(&self) -> Result<usize, DecodingError> {
+        Ok(self.try_header().map(|header| header.len())?
+            + self.try_variable_header().map(|header| header.len())?)
+    }
+
+    // Return the bytes forming the payload.
+    // The slice might be empty for packets without payload.
+    fn try_payload(&self) -> Result<&[u8], DecodingError> {
+        let offset = self.try_offset_payload()?;
+        let size = self.length() - offset;
+
+        // TODO: Make lookup infallible.
+        Ok(&self.as_bytes()[offset..offset + size])
     }
 }

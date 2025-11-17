@@ -1,15 +1,14 @@
-//! Providing [`PubRec`], to acknowledge a [`super::Publish`].
-use crate::packet_v2::ack::Ack;
-use crate::{Frame, Packet, PacketType, decode::DecodingError};
+//! Providing [`UnsubAck`], to acknowledge a [`super::Unsubscribe`].
+use crate::{Frame, Packet, PacketType, decode::DecodingError, packet::ack::Ack};
 use bytes::Bytes;
 
-/// A [`PubRec`] packet is the response to a [`Publish`] packet with [`QoS::ExactlyOnceDelivery`].
+/// A [`UnsubAck`] packet is the response to a [`Unsubscribe`].
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct PubRec(Ack);
+pub struct UnsubAck(Ack);
 
-impl PubRec {
+impl UnsubAck {
     pub fn new(packet_identifier: u16) -> Self {
-        Self(Ack::new(PacketType::PubRec, packet_identifier))
+        Self(Ack::new(PacketType::UnsubAck, packet_identifier))
     }
 
     /// Retrieve the packet identifier.
@@ -18,7 +17,7 @@ impl PubRec {
     }
 }
 
-impl Frame for PubRec {
+impl Frame for UnsubAck {
     fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
@@ -28,42 +27,42 @@ impl Frame for PubRec {
     }
 }
 
-impl TryFrom<Bytes> for PubRec {
+impl TryFrom<Bytes> for UnsubAck {
     type Error = DecodingError;
 
     fn try_from(value: Bytes) -> Result<Self, Self::Error> {
-        PubRec::try_from(value.as_ref())
+        UnsubAck::try_from(value.as_ref())
     }
 }
 
-impl TryFrom<&[u8]> for PubRec {
+impl TryFrom<&[u8]> for UnsubAck {
     type Error = DecodingError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let ack = Ack::try_from(value)?;
-        if ack.packet_type() == PacketType::PubRec {
-            Ok(PubRec(ack))
+        if ack.packet_type() == PacketType::UnsubAck {
+            Ok(UnsubAck(ack))
         } else {
             Err(DecodingError::InvalidPacketType(ack.packet_type() as u8))
         }
     }
 }
 
-impl From<PubRec> for Bytes {
-    fn from(value: PubRec) -> Bytes {
+impl From<UnsubAck> for Bytes {
+    fn from(value: UnsubAck) -> Bytes {
         Bytes::copy_from_slice(value.0.as_bytes())
     }
 }
 
-impl From<PubRec> for Packet {
-    fn from(value: PubRec) -> Packet {
-        Packet::PubRec(value)
+impl From<UnsubAck> for Packet {
+    fn from(value: UnsubAck) -> Packet {
+        Packet::UnsubAck(value)
     }
 }
 
-impl std::fmt::Debug for PubRec {
+impl std::fmt::Debug for UnsubAck {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PUBREC")
+        f.debug_struct("UNSUBACK")
             .field("length", &self.length())
             .field("packet_identifier", &self.packet_identifier())
             .finish()
@@ -72,14 +71,14 @@ impl std::fmt::Debug for PubRec {
 
 #[cfg(test)]
 mod test {
-    use super::PubRec;
+    use super::UnsubAck;
 
     #[test]
     #[allow(clippy::useless_conversion)]
     fn test_encode_and_decode() {
-        let puback = PubRec::new(1568);
+        let puback = UnsubAck::new(1568);
         // Verify conversion to and from &[u8].
-        PubRec::try_from(puback).unwrap();
+        UnsubAck::try_from(puback).unwrap();
 
         assert_eq!(puback.packet_identifier(), 1568);
     }

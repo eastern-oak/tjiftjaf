@@ -4,7 +4,7 @@ use async_net::{TcpListener, TcpStream};
 use bytes::{BufMut, BytesMut};
 use futures_lite::{AsyncReadExt, AsyncWriteExt, FutureExt, StreamExt};
 use smol::spawn;
-use tjiftjaf::{Connect, Packet, PacketType, aio::Client, packet};
+use tjiftjaf::{Connect, Packet, PacketType, aio::Client, decode::DecodingError, packet};
 
 /// Start a proxy and connect `Client` through that proxy to the broker.
 /// The interaction between `Client` and broker is recorded in a `Transcription`.
@@ -272,7 +272,7 @@ impl Parser {
         packet::min_bytes_required(&self.inner)
     }
 
-    pub fn parse(&mut self) -> Result<Packet, tjiftjaf::packet_v2::DecodingError> {
+    pub fn parse(&mut self) -> Result<Packet, DecodingError> {
         match Packet::try_from(self.inner.clone().freeze()) {
             Ok(packet) => {
                 self.inner = BytesMut::new();

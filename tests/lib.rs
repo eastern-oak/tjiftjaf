@@ -11,11 +11,7 @@ mod aio {
     use smol::Timer;
     use smol_macros::test;
     use std::{future, time::Duration};
-    use tjiftjaf::{
-        Connect, Frame, Packet, PacketType,
-        aio::Client,
-        packet_v2::{connack::ConnAck, publish::Publish},
-    };
+    use tjiftjaf::{ConnAck, Connect, Frame, Packet, PacketType, Publish, aio::Client};
 
     const TOPIC: &str = "topic";
 
@@ -182,8 +178,7 @@ mod blocking {
     use bytes::Bytes;
     use pretty_assertions::assert_eq;
     use std::time::Duration;
-    use tjiftjaf::blocking;
-    use tjiftjaf::packet_v2::connect::Connect;
+    use tjiftjaf::{Connect, blocking};
 
     const TOPIC: &str = "topic";
 

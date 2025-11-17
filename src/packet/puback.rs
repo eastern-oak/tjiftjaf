@@ -1,6 +1,5 @@
 //! Providing [`PubAck`], to acknowledge a [`super::Publish`].
-use crate::packet_v2::ack::Ack;
-use crate::{Frame, Packet, PacketType, decode::DecodingError};
+use crate::{Frame, Packet, PacketType, decode::DecodingError, packet::ack::Ack};
 use bytes::Bytes;
 
 /// A [`PubAck`] packet is the response to a [`Publish`] packet with [`QoS::AtLeastOnceDelivery`].

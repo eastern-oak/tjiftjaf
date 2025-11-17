@@ -213,9 +213,8 @@ impl Default for ConnAckBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::{ConnAck, packet::connack::ReturnCode};
     use bytes::Bytes;
-
-    use crate::packet_v2::connack::{ConnAck, ReturnCode};
 
     #[test]
     fn test_building_connack() {
