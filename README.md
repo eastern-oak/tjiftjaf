@@ -1,3 +1,5 @@
+![Logo](./logo.svg)
+<img src="./logo.svg">
 # Tjiftjaf
 
 _tjiftjaf_ is a Rust library implementing MQTT 3.1.1.
