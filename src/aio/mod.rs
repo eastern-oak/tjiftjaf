@@ -2,13 +2,9 @@
 //!
 //! The `Client` holds a connection internally. Use a `ClientHandle` to
 //! read and write packets to this connection.
-use super::{MqttBinding, Packet};
 use crate::{
-    HandlerError, QoS,
-    packet_v2::{
-        connect, puback::PubAck, pubcomp::PubComp, publish::Publish, pubrec::PubRec,
-        pubrel::PubRel, subscribe::Subscribe,
-    },
+    Connect, HandlerError, MqttBinding, Packet, PubAck, PubComp, PubRec, PubRel, Publish, QoS,
+    Subscribe,
 };
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
@@ -27,7 +23,7 @@ impl<S> Client<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    pub fn new(connect: connect::Connect, socket: S) -> Self {
+    pub fn new(connect: Connect, socket: S) -> Self {
         Self {
             socket,
             binding: MqttBinding::from_connect(connect),

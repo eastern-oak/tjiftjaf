@@ -2,8 +2,7 @@
 
 use bytes::Bytes;
 use libfuzzer_sys::fuzz_target;
-use tjiftjaf::Frame;
-use tjiftjaf::packet_v2::subscribe::{Builder, Subscribe};
+use tjiftjaf::{Frame, Subscribe, packet::subscribe::Builder};
 
 fuzz_target!(|data: Builder| {
     // Verify this call doesn't panic.

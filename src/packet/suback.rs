@@ -3,7 +3,7 @@ use crate::{
     Frame, Packet, PacketType, QoS,
     decode::{self, DecodingError},
     encode,
-    packet_v2::UnverifiedFrame,
+    packet::UnverifiedFrame,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -14,8 +14,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 /// Use a [`Builder`] to construct `SubAck`.
 ///
 /// ```
-/// use tjiftjaf::packet_v2::suback::{SubAck, ReturnCode};
-/// use tjiftjaf::QoS;
+/// use tjiftjaf::{SubAck, QoS, packet::suback::ReturnCode};
 ///
 /// let frame = SubAck::builder(1522, QoS::AtMostOnceDelivery)
 ///         .add_return_code(ReturnCode::Failure)
@@ -28,8 +27,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 /// Alternatively, try decoding [`Bytes`] as `SubAck`.
 ///
 /// ```
-/// use tjiftjaf::packet_v2::suback::{SubAck, ReturnCode};
-/// use tjiftjaf::QoS;
+/// use tjiftjaf::{SubAck, QoS, packet::suback::ReturnCode};
 /// use bytes::Bytes;
 ///
 /// let frame = Bytes::copy_from_slice(&[146, 3, 55, 219, 0]);
@@ -63,8 +61,7 @@ impl SubAck {
     /// # Example
     ///
     /// ```
-    /// use tjiftjaf::packet_v2::suback::{SubAck, ReturnCode};
-    /// use tjiftjaf::QoS;
+    /// use tjiftjaf::{SubAck, QoS, packet::suback::ReturnCode};
     ///
     /// let frame = SubAck::builder(1522, QoS::AtMostOnceDelivery)
     ///         .add_return_code(ReturnCode::Failure)

@@ -32,10 +32,7 @@
 //! let publication = handle.publication().unwrap();
 //! println!("Received message on topic {}", publication.topic());
 //! ```
-use crate::{
-    Connect, HandlerError, MqttBinding, Packet, QoS,
-    packet_v2::{publish::Publish, subscribe::Subscribe},
-};
+use crate::{Connect, HandlerError, MqttBinding, Packet, Publish, QoS, Subscribe};
 use async_channel::{Receiver, Sender};
 use mio::{Events, Interest, Poll, Token, Waker};
 use std::{

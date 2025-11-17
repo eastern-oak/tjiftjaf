@@ -2,8 +2,9 @@
 use crate::{
     Frame, Packet, PacketType,
     decode::{self, DecodingError},
-    encode, packet_identifier,
-    packet_v2::UnverifiedFrame,
+    encode,
+    packet::UnverifiedFrame,
+    packet_identifier,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -13,12 +14,12 @@ use bytes::{BufMut, Bytes, BytesMut};
 ///
 /// Use a [`Builder`] to construct `Unsubscribe`.
 /// ```
-/// use tjiftjaf::QoS;
-/// use tjiftjaf::packet_v2::unsubscribe::Unsubscribe;
+/// use tjiftjaf::{Unsubscribe, QoS};
 ///
 /// let subscribe = Unsubscribe::builder("topic-1")
 ///     .add_topic("topic-2")
 ///     .build();
+///
 /// let mut topics = subscribe.topics();
 /// assert_eq!(topics.next(), Some("topic-1"));
 /// assert_eq!(topics.next(), Some("topic-2"));
@@ -27,8 +28,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 ///
 /// Alternatively, try decoding [`Bytes`] as `Unsubscribe`.
 /// ```
-/// use tjiftjaf::QoS;
-/// use tjiftjaf::packet_v2::unsubscribe::Unsubscribe;
+/// use tjiftjaf::{Unsubscribe, QoS};
 /// use bytes::Bytes;
 ///
 /// let frame = Bytes::copy_from_slice(&[162, 11,103,235,  0,  7,116,111,112,105, 99, 45, 49]);
@@ -62,15 +62,14 @@ impl Unsubscribe {
     /// # Example
     ///
     /// ```
-    /// use tjiftjaf::QoS;
-    /// use tjiftjaf::packet_v2::subscribe::Subscribe;
+    /// use tjiftjaf::Unsubscribe;
     ///
-    /// let subscribe = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
-    ///     .add_topic("topic-2", QoS::AtMostOnceDelivery)
+    /// let unsubscribe = Unsubscribe::builder("topic-1")
+    ///     .add_topic("topic-2")
     ///     .build();
-    /// let mut topics = subscribe.topics();
-    /// assert_eq!(topics.next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
-    /// assert_eq!(topics.next(), Some(("topic-2", QoS::AtMostOnceDelivery)));
+    /// let mut topics = unsubscribe.topics();
+    /// assert_eq!(topics.next(), Some("topic-1"));
+    /// assert_eq!(topics.next(), Some("topic-2"));
     /// assert_eq!(topics.next(), None);
     /// ```
     pub fn topics(&self) -> Topics<'_> {

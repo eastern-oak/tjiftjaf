@@ -1,20 +1,25 @@
 #![doc = include_str!("../README.md")]
-use crate::packet_v2::{publish::Publish, subscribe::Subscribe};
+#[doc(inline)]
+pub use crate::decode::DecodingError;
+#[doc(inline)]
+pub use crate::packet::{
+    Frame, Packet, PacketType, ProtocolLevel, QoS, connack::ConnAck, connect::Connect,
+    disconnect::Disconnect, ping_req::PingReq, ping_resp::PingResp, puback::PubAck,
+    pubcomp::PubComp, publish::Publish, pubrec::PubRec, pubrel::PubRel, suback::SubAck,
+    subscribe::Subscribe, unsuback::UnsubAck, unsubscribe::Unsubscribe,
+};
 use bytes::{BufMut, Bytes, BytesMut};
 use log::{debug, error, trace};
-pub use packet::*;
-use packet_v2::ping_req::PingReq;
 use std::{
     error::Error,
     fmt::Display,
     time::{Duration, Instant, SystemTime},
 };
-pub mod packet;
-pub mod packet_v2;
-pub use crate::packet_v2::connect::{self, Connect};
+
 mod client;
 pub mod decode;
 mod encode;
+pub mod packet;
 mod validate;
 
 #[cfg(feature = "blocking")]
@@ -77,14 +82,14 @@ pub struct MqttBinding {
     statistics: Statistics,
 
     last_io: Instant,
-    connect: connect::Connect,
+    connect: Connect,
 }
 
 // The driver must do 2 things:
 // * request a buffer, it'll need to read bytes from the socket and fill the buffer until it's fill.
 // * request a buffer to write,
 impl MqttBinding {
-    pub fn from_connect(connect: connect::Connect) -> Self {
+    pub fn from_connect(connect: Connect) -> Self {
         Self {
             connection_status: ConnectionStatus::default(),
             state: State::default(),
@@ -347,7 +352,7 @@ impl<T> From<async_channel::SendError<T>> for HandlerError {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::packet_v2::connack::ConnAck;
+    use crate::ConnAck;
     use std::io::{Cursor, Read};
 
     fn as_str(bytes: &[u8]) -> &str {
