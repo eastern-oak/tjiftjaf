@@ -23,7 +23,7 @@ jobs:
       run: cargo fmt --verbose --check
 
     - name: Verify that code is linted correctly.
-      run: cargo clippy --all-targets -all-features -- --deny=warnings
+      run: cargo clippy --all-targets --all-features -- --deny=warnings
 
     - name: Run tests for all features
       run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all-targets -all-features --verbose
