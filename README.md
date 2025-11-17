@@ -1,4 +1,3 @@
-![Logo](./logo.svg)
 <img src="./logo.svg">
 # Tjiftjaf
 
