@@ -2,11 +2,6 @@
   <img src="./logo.svg">
 </p>
 
-[![Crates.io][https://img.shields.io/crates/v/tjiftjaf.svg]](https://crates.io/crates/tjiftjaf)
-[![MPL licensed][https://img.shields.io/badge/license-MPL-blue.svg]](https://github.com/eastern-# Tjiftjaf
-
-oak/tjiftjaf/blob/master/LICENSE)
-
 _tjiftjaf_ is a Rust library implementing MQTT 3.1.1.
 
 # Features
