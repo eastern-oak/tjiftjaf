@@ -23,6 +23,8 @@ rumqttd = { version = "0.19.0", default-features = false }
 smol-macros = "0.1.1"
 async-net = { version = "2.0.0", default-features = false }
 smol = { version = "2.0.2", default-features = false }
+tokio = { version = "1.48.0", default-features = false, features = ["net", "macros", "rt"] }
+tokio-util = { version = "0.7.17", default-features = false, features = ["compat" ] }
 
 [features]
 default = ["async"]
@@ -35,6 +37,10 @@ required-features = ["blocking"]
 
 [[example]]
 name = "client"
+required-features = ["async"]
+
+[[example]]
+name = "client_with_tokio"
 required-features = ["async"]
 
 [package.metadata.docs.rs]
