@@ -1,4 +1,6 @@
-# Tjiftjaf
+<p align="center">
+  <img src="./logo.svg">
+</p>
 
 _tjiftjaf_ is a Rust library implementing MQTT 3.1.1.
 
