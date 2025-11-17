@@ -1,9 +1,7 @@
 #![no_main]
-
 use bytes::Bytes;
 use libfuzzer_sys::fuzz_target;
-use tjiftjaf::Frame;
-use tjiftjaf::packet_v2::connect::Connect;
+use tjiftjaf::{Connect, Frame};
 
 fuzz_target!(|connect_1: Connect| {
     // Verify this call doesn't panic.
