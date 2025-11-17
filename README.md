@@ -13,7 +13,8 @@ and an [asynchronous `Client`](https://docs.rs/tjiftjaf/latest/tjiftjaf/aio/stru
 The latter does not require a specific runtime executor.
 
 Take a look at the examples:
-* [examples/client.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/client.rs) uses the executor [smol](https://docs.rs/smol/latest/smol/index.html)
+* [examples/client_with_smol.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/client_with_smol.rs) uses the executor [smol](https://docs.rs/smol/latest/smol/index.html)
+* [examples/client_with_tokio.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/client_with_tokio.rs) uses the executor [tokio](https://docs.rs/tokio/latest/tokio/index.html)
 * [examples/blocking_client.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/blocking_client.rs) does _not_ use async.
 
 ## Do not use this crate
