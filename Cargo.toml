@@ -27,12 +27,16 @@ smol = { version = "2.0.2", default-features = false }
 
 [features]
 default = ["async"]
-blocking = ["mio"]
+blocking = ["async-channel", "mio"]
 async = ["async-broadcast", "async-channel", "async-io", "futures-lite"]
 
 [[example]]
 name = "blocking_client"
 required-features = ["blocking"]
+
+[[example]]
+name = "client"
+required-features = ["async"]
 
 [package.metadata.docs.rs]
 all-features = true

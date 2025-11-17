@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
 use crate::packet_v2::{publish::Publish, subscribe::Subscribe};
-use async_channel::{RecvError, SendError};
 use bytes::{BufMut, Bytes, BytesMut};
 use log::{debug, error, trace};
 pub use packet::*;
@@ -327,16 +326,18 @@ impl Display for HandlerError {
     }
 }
 
-impl From<RecvError> for HandlerError {
-    fn from(value: RecvError) -> Self {
+#[cfg(feature = "blocking")]
+impl From<async_channel::RecvError> for HandlerError {
+    fn from(value: async_channel::RecvError) -> Self {
         HandlerError(format!(
             "Handler failed receiving packet from Client: {value:?}"
         ))
     }
 }
 
-impl<T> From<SendError<T>> for HandlerError {
-    fn from(value: SendError<T>) -> Self {
+#[cfg(feature = "blocking")]
+impl<T> From<async_channel::SendError<T>> for HandlerError {
+    fn from(value: async_channel::SendError<T>) -> Self {
         HandlerError(format!(
             "Handler failed to send packet to Client: {value:?}"
         ))

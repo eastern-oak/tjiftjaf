@@ -23,7 +23,18 @@ jobs:
       run: cargo fmt --verbose --check
 
     - name: Verify that code is linted correctly.
-      run: cargo clippy --all-targets -- --deny=warnings
+      run: cargo clippy --all-targets -all-features -- --deny=warnings
 
-    - name: Run tests
-      run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all-targets --verbose       
+    - name: Run tests for all features
+      run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all-targets -all-features --verbose
+
+    - name: Run tests without any features
+      run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all --no-default-features --verbose
+
+    - name: Run tests without the blocking feature
+      run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all-targets --no-default-features --features=blocking --verbose      
+
+    - name: Run tests without the async feature
+      run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all-targets --no-default-features --features=async --verbose
+
+      
