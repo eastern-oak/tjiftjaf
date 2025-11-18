@@ -9,6 +9,7 @@
 //! for a more complete example.
 //!
 //! ```no_run
+//! # smol::block_on({})
 //! use std::net::TcpStream;
 //! use tjiftjaf::{Connect, QoS, blocking::Client, packet_identifier};
 //!
@@ -147,7 +148,7 @@ impl Client {
     }
 }
 
-/// A handle to interact with a `Client`.
+/// A handle to interact with a [`Client`].
 ///
 /// See the [module documentation](crate::blocking) for more information.
 pub struct ClientHandle {
