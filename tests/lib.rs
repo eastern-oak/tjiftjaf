@@ -11,7 +11,10 @@ mod aio {
     use smol::Timer;
     use smol_macros::test;
     use std::{future, time::Duration};
-    use tjiftjaf::{ConnAck, Connect, Frame, Packet, PacketType, Publish, aio::Client};
+    use tjiftjaf::{
+        ConnAck, Connect, Frame, Packet, PacketType, Publish,
+        aio::{Client, server::Server},
+    };
 
     const TOPIC: &str = "topic";
 
@@ -20,7 +23,10 @@ mod aio {
             .await
             .expect("Failed to open TCP connection to broker.");
 
-        let connect = Connect::builder().client_id("test").keep_alive(5).build();
+        let connect = Connect::builder()
+            .client_id(stream.local_addr().unwrap().port())
+            .keep_alive(5)
+            .build();
         Client::new(connect, stream)
     }
 
@@ -170,6 +176,34 @@ mod aio {
         let _ = history.find(PacketType::PubRec).await;
         let _ = history.find(PacketType::PubRel).await;
         let _ = history.find(PacketType::PubComp).await;
+    }
+
+    #[apply(test!)]
+    async fn test_client_and_server() {
+        simple_logger::init_with_level(log::Level::Debug).unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let local_addr = listener.local_addr().unwrap();
+        let server = Server::new(listener);
+        let _server_handle = smol::spawn(server.run());
+
+        let (mut handle_1, task) = create_client(local_addr.port()).await.spawn();
+        let _handle = smol::spawn(task);
+        let (handle_2, task) = create_client(local_addr.port()).await.spawn();
+        let _handle = smol::spawn(task);
+
+        handle_1
+            .subscribe(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
+            .await
+            .unwrap();
+
+        handle_2
+            .publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+            .await
+            .unwrap();
+
+        let publication = handle_1.subscriptions().await.unwrap();
+        assert_eq!(&publication.topic(), &TOPIC);
+        assert_eq!(&publication.payload(), b"test_subscribe_and_publish");
     }
 }
 
