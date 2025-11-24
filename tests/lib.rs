@@ -11,10 +11,10 @@ mod aio {
     use smol::Timer;
     use smol_macros::test;
     use std::{future, time::Duration};
-    use tjiftjaf::{
-        ConnAck, Connect, Frame, Packet, PacketType, Publish,
-        aio::{Client, server::Server},
-    };
+    use tjiftjaf::{ConnAck, Connect, Frame, Packet, PacketType, Publish, aio::Client};
+
+    #[cfg(feature = "experimental")]
+    use tjiftjaf::server::Server;
 
     const TOPIC: &str = "topic";
 
@@ -178,6 +178,7 @@ mod aio {
         let _ = history.find(PacketType::PubComp).await;
     }
 
+    #[cfg(feature = "experimental")]
     #[apply(test!)]
     async fn test_client_and_server() {
         simple_logger::init_with_level(log::Level::Debug).unwrap();
