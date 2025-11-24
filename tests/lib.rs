@@ -14,7 +14,7 @@ mod aio {
     use tjiftjaf::{ConnAck, Connect, Frame, Packet, PacketType, Publish, aio::Client};
 
     #[cfg(feature = "experimental")]
-    use tjiftjaf::server::Server;
+    use tjiftjaf::aio::server::Server;
 
     const TOPIC: &str = "topic";
 
