@@ -17,7 +17,7 @@ use std::collections::HashMap;
 pub struct Server {
     listener: TcpListener,
 
-    // Map topics to client ids.
+    // Map client ids to topics.
     subscriptions: HashMap<String, (Sender<Packet>, Vec<String>)>,
 }
 
@@ -138,7 +138,7 @@ async fn handle_client(mut stream: TcpStream, sender: Sender<Message>) {
     };
 
     let Packet::Connect(connect) = &packet else {
-        error!("Client did not set CONNECT as first message, instead  it sent  {packet:?}");
+        error!("Client did not set CONNECT as first message, instead it sent {packet:?}");
         return;
     };
     let client_id = connect.client_id().to_owned();
@@ -159,7 +159,7 @@ async fn handle_client(mut stream: TcpStream, sender: Sender<Message>) {
         .send(Message::Connect(client_id.clone(), tx_outbound))
         .await
     {
-        panic!("Failed to internally forward MQTT packet. That's a fatal error : {error:?}");
+        panic!("Failed to internally forward MQTT packet. That's a fatal error: {error:?}");
     }
 
     loop {
@@ -194,7 +194,7 @@ async fn handle_client(mut stream: TcpStream, sender: Sender<Message>) {
                         if let Err(error) = sender
                             .send(Message::Packet(client_id.clone(), Packet::Subscribe(subscribe)))
                             .await {
-                                panic!("Failed to internally forward MQTT packet. That's a fatal error : {error:?}");
+                                panic!("Failed to internally forward MQTT packet. That's a fatal error: {error:?}");
                         }
 
                         Some(builder.build_packet())
@@ -204,12 +204,12 @@ async fn handle_client(mut stream: TcpStream, sender: Sender<Message>) {
                             .send(Message::Packet(client_id.clone(), Packet::Publish(publish)))
 
                             .await {
-                                panic!("Failed to internally forward MQTT packet. That's a fatal error : {error:?}");
+                                panic!("Failed to internally forward MQTT packet. That's a fatal error: {error:?}");
                         }
                         None
                     }
                     Packet::Connect(..) | Packet::SubAck(..) | Packet::PubAck(..) => {
-                        warn!("Client send packet only a broker is allowed to send, closing connection.");
+                        warn!("Client sent packet only a broker is allowed to send, closing connection.");
                         return
                     }
 
