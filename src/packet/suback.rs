@@ -30,7 +30,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 /// use tjiftjaf::{SubAck, QoS, packet::suback::ReturnCode};
 /// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[146, 3, 55, 219, 0]);
+/// let frame = Bytes::copy_from_slice(&[144, 3, 55, 219, 0]);
 /// let packet = SubAck::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 14299);
 /// assert_eq!(packet.return_codes(), vec![ReturnCode::QoS(QoS::AtMostOnceDelivery)]);
@@ -297,6 +297,7 @@ mod test {
     #[test]
     fn test_suback() {
         let frame = SubAck::builder(14299, QoS::AtMostOnceDelivery).build();
+        dbg!(frame.as_bytes());
         let _: SubAck = frame.into_bytes().try_into().unwrap();
 
         let frame = SubAck::builder(1522, QoS::AtMostOnceDelivery)
