@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.5.1 - 2025-11-25
+
+[f728e76](f728e762baf1bae8d424bf154b9088b3a537a8b1)...[bd69f7f](bd69f7f39e171457a064476f86e8eda2771f45af)
+
+### Changes
+
+- GH-100 Add an experimental server (#101) - ([e8501e5](e8501e511bea4d87a59c8c96f5a43c7686574607)) - GH-100 (https://github.com/eastern-oak/tjiftjaf/issues/100)
+- GH-102 Fix flags in SUBACK header (#103) - ([bd69f7f](bd69f7f39e171457a064476f86e8eda2771f45af)) - GH-102 (https://github.com/eastern-oak/tjiftjaf/issues/102)
+
 ## 0.5.0 - 2025-11-17
 
 [2b9fc73](2b9fc7386ce11453aafedc56e12c2345f9eba80e)...[ddc67b0](ddc67b0f5d95a00ea87819c0e10350abbed0a4a9)
