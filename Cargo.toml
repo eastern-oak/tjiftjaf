@@ -13,6 +13,9 @@ futures-lite = { version = "2", optional = true, default-features = false, featu
 log = "0.4"
 arbitrary = { version = "1", optional = true, features = ["derive"] }
 mio = { version = "1.0", optional = true, default-features = false, features = ["log", "os-poll", "net"] }
+async-net = "2.0.0"
+futures = { version = "0.3.31", optional = true , default-features = false, features = ["async-await", "std"]}
+smol = "2.0.2"
 
 
 [dev-dependencies]
@@ -30,6 +33,7 @@ tokio-util = { version = "0.7.17", default-features = false, features = ["compat
 default = ["async"]
 blocking = ["async-channel", "mio"]
 async = ["async-channel", "async-io", "futures-lite"]
+experimental = ["futures"]
 
 [[example]]
 name = "blocking_client"
@@ -42,6 +46,10 @@ required-features = ["async"]
 [[example]]
 name = "client_with_tokio"
 required-features = ["async"]
+
+[[example]]
+name = "server"
+required-features = ["async", "experimental"]
 
 [package.metadata.docs.rs]
 all-features = true

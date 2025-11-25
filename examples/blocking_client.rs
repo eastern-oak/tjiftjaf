@@ -27,6 +27,10 @@ fn main() {
         .subscribe("$SYS/broker/uptime", QoS::AtMostOnceDelivery)
         .expect("Failed to subscribe to topic.");
 
+    handle
+        .subscribe("$SYS/broker/load/publish/sent", QoS::AtMostOnceDelivery)
+        .expect("Failed to subscribe to topic.");
+
     let random_topic = packet_identifier().to_string();
     handle
         .subscribe(&random_topic, QoS::AtMostOnceDelivery)

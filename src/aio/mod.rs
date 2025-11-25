@@ -10,8 +10,11 @@ use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
 use bytes::Bytes;
 use futures_lite::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
-use log::{debug, error};
+use log::{error, trace};
 use std::time::Instant;
+
+#[cfg(feature = "experimental")]
+pub mod server;
 
 pub struct Client<S: AsyncRead + AsyncWrite + Unpin> {
     // Socket for interacting with the MQTT broker.
@@ -98,7 +101,7 @@ where
                         return Err(std::io::Error::other("Packet is empty"));
                     }
 
-                    debug!(
+                    trace!(
                         "Received {bytes_read} bytes for a buffer of {}",
                         buffer.len()
                     );
