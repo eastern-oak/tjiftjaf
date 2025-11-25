@@ -135,6 +135,12 @@ impl UnverifiedSubAck {
             return Err(DecodingError::InvalidPacketType(packet_type as u8));
         }
 
+        // The lowest 4 bits of the header include flags.
+        // For SUBACK, none of these flags is set.
+        if header[0] & 0b1111 != 0 {
+            return Err(DecodingError::HeaderContainsInvalidFlags);
+        }
+
         // TODO: limit payload length to 255.
         let packet_length = decode::packet_length(&header[1..header.len()])? as usize;
         if packet_length != self.length() {
@@ -217,7 +223,7 @@ impl Builder {
 
         let mut packet = BytesMut::new();
         let packet_type: u8 = PacketType::SubAck.into();
-        packet.put_u8((packet_type << 4) + 2);
+        packet.put_u8(packet_type << 4);
 
         let remaining_length = encode::remaining_length(variable_header.len() + payload.len());
         packet.put(remaining_length);

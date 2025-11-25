@@ -25,6 +25,11 @@ pub enum DecodingError {
     // The field "remaining length" is not valid.
     InvalidRemainingLength,
 
+    /// One or more flags in the header has an illegal value.
+    /// PUBLISH, PUBREL, SUBSCRIBE and UNSUBSCRIBE can have flags set.
+    /// For all other packets the flags must be all 0.
+    HeaderContainsInvalidFlags,
+
     // TODO: For now a 'catch-all' type. When we approach a first stable
     // release we should replace this variant with more explicit members.
     Other,
@@ -45,6 +50,7 @@ impl Display for DecodingError {
             Self::TooManyBytes => "too many bytes",
             Self::InvalidPacketType(value) => &format!("{value} is not a valid packet type"),
             Self::InvalidValue(reason) => reason,
+            Self::HeaderContainsInvalidFlags => "Header contains illegal flags",
             Self::InvalidRemainingLength => "Field remaining length is not valid",
             Self::Other => "Some other error",
         };
