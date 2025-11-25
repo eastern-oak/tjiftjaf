@@ -30,7 +30,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 /// use tjiftjaf::{SubAck, QoS, packet::suback::ReturnCode};
 /// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[146, 3, 55, 219, 0]);
+/// let frame = Bytes::copy_from_slice(&[144, 3, 55, 219, 0]);
 /// let packet = SubAck::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 14299);
 /// assert_eq!(packet.return_codes(), vec![ReturnCode::QoS(QoS::AtMostOnceDelivery)]);
@@ -135,6 +135,12 @@ impl UnverifiedSubAck {
             return Err(DecodingError::InvalidPacketType(packet_type as u8));
         }
 
+        // The lowest 4 bits of the header include flags.
+        // For SUBACK, none of these flags is set.
+        if header[0] & 0b1111 != 0 {
+            return Err(DecodingError::HeaderContainsInvalidFlags);
+        }
+
         // TODO: limit payload length to 255.
         let packet_length = decode::packet_length(&header[1..header.len()])? as usize;
         if packet_length != self.length() {
@@ -217,7 +223,7 @@ impl Builder {
 
         let mut packet = BytesMut::new();
         let packet_type: u8 = PacketType::SubAck.into();
-        packet.put_u8((packet_type << 4) + 2);
+        packet.put_u8(packet_type << 4);
 
         let remaining_length = encode::remaining_length(variable_header.len() + payload.len());
         packet.put(remaining_length);
@@ -291,6 +297,7 @@ mod test {
     #[test]
     fn test_suback() {
         let frame = SubAck::builder(14299, QoS::AtMostOnceDelivery).build();
+        dbg!(frame.as_bytes());
         let _: SubAck = frame.into_bytes().try_into().unwrap();
 
         let frame = SubAck::builder(1522, QoS::AtMostOnceDelivery)
