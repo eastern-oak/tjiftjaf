@@ -310,7 +310,7 @@ enum Message {
     Packet(String, Packet),
 }
 
-// Verify if a topic match a subscription. The subscription might
+// Verify if a topic match a subscription. The subscription may
 // include wildcards like `#` and `+`.
 fn does_topic_match_subscription(subscription: &str, topic: &str) -> bool {
     // If no wild cards are used, check for exact match
@@ -323,22 +323,25 @@ fn does_topic_match_subscription(subscription: &str, topic: &str) -> bool {
     }
 
     let mut topic_segments = topic.split('/');
-    let subscription_segments = subscription.split('/');
 
-    for segment in subscription_segments {
-        let Some(x) = topic_segments.next() else {
+    for filter in subscription.split('/') {
+        // The topic and a subscription using `+` must have the same
+        // number of segments. If the topic has less segments, it is no match.
+        let Some(segment) = topic_segments.next() else {
             return false;
         };
 
-        if segment == "+" {
+        if filter == "+" {
             continue;
         }
 
-        if segment != x {
+        if filter != segment {
             return false;
         }
     }
 
+    // The topic and a subscription using `+` must have the same
+    // number of segments. If the topic has more segments, it is no match.
     if topic_segments.next().is_some() {
         return false;
     }
