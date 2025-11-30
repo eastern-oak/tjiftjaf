@@ -1,5 +1,5 @@
 use crate::{
-    ConnAck, DecodingError, Frame, Packet, PingResp, SubAck,
+    ConnAck, Connect, DecodingError, Frame, Packet, PingResp, SubAck,
     packet::{self, connack::ReturnCode},
 };
 use async_channel::{SendError, Sender};
@@ -32,7 +32,7 @@ impl Server {
     // Process an event from a client
     async fn handle_client_message(&mut self, message: Message) -> Result<(), SendError<Packet>> {
         match message {
-            Message::Connect(client_id, sender) => {
+            Message::Register(client_id, sender) => {
                 if self
                     .subscriptions
                     .insert(client_id.clone(), (sender, vec![]))
@@ -105,14 +105,14 @@ impl Server {
                 .await
                 .expect("Server failed to accept new connections.");
 
-            futures.push_back(handle_client(stream, tx_inbound.clone()));
+            futures.push_back(on_new_connection(stream, tx_inbound.clone()));
 
             loop {
                 futures::select! {
                     peer  = listener.accept().fuse() => {
                         match peer {
                             Ok((stream, _)) => {
-                                futures.push_back(handle_client(stream, tx_inbound.clone()));
+                                futures.push_back(on_new_connection(stream, tx_inbound.clone()));
                             }
                             Err(error) => {
                                 panic!("Failed to connect new clients: {error:?}");
@@ -139,117 +139,168 @@ impl Server {
     }
 }
 
-async fn handle_client(mut stream: TcpStream, sender: Sender<Message>) {
-    let packet = match read_packet(&mut stream).await {
-        Ok(packet) => packet,
-        Err(error) => {
-            error!("Failed to read MQTT packet, closing connection: {error:?}");
-            return;
-        }
-    };
-
-    let Packet::Connect(connect) = &packet else {
-        error!("Client did not set CONNECT as first message, instead it sent {packet:?}");
-        return;
-    };
-    let client_id = connect.client_id().to_owned();
-    debug!("{client_id} <-- {packet:?}");
-
-    let ack = ConnAck::builder()
-        .session_present()
-        .return_code(ReturnCode::ConnectionAccepted)
-        .build();
-
-    if let Err(error) = stream.write_all(ack.as_bytes()).await {
-        error!("{client_id} - Failed to write CONNACK packet, closing connection: {error:?}");
-        return;
-    };
-
-    let (tx_outbound, rx_outbound) = async_channel::bounded::<Packet>(100);
-    if let Err(error) = sender
-        .send(Message::Connect(client_id.clone(), tx_outbound))
+async fn on_new_connection(stream: TcpStream, funnel: Sender<Message>) -> Result<(), ClientError> {
+    let client = AnonymousClient::new(stream);
+    let mut client = client.deanonymize().await?;
+    client
+        .run(funnel)
         .await
-    {
-        panic!("Failed to internally forward MQTT packet. That's a fatal error: {error:?}");
+        .inspect(|_| info!("{} disconnected", client.client_id()))
+        .inspect_err(|error| error!("{} disconnected: {error:?}", client.client_id()))
+}
+
+#[derive(Debug)]
+enum ClientError {
+    // Something went wrong while interacting with the socket.
+    IoError(std::io::Error),
+
+    // Failed to decode an inbound packet.
+    DecodingError(DecodingError),
+
+    ServerError,
+
+    // The server received a packet is it didn't expect. For example,
+    // a second CONNECT packet, a CONNACK, a SUBACK, etc.
+    UnexpectedPacket,
+}
+
+impl From<DecodingError> for ClientError {
+    fn from(value: DecodingError) -> Self {
+        Self::DecodingError(value)
+    }
+}
+
+impl From<std::io::Error> for ClientError {
+    fn from(value: std::io::Error) -> Self {
+        Self::IoError(value)
+    }
+}
+
+impl From<SendError<Message>> for ClientError {
+    fn from(_: SendError<Message>) -> Self {
+        Self::ServerError
+    }
+}
+
+struct AnonymousClient {
+    stream: TcpStream,
+}
+
+impl AnonymousClient {
+    pub fn new(stream: TcpStream) -> Self {
+        Self { stream }
     }
 
-    loop {
-        let future2 = rx_outbound.recv();
-        smol::pin!(future2);
-        let mut future2 = future2.fuse();
+    pub async fn deanonymize(mut self) -> Result<Client, ClientError> {
+        let packet = read_packet(&mut self.stream).await?;
+        let Packet::Connect(connect) = packet else {
+            return Err(ClientError::UnexpectedPacket);
+        };
+        let client_id = connect.client_id().to_owned();
+        debug!("{client_id} <-- {connect:?}");
 
-        futures::select! {
-            packet = read_packet(&mut stream).fuse() =>  {
-                let packet = match packet {
-                    Ok(packet) => packet,
-                    Err(error) => {
-                        error!("Failed to read packet from stream, closing connection for this client: {error:?}");
-                        return
-                    }
-                };
-                info!("{client_id} <-- {packet:?}");
+        let ack = ConnAck::builder()
+            .return_code(ReturnCode::ConnectionAccepted)
+            .build();
 
-                let packet = match packet {
-                    Packet::PingReq(..) => Some(Packet::PingResp(PingResp)),
-                    Packet::Disconnect(..) => return,
-                    Packet::Subscribe(subscribe) => {
-                        let mut topics = subscribe.topics();
+        info!("{client_id} --> {ack:?}");
+        self.stream.write_all(ack.as_bytes()).await?;
+        Ok(Client::new(self.stream, connect))
+    }
+}
 
-                        // This should not panic, as subscribe must contain 1 topic.
-                        let (_, qos) = topics.next().unwrap();
+struct Client {
+    stream: TcpStream,
+    connect: Connect,
+}
 
-                        let mut builder = SubAck::builder(subscribe.packet_identifier(), qos);
-                        for (_, qos) in topics {
-                            builder = builder.add_return_code(qos);
+impl Client {
+    pub fn new(stream: TcpStream, connect: Connect) -> Self {
+        Self { stream, connect }
+    }
+
+    pub fn client_id(&self) -> &str {
+        self.connect.client_id()
+    }
+
+    // Send a packet to the client.
+    async fn send(&mut self, packet: Packet) -> Result<(), ClientError> {
+        info!("{} --> {packet:?}", self.client_id());
+        self.stream.write_all(&packet.into_bytes()).await?;
+        Ok(())
+    }
+
+    // Start the client. It'll perform 2 tasks in parallel:
+    // * reading packets from the tcp stream and forwarding some to `inbound` channel.
+    // * reading outbound packets from `receiver` and write them to the tcp stream.
+    pub async fn run(&mut self, funnel: Sender<Message>) -> Result<(), ClientError> {
+        let (tx, rx) = async_channel::bounded(100);
+        funnel
+            .send(Message::Register(self.client_id().to_owned(), tx))
+            .await?;
+
+        loop {
+            let future2 = rx.recv();
+            smol::pin!(future2);
+            let mut future2 = future2.fuse();
+
+            futures::select! {
+                packet = read_packet(&mut self.stream).fuse() =>  {
+                    let packet = packet?;
+                    info!("{} <-- {packet:?}", self.client_id());
+
+                    let packet = match packet {
+                        Packet::PingReq(..) => Some(Packet::PingResp(PingResp)),
+                        Packet::Disconnect(..) => {
+                            info!("{} Client disconnected deliberedly.", self.client_id());
+                            return Ok(());
                         }
-                        if let Err(error) = sender
-                            .send(Message::Packet(client_id.clone(), Packet::Subscribe(subscribe)))
-                            .await {
-                                panic!("Failed to internally forward MQTT packet. That's a fatal error: {error:?}");
+                        Packet::Subscribe(subscribe) => {
+                            let mut topics = subscribe.topics();
+
+                            // This should not panic, as subscribe must contain 1 topic.
+                            let (_, qos) = topics.next().unwrap();
+
+                            let mut builder = SubAck::builder(subscribe.packet_identifier(), qos);
+                            for (_, qos) in topics {
+                                builder = builder.add_return_code(qos);
+                            }
+                            funnel
+                                .send(Message::Packet(self.client_id().to_owned(), Packet::Subscribe(subscribe)))
+                                .await?;
+                            Some(builder.build_packet())
                         }
 
-                        Some(builder.build_packet())
-                    }
-                    Packet::Publish(publish) => {
-                        if let Err(error) = sender
-                            .send(Message::Packet(client_id.clone(), Packet::Publish(publish)))
-
-                            .await {
-                                panic!("Failed to internally forward MQTT packet. That's a fatal error: {error:?}");
+                        Packet::Publish(publish) => {
+                            funnel
+                                .send(Message::Packet(self.client_id().to_owned(), Packet::Publish(publish)))
+                                .await?;
+                            None
                         }
-                        None
-                    }
-                    Packet::Connect(..) | Packet::SubAck(..) | Packet::PubAck(..) => {
-                        warn!("Client sent packet only a broker is allowed to send, closing connection.");
-                        return
-                    }
+                        Packet::Connect(..) | Packet::SubAck(..) | Packet::PubAck(..) => {
+                            warn!("Client sent packet only a broker is allowed to send, closing connection.");
+                            return Err(ClientError::UnexpectedPacket);
+                        }
 
-                    other => todo!("{other:?} is not yet implemented"),
-                };
+                        other => todo!("{other:?} is not yet implemented"),
+                    };
 
-                if let Some(packet) = packet
-                    && let Err(error) = stream.write_all(&packet.into_bytes()).await {
-                        warn!("Failed to send packet to Client, the connection is gone: {error:?}");
-                        return
+                    if let Some(packet) = packet {
+                        self.send(packet).await?;
                     }
-            },
-            packet = future2 => {
-                match packet {
-                    Ok(packet) => {
-                        if let Err(error) = stream.write_all(&packet.into_bytes()).await {
-                            warn!("Failed to send packet to Client, the connection is gone: {error:?}");
-                            return
+                },
+                packet = future2 => {
+                    match packet {
+                        Ok(packet) => {
+                            self.send(packet).await?;
+                        }
+                        Err(error) => {
+                            warn!("{} - connection lost: {error:?}", self.client_id());
+                            return Err(ClientError::ServerError);
                         }
                     }
-                    Err(error) => {
-                        warn!("{client_id} - connection lost: {error:?}");
-                        return
-                    }
-
                 }
-
             }
-
         }
     }
 }
@@ -289,7 +340,7 @@ impl Parser {
         self.inner.put(data);
     }
 
-    pub fn bytes_required(&self) -> u32 {
+    fn bytes_required(&self) -> u32 {
         packet::min_bytes_required(&self.inner)
     }
 
@@ -306,7 +357,7 @@ impl Parser {
 
 #[derive(Clone)]
 enum Message {
-    Connect(String, Sender<Packet>),
+    Register(String, Sender<Packet>),
     Packet(String, Packet),
 }
 
