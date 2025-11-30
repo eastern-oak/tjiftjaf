@@ -53,12 +53,23 @@ impl Server {
                 }
             }
             Message::Packet(_, Packet::Publish(publish)) => {
+                let mut disconnected_clients: Vec<String> = Vec::new();
                 let needle = publish.topic();
-                for (peer, topics) in self.subscriptions.values() {
-                    if topics.iter().any(|topic| topic == needle) {
-                        // TODO: remove client if sending fails
-                        peer.send(Packet::Publish(publish.clone())).await?;
-                    }
+                let subscriptions = self.subscriptions.iter().filter(|(_, (_, topics))| {
+                    topics
+                        .iter()
+                        .any(|subscription| does_topic_match_subscription(subscription, needle))
+                });
+
+                for (client_id, (peer, _)) in subscriptions {
+                    if let Err(error) = peer.send(Packet::Publish(publish.clone())).await {
+                        warn!("{client_id} - Failed to send packet: {error:?}");
+                        disconnected_clients.push(client_id.clone());
+                    };
+                }
+
+                for client in disconnected_clients {
+                    self.subscriptions.remove(&client);
                 }
             }
 
@@ -297,4 +308,79 @@ impl Parser {
 enum Message {
     Connect(String, Sender<Packet>),
     Packet(String, Packet),
+}
+
+// Verify if a topic match a subscription. The subscription might
+// include wildcards like `#` and `+`.
+fn does_topic_match_subscription(subscription: &str, topic: &str) -> bool {
+    // If no wild cards are used, check for exact match
+    if !subscription.contains('#') && !subscription.contains('+') {
+        return subscription == topic;
+    }
+
+    if let Some((prefix, _)) = subscription.split_once('#') {
+        return topic.starts_with(prefix);
+    }
+
+    let mut topic_segments = topic.split('/');
+    let subscription_segments = subscription.split('/');
+
+    for segment in subscription_segments {
+        let Some(x) = topic_segments.next() else {
+            return false;
+        };
+
+        if segment == "+" {
+            continue;
+        }
+
+        if segment != x {
+            return false;
+        }
+    }
+
+    if topic_segments.next().is_some() {
+        return false;
+    }
+
+    true
+}
+
+#[cfg(test)]
+mod test {
+    use super::does_topic_match_subscription;
+
+    #[test]
+    fn test_does_topic_match_subscription() {
+        assert!(does_topic_match_subscription(
+            "sensors/3/value",
+            "sensors/3/value"
+        ));
+
+        assert!(does_topic_match_subscription(
+            "sensors/+/value",
+            "sensors/3/value"
+        ));
+
+        assert!(does_topic_match_subscription(
+            "sensors/+/+",
+            "sensors/3/value"
+        ));
+
+        assert!(does_topic_match_subscription(
+            "sensors/#",
+            "sensors/3/value"
+        ));
+
+        // These topics don't match
+        assert!(!does_topic_match_subscription(
+            "sensors/3/value",
+            "sensors/1/value"
+        ));
+
+        assert!(!does_topic_match_subscription(
+            "sensors/+/value",
+            "sensors/1/name"
+        ));
+    }
 }
