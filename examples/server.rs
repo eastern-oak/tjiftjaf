@@ -3,6 +3,7 @@ use std::env;
 use tjiftjaf::aio::server::Server;
 
 fn main() {
+    println!("broker - {}", env!("CARGO_PKG_VERSION"));
     simple_logger::init_with_level(log::Level::Debug).unwrap();
 
     let broker = env::args().nth(1).unwrap_or(String::from("127.0.0.1:1883"));
