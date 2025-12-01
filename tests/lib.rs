@@ -193,17 +193,20 @@ mod aio {
         let _handle = smol::spawn(task);
 
         handle_1
-            .subscribe(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
+            .subscribe("test/#", tjiftjaf::QoS::AtLeastOnceDelivery)
             .await
             .unwrap();
 
         handle_2
-            .publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+            .publish(
+                "test/client_and_server",
+                Bytes::from_static(b"test_subscribe_and_publish"),
+            )
             .await
             .unwrap();
 
         let publication = handle_1.subscriptions().await.unwrap();
-        assert_eq!(&publication.topic(), &TOPIC);
+        assert_eq!(&publication.topic(), &"test/client_and_server");
         assert_eq!(&publication.payload(), b"test_subscribe_and_publish");
     }
 }
