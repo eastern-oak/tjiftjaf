@@ -139,9 +139,25 @@ impl Server {
     }
 }
 
-async fn on_new_connection(stream: TcpStream, funnel: Sender<Message>) -> Result<(), ClientError> {
-    let client = AnonymousClient::new(stream);
-    let mut client = client.deanonymize().await?;
+async fn on_new_connection(
+    mut stream: TcpStream,
+    funnel: Sender<Message>,
+) -> Result<(), ClientError> {
+    let packet = read_packet(&mut stream).await?;
+    let Packet::Connect(connect) = packet else {
+        return Err(ClientError::UnexpectedPacket);
+    };
+    let client_id = connect.client_id().to_owned();
+    debug!("{client_id} <-- {connect:?}");
+
+    let ack = ConnAck::builder()
+        .return_code(ReturnCode::ConnectionAccepted)
+        .build();
+
+    info!("{client_id} --> {ack:?}");
+    stream.write_all(ack.as_bytes()).await?;
+    let mut client = Client::new(stream, connect);
+
     client
         .run(funnel)
         .await
@@ -182,43 +198,18 @@ impl From<SendError<Message>> for ClientError {
     }
 }
 
-struct AnonymousClient {
-    stream: TcpStream,
-}
-
-impl AnonymousClient {
-    pub fn new(stream: TcpStream) -> Self {
-        Self { stream }
-    }
-
-    pub async fn deanonymize(mut self) -> Result<Client, ClientError> {
-        let packet = read_packet(&mut self.stream).await?;
-        let Packet::Connect(connect) = packet else {
-            return Err(ClientError::UnexpectedPacket);
-        };
-        let client_id = connect.client_id().to_owned();
-        debug!("{client_id} <-- {connect:?}");
-
-        let ack = ConnAck::builder()
-            .return_code(ReturnCode::ConnectionAccepted)
-            .build();
-
-        info!("{client_id} --> {ack:?}");
-        self.stream.write_all(ack.as_bytes()).await?;
-        Ok(Client::new(self.stream, connect))
-    }
-}
-
 struct Client {
     stream: TcpStream,
     connect: Connect,
 }
 
 impl Client {
+    // Construct a new `Client`.
     pub fn new(stream: TcpStream, connect: Connect) -> Self {
         Self { stream, connect }
     }
 
+    // Retrieve the id of the client.
     pub fn client_id(&self) -> &str {
         self.connect.client_id()
     }
