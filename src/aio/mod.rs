@@ -212,6 +212,26 @@ pub struct ClientHandle {
 
 impl ClientHandle {
     /// Subscribe to the given `topic` using the provided `qos`.
+    ///
+    /// ```no_run
+    /// # use async_net::TcpStream;
+    /// # use futures_lite::FutureExt;
+    /// # use tjiftjaf::{Connect, QoS, aio::Client, packet_identifier};
+    /// # smol::block_on(async {
+    /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, task) = client.spawn();
+    /// handle.subscribe("sensor/temperature/1", QoS::AtMostOnceDelivery).await.unwrap();
+    /// while let Ok(publish) = handle.subscriptions().await {
+    ///    println!(
+    ///       "On topic {} received {:?}",
+    ///        publish.topic(),
+    ///        publish.payload()
+    ///   );
+    /// }
+    /// # });
+    /// ```
     pub async fn subscribe(
         &self,
         topic: impl Into<String>,
@@ -221,6 +241,24 @@ impl ClientHandle {
         self.send(packet).await
     }
 
+    /// Publish `payload` to the given `topic`.
+    ///
+    /// ```no_run
+    /// use bytes::Bytes;
+    /// # use async_net::TcpStream;
+    /// # use futures_lite::FutureExt;
+    /// # use tjiftjaf::{Connect, QoS, aio::Client, packet_identifier};
+    /// # smol::block_on(async {
+    /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, task) = client.spawn();
+    /// handle
+    ///     .publish("sensor/temperature/1", Bytes::from("26.1"))
+    ///     .await
+    ///     .unwrap();
+    /// # });
+    /// ```
     pub async fn publish(
         &self,
         topic: impl Into<String>,
@@ -239,6 +277,27 @@ impl ClientHandle {
         Ok(packet)
     }
 
+    /// Wait for the next [`Publish`] messages emitted by the broker.
+    ///
+    /// ```no_run
+    /// # use async_net::TcpStream;
+    /// # use futures_lite::FutureExt;
+    /// # use tjiftjaf::{Connect, QoS, aio::Client, packet_identifier};
+    /// # smol::block_on(async {
+    /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, task) = client.spawn();
+    /// handle.subscribe("sensor/temperature/1", QoS::AtMostOnceDelivery).await.unwrap();
+    /// while let Ok(publish) = handle.subscriptions().await {
+    ///    println!(
+    ///       "On topic {} received {:?}",
+    ///        publish.topic(),
+    ///        publish.payload()
+    ///   );
+    /// }
+    /// # });
+    /// ```
     pub async fn subscriptions(&mut self) -> Result<Publish, HandlerError> {
         loop {
             let packet = self.any_packet().await?;
