@@ -112,16 +112,20 @@ impl From<Subscribe> for Packet {
 
 impl std::fmt::Debug for Subscribe {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut list = vec![];
+        // let topics = self.topics();
+        for (topic, _) in self.topics() {
+            list.push(topic);
+        }
+
         f.debug_struct("SUBSCRIBE")
             .field("length", &self.length())
             .field("packet_identifier", &self.packet_identifier())
-            .field("topics", &self.topics())
+            .field("topics", &list)
             .finish()
     }
 }
 
-// TODO: implement debug manually to print topics
-#[derive(Debug)]
 pub struct Topics<'a> {
     topics: &'a [u8],
     offset: usize,
