@@ -237,7 +237,7 @@ impl Client {
                     let packet = match packet {
                         Packet::PingReq(..) => Some(Packet::PingResp(PingResp)),
                         Packet::Disconnect(..) => {
-                            info!("{} Client disconnected deliberedly.", self.client_id());
+                            info!("{} Client disconnected deliberately.", self.client_id());
                             return Ok(());
                         }
                         Packet::Subscribe(subscribe) => {
