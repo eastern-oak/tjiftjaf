@@ -82,7 +82,7 @@ impl Server {
         let listener = self.listener.clone();
         let (tx_inbound, rx_inbound) = async_channel::bounded::<Message>(100);
 
-        let future1 = async {
+        let outbound_messages = async {
             loop {
                 futures::select! {
                     message = rx_inbound.recv().fuse() => {
@@ -98,14 +98,14 @@ impl Server {
             }
         };
 
-        let future2 = async {
+        let new_clients = async {
             let mut futures = FuturesOrdered::new();
-            let (stream, _) = listener
-                .accept()
-                .await
-                .expect("Server failed to accept new connections.");
+            // let (stream, _) = listener
+            //     .accept()
+            //     .await
+            //     .expect("Server failed to accept new connections.");
 
-            futures.push_back(on_new_connection(stream, tx_inbound.clone()));
+            // futures.push_back(on_new_connection(stream, tx_inbound.clone()));
 
             loop {
                 futures::select! {
@@ -119,20 +119,24 @@ impl Server {
                             }
                         }
                     }
-                    _ = futures.next() => {}
+                    result = futures.next() => {
+                        if let Some(Err(error)) = result {
+                            warn!("Client disconnected: {error:?}");
+                        }
+                    }
                 }
             }
         };
-        smol::pin!(future1);
-        smol::pin!(future2);
-        let mut future1 = future1.fuse();
-        let mut future2 = future2.fuse();
+        smol::pin!(outbound_messages);
+        smol::pin!(new_clients);
+        let mut outbound_messages = outbound_messages.fuse();
+        let mut new_clients = new_clients.fuse();
 
         futures::select! {
-            _ = future1 => {
+            _ = outbound_messages => {
                 panic!("Fatal error when processing messages")
             }
-            _ = future2 => {
+            _ = new_clients => {
                 panic!("Fatal error when reading from socket(s).")
             }
         };
@@ -147,16 +151,15 @@ async fn on_new_connection(
     let Packet::Connect(connect) = packet else {
         return Err(ClientError::UnexpectedPacket);
     };
-    let client_id = connect.client_id().to_owned();
+    let client_id = connect.client_id();
     debug!("{client_id} <-- {connect:?}");
 
     let ack = ConnAck::builder()
         .return_code(ReturnCode::ConnectionAccepted)
         .build();
 
-    info!("{client_id} --> {ack:?}");
-    stream.write_all(ack.as_bytes()).await?;
     let mut client = Client::new(stream, connect);
+    client.send(ack.into()).await?;
 
     client
         .run(funnel)
@@ -210,7 +213,7 @@ impl Client {
     }
 
     // Retrieve the id of the client.
-    pub fn client_id(&self) -> &str {
+    fn client_id(&self) -> &str {
         self.connect.client_id()
     }
 
@@ -224,17 +227,13 @@ impl Client {
     // Start the client. It'll perform 2 tasks in parallel:
     // * reading packets from the tcp stream and forwarding some to `inbound` channel.
     // * reading outbound packets from `receiver` and write them to the tcp stream.
-    pub async fn run(&mut self, funnel: Sender<Message>) -> Result<(), ClientError> {
+    async fn run(&mut self, funnel: Sender<Message>) -> Result<(), ClientError> {
         let (tx, rx) = async_channel::bounded(100);
         funnel
             .send(Message::Register(self.client_id().to_owned(), tx))
             .await?;
 
         loop {
-            let future2 = rx.recv();
-            smol::pin!(future2);
-            let mut future2 = future2.fuse();
-
             futures::select! {
                 packet = read_packet(&mut self.stream).fuse() =>  {
                     let packet = packet?;
@@ -280,7 +279,7 @@ impl Client {
                         self.send(packet).await?;
                     }
                 },
-                packet = future2 => {
+                packet = rx.recv().fuse()=> {
                     match packet {
                         Ok(packet) => {
                             self.send(packet).await?;
