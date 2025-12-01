@@ -1,5 +1,5 @@
 use crate::{
-    ConnAck, Connect, DecodingError, Frame, Packet, PingResp, SubAck,
+    ConnAck, Connect, DecodingError, Packet, PingResp, SubAck,
     packet::{self, connack::ReturnCode},
 };
 use async_channel::{SendError, Sender};
@@ -168,6 +168,7 @@ async fn on_new_connection(
         .inspect_err(|error| error!("{} disconnected: {error:?}", client.client_id()))
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum ClientError {
     // Something went wrong while interacting with the socket.

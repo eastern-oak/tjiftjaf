@@ -114,7 +114,7 @@ impl std::fmt::Debug for Subscribe {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut list = vec![];
         // let topics = self.topics();
-        for (topic, qos) in self.topics() {
+        for (topic, _) in self.topics() {
             list.push(topic);
         }
 
