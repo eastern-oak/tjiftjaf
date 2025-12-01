@@ -173,7 +173,7 @@ enum ClientError {
 
     ServerError,
 
-    // The server received a packet is it didn't expect. For example,
+    // The server received a packet it didn't expect. For example,
     // a second CONNECT packet, a CONNACK, a SUBACK, etc.
     UnexpectedPacket,
 }
@@ -237,7 +237,7 @@ impl Client {
                     let packet = match packet {
                         Packet::PingReq(..) => Some(Packet::PingResp(PingResp)),
                         Packet::Disconnect(..) => {
-                            info!("{} Client disconnected deliberedly.", self.client_id());
+                            info!("{} Client disconnected deliberately.", self.client_id());
                             return Ok(());
                         }
                         Packet::Subscribe(subscribe) => {
