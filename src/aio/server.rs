@@ -100,12 +100,6 @@ impl Server {
 
         let new_clients = async {
             let mut futures = FuturesOrdered::new();
-            // let (stream, _) = listener
-            //     .accept()
-            //     .await
-            //     .expect("Server failed to accept new connections.");
-
-            // futures.push_back(on_new_connection(stream, tx_inbound.clone()));
 
             loop {
                 futures::select! {
