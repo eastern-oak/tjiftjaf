@@ -1,8 +1,8 @@
-//! Providing [`PubRel`], to acknowledge a [`crate::PubComp`].
+//! Providing [`PubRel`], to acknowledge a [`crate::PubRec`].
 use crate::{Frame, Packet, PacketType, decode::DecodingError, packet::ack::Ack};
 use bytes::Bytes;
 
-/// A [`PubRel`] packet is the response to a [`crate::PubComp`].
+/// A [`PubRel`] packet is the response to a [`crate::PubRec`].
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct PubRel(Ack);
 
