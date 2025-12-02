@@ -147,7 +147,7 @@ impl Client {
     }
 }
 
-/// A handle to interact with a `Client`.
+/// A handle to interact with a [`Client`].
 ///
 /// See the [module documentation](crate::blocking) for more information.
 pub struct ClientHandle {
