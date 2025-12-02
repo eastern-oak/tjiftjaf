@@ -54,7 +54,7 @@ use std::time::Instant;
 #[cfg(feature = "experimental")]
 pub mod server;
 
-/// An asynchronous  client to interact with a MQTT broker.
+/// An asynchronous client to interact with a MQTT broker.
 ///
 /// See the [module documentation](crate::aio) for more information.
 pub struct Client<S: AsyncRead + AsyncWrite + Unpin> {
