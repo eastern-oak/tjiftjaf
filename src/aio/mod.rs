@@ -1,7 +1,7 @@
 //! An asynchronous MQTT [`Client`].
 //!
 //! After creating the `Client`, [`Client::spawn()`] runs the
-//! client in new future. That method returns a [`ClientHandle`] and a future.
+//! client in a new future. That method returns a [`ClientHandle`] and a future.
 //! The application is responsible for `await`ing the future and run the client.
 //!
 //! The `ClientHandle` can be used to [subscribe](ClientHandle::subscribe()) to topics, [publish](ClientHandle::publish()) messages and [retrieve
