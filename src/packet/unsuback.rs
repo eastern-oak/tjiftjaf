@@ -1,8 +1,8 @@
-//! Providing [`UnsubAck`], to acknowledge a [`super::Unsubscribe`].
+//! Providing [`UnsubAck`], to acknowledge a [`crate::Unsubscribe`].
 use crate::{Frame, Packet, PacketType, decode::DecodingError, packet::ack::Ack};
 use bytes::Bytes;
 
-/// A [`UnsubAck`] packet is the response to a [`Unsubscribe`].
+/// A [`UnsubAck`] packet is the response to a [`crate::Unsubscribe`].
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct UnsubAck(Ack);
 

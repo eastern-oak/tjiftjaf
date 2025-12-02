@@ -1,12 +1,14 @@
-//! Providing [`PubAck`], to acknowledge a [`super::Publish`].
+//! Providing [`PubAck`], to acknowledge a [`crate::Publish`].
 use crate::{Frame, Packet, PacketType, decode::DecodingError, packet::ack::Ack};
 use bytes::Bytes;
 
-/// A [`PubAck`] packet is the response to a [`Publish`] packet with [`QoS::AtLeastOnceDelivery`].
+/// A [`PubAck`] packet is the response to a [`crate::Publish`] packet with
+/// [`crate::QoS::AtLeastOnceDelivery`].
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct PubAck(Ack);
 
 impl PubAck {
+    /// Create a new `PubAck` with the given packet identifier.
     pub fn new(packet_identifier: u16) -> Self {
         Self(Ack::new(PacketType::PubAck, packet_identifier))
     }

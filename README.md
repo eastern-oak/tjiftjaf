@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.svg">
+  <img src="https://raw.githubusercontent.com/eastern-oak/tjiftjaf/master/logo.svg">
 </p>
 
 _tjiftjaf_ is a Rust library implementing MQTT 3.1.1.
@@ -42,4 +42,4 @@ cargo +nightly fuzz list
 ```
 
 ## License
-This project is licensed under the [Mozilla Public License](LICENSE).
+This project is licensed under the [Mozilla Public License](https://github.com/eastern-oak/tjiftjaf/blob/master/LICENSE).

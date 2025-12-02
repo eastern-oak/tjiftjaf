@@ -1,4 +1,4 @@
-//! Providing [`SubAck`], used by server to confirm a [`Subscribe`].
+/// Providing the [`SubAck`] frame, used by a broker to confirm a [`crate::Subscribe`].
 use crate::{
     Frame, Packet, PacketType, QoS,
     decode::{self, DecodingError},
@@ -7,7 +7,7 @@ use crate::{
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
-/// [SubAck](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718068) is emitted by the server to confirm a [`Subscribe`].
+/// [SubAck](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718068) is emitted by a broker to confirm a [`crate::Subscribe`] request.
 ///
 /// # Example
 ///
