@@ -2,7 +2,7 @@
 //!
 //! After creating the `Client`, [`Client::spawn()`] runs the
 //! client in a new future. That method returns a [`ClientHandle`] and a future.
-//! The application is responsible for `await`ing the future and run the client.
+//! The application is responsible for `await`ing the future and running the client.
 //!
 //! The `ClientHandle` can be used to [subscribe](ClientHandle::subscribe()) to topics, [publish](ClientHandle::publish()) messages and [retrieve
 //! publications](ClientHandle::subscriptions()).
