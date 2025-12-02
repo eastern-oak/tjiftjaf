@@ -9,7 +9,6 @@
 //! for a more complete example.
 //!
 //! ```no_run
-//! # smol::block_on({})
 //! use std::net::TcpStream;
 //! use tjiftjaf::{Connect, QoS, blocking::Client, packet_identifier};
 //!
