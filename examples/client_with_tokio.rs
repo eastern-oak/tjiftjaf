@@ -52,10 +52,7 @@ async fn run(mut handle: ClientHandle) {
     let mut n = 0;
 
     loop {
-        let packet = handle
-            .subscriptions()
-            .await
-            .expect("Failed to read packet.");
+        let packet = handle.publication().await.expect("Failed to read packet.");
 
         n += 1;
 

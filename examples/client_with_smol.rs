@@ -41,10 +41,7 @@ fn main() {
         _ = task
             .race(async {
                 loop {
-                    let packet = handle
-                        .subscriptions()
-                        .await
-                        .expect("Failed to read packet.");
+                    let packet = handle.publication().await.expect("Failed to read packet.");
 
                     n += 1;
 

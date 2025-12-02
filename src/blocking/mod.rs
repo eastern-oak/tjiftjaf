@@ -237,11 +237,6 @@ impl ClientHandle {
         Ok(())
     }
 
-    fn any_packet(&mut self) -> Result<Packet, HandlerError> {
-        let packet = self.receiver.recv_blocking()?;
-        Ok(packet)
-    }
-
     /// Wait for the next [`Publish`] messages emitted by the broker.
     ///
     /// ```no_run
@@ -262,7 +257,7 @@ impl ClientHandle {
     /// ```
     pub fn publication(&mut self) -> Result<Publish, HandlerError> {
         loop {
-            let packet = self.any_packet()?;
+            let packet = self.receiver.recv_blocking()?;
             if let Packet::Publish(publish) = packet {
                 return Ok(publish);
             }

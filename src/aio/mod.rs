@@ -34,7 +34,7 @@
 //!     handle.publish("some-topic", r"payload".into()).await.unwrap();
 //!
 //!     // ...or to wait for publications on topics you subscribed to.
-//!     let publication = handle.subscriptions().await.unwrap();
+//!     let publication = handle.publication().await.unwrap();
 //!     println!("Received message on topic {}", publication.topic());
 //!     Ok(())
 //!   }).await;
@@ -233,7 +233,7 @@ impl ClientHandle {
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
     /// handle.subscribe("sensor/temperature/1", QoS::AtMostOnceDelivery).await.unwrap();
-    /// while let Ok(publish) = handle.subscriptions().await {
+    /// while let Ok(publish) = handle.publication().await {
     ///    println!(
     ///       "On topic {} received {:?}",
     ///        publish.topic(),
@@ -278,13 +278,8 @@ impl ClientHandle {
         self.send(packet).await
     }
 
-    pub async fn send(&self, packet: Packet) -> Result<(), SendError<Packet>> {
+    async fn send(&self, packet: Packet) -> Result<(), SendError<Packet>> {
         self.sender.send(packet).await
-    }
-
-    pub async fn any_packet(&mut self) -> Result<Packet, HandlerError> {
-        let packet = self.receiver.recv().await?;
-        Ok(packet)
     }
 
     /// Wait for the next [`Publish`] messages emitted by the broker.
@@ -299,7 +294,7 @@ impl ClientHandle {
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
     /// handle.subscribe("sensor/temperature/1", QoS::AtMostOnceDelivery).await.unwrap();
-    /// while let Ok(publish) = handle.subscriptions().await {
+    /// while let Ok(publish) = handle.publication().await {
     ///    println!(
     ///       "On topic {} received {:?}",
     ///        publish.topic(),
@@ -308,9 +303,9 @@ impl ClientHandle {
     /// }
     /// # });
     /// ```
-    pub async fn subscriptions(&mut self) -> Result<Publish, HandlerError> {
+    pub async fn publication(&mut self) -> Result<Publish, HandlerError> {
         loop {
-            let packet = self.any_packet().await?;
+            let packet = self.receiver.recv().await?;
             if let Packet::Publish(publish) = packet {
                 return Ok(publish);
             }
