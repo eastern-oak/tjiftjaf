@@ -1,8 +1,8 @@
-//! Providing [`PubComp`], a messages that acknowledges a [`super::PubRel`].
+//! Providing [`PubComp`], a message that acknowledges a [`crate::PubRel`].
 use crate::{Frame, Packet, PacketType, decode::DecodingError, packet::ack::Ack};
 use bytes::Bytes;
 
-///[`PubComp`] is the response to a [`super::PubRel`] packet with [`QoS::OnlyOnceDelivery`].
+/// [`PubComp`] is the response to a [`crate::PubRel`] packet with [`crate::QoS::ExactlyOnceDelivery`].
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct PubComp(Ack);
 

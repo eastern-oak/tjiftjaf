@@ -7,7 +7,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  lint-and-test:
+  lint:
     timeout-minutes: 5
     runs-on: ubuntu-24.04
     steps:
@@ -24,6 +24,20 @@ jobs:
 
     - name: Verify that code is linted correctly.
       run: cargo clippy --all-targets --all-features -- --deny=warnings
+      
+    - name: Verify that documentation builds.
+      run: RUSTDOCFLAGS='-D warnings' cargo doc --all-features 
+
+
+  test:
+    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v5
+    - uses: dtolnay/rust-toolchain@1.91.0
+
+    - name: Print version info
+      run: rustc --version && cargo --version
 
     - name: Run tests for all features
       run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all-targets --all-features --verbose
@@ -37,4 +51,3 @@ jobs:
     - name: Run tests without the async feature
       run: RUST_LOG=debug RUST_BACKTRACE=1 cargo test --all-targets --no-default-features --features=async --verbose
 
-      
