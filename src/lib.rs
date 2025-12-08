@@ -133,8 +133,7 @@ impl MqttBinding {
             .unwrap()
     }
 
-    /// Retrieve an input buffer. The event loop must fill the buffer.
-    /// and pass it to `Self::try_decode()`.
+    /// Retrieve an input buffer. The event loop must fill the buffer and pass it to `Self::try_decode()`.
     pub fn get_read_buffer(&mut self) -> BytesMut {
         match self.state {
             State::StartOfHeader => {
