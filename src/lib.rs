@@ -134,6 +134,7 @@ impl MqttBinding {
     }
 
     /// Retrieve an input buffer. The event loop must fill the buffer.
+    /// and pass it to `Self::try_decode()`.
     pub fn get_read_buffer(&mut self) -> BytesMut {
         match self.state {
             State::StartOfHeader => {
@@ -153,7 +154,10 @@ impl MqttBinding {
         }
     }
 
-    pub fn poll_transmits(&mut self, now: Instant) -> Option<Bytes> {
+    pub fn poll_transmits(&mut self, now: Instant) -> Result<Option<Bytes>, ()> {
+        if self.connection_status == ConnectionStatus::Disconnected {
+            return Err(());
+        }
         if self.connection_status == ConnectionStatus::NotConnected {
             self.connection_status = ConnectionStatus::Connecting;
 
@@ -162,10 +166,10 @@ impl MqttBinding {
             self.statistics.record_outbound_packet(&packet);
 
             self.last_io = now;
-            return Some(packet.into_bytes());
+            return Ok(Some(packet.into_bytes()));
         }
         if self.connection_status == ConnectionStatus::Connecting {
-            return None;
+            return Ok(None);
         }
 
         if let Some(packet) = self.transmits.pop() {
@@ -173,10 +177,10 @@ impl MqttBinding {
             debug!("<-- {packet:?}");
             self.statistics.record_outbound_packet(&packet);
 
-            return Some(packet.into_bytes());
+            return Ok(Some(packet.into_bytes()));
         }
 
-        None
+        Ok(None)
     }
 
     // Try parsing the bytes as a Packet.
@@ -299,6 +303,8 @@ enum ConnectionStatus {
 
     Connecting,
     Connected,
+
+    Disconnected,
 }
 
 #[derive(Debug, Default)]

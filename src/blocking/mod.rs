@@ -32,12 +32,13 @@
 //! let publication = handle.publication().unwrap();
 //! println!("Received message on topic {}", publication.topic());
 //! ```
-use crate::{Connect, HandlerError, MqttBinding, Packet, Publish, QoS, Subscribe};
+use crate::{Connect, Disconnect, HandlerError, MqttBinding, Packet, Publish, QoS, Subscribe};
 use async_channel::{Receiver, Sender};
+use log::info;
 use mio::{Events, Interest, Poll, Token, Waker};
 use std::{
     io::{Read, Write},
-    net::TcpStream,
+    net::{Shutdown, TcpStream},
     thread::{self, JoinHandle},
     time::Instant,
 };
@@ -104,8 +105,17 @@ impl Client {
                 self.binding.send(packet);
             }
 
-            while let Some(bytes) = self.binding.poll_transmits(Instant::now()) {
-                self.socket.write_all(&bytes)?;
+            loop {
+                match self.binding.poll_transmits(Instant::now()) {
+                    Ok(Some(bytes)) => {
+                        self.socket.write_all(&bytes)?;
+                    }
+                    Ok(None) => break,
+                    Err(_) => {
+                        self.socket.shutdown(Shutdown::Both)?;
+                        info!("The client disconnected")
+                    }
+                }
             }
 
             let timeout = self.binding.poll_timeout();
@@ -256,5 +266,9 @@ impl ClientHandle {
                 return Ok(publish);
             }
         }
+    }
+
+    pub fn disconnect(self) -> Result<(), HandlerError> {
+        self.send(Disconnect.into())
     }
 }

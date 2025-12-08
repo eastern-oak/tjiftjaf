@@ -41,14 +41,14 @@
 //! });
 //! ```
 use crate::{
-    Connect, HandlerError, MqttBinding, Packet, PubAck, PubComp, PubRec, PubRel, Publish, QoS,
-    Subscribe,
+    Connect, Disconnect, HandlerError, MqttBinding, Packet, PubAck, PubComp, PubRec, PubRel,
+    Publish, QoS, Subscribe,
 };
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
 use bytes::Bytes;
 use futures_lite::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
-use log::{error, trace};
+use log::{error, info, trace};
 use std::time::Instant;
 
 #[cfg(feature = "experimental")]
@@ -111,11 +111,22 @@ where
                 self.binding.send(packet);
             }
 
-            while let Some(bytes) = self.binding.poll_transmits(Instant::now()) {
-                self.socket.write_all(&bytes).await?;
-                // If the socket implementation is buffered, `bytes` will not be transmitted unless
-                // the internal buffer is full or a call to flush is done.
-                self.socket.flush().await?;
+            // TODO: `poll_transmit()` to return  `Result<Option<Bytes>>`
+            // If `Err()`, `Client` close connection.
+            loop {
+                match self.binding.poll_transmits(Instant::now()) {
+                    Ok(Some(bytes)) => {
+                        self.socket.write_all(&bytes).await?;
+                        // If the socket implementation is buffered, `bytes` will not be transmitted unless
+                        // the internal buffer is full or a call to flush is done.
+                        self.socket.flush().await?;
+                    }
+                    Ok(None) => break,
+                    Err(_) => {
+                        self.socket.close().await?;
+                        info!("disconnected");
+                    }
+                }
             }
 
             let timeout = self.binding.poll_timeout();
@@ -305,5 +316,10 @@ impl ClientHandle {
                 return Ok(publish);
             }
         }
+    }
+
+    pub async fn disconnect(self) -> Result<(), HandlerError> {
+        self.send(Disconnect.into()).await?;
+        Ok(())
     }
 }
