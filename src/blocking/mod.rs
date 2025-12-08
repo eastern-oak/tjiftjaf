@@ -113,7 +113,8 @@ impl Client {
                     Ok(None) => break,
                     Err(_) => {
                         self.socket.shutdown(Shutdown::Both)?;
-                        info!("The client disconnected")
+                        info!("The client disconnected.");
+                        return Ok(());
                     }
                 }
             }
@@ -269,7 +270,7 @@ impl ClientHandle {
     }
 
     /// Emit a [`Disconnect`] to terminate the connection.
-    pub fn disconnect(self) -> Result<(), HandlerError> {
+    pub fn disconnect(&self) -> Result<(), HandlerError> {
         self.send(Disconnect.into())
     }
 }

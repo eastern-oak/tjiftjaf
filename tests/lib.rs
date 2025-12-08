@@ -36,34 +36,37 @@ mod aio {
     #[apply(test!)]
     async fn test_subscribe_and_publish() {
         let broker = Broker::new();
-        let (mut handle_a, task) = create_client(broker.port).await.spawn();
+        let (client, mut history) = wiretapped_client(broker.port).await;
+        let (handle, task) = client.spawn();
+
         let _handle = smol::spawn(task);
 
         // After connecting, the broker returns a CONNACK packet.
-        let packet = handle_a.any_packet().await.unwrap();
-        assert_eq!(packet.packet_type(), PacketType::ConnAck);
+        let _ = history.find(PacketType::ConnAck).await;
 
-        handle_a
+        handle
             .subscribe(TOPIC, tjiftjaf::QoS::AtMostOnceDelivery)
             .await
             .unwrap();
-        let packet = handle_a.any_packet().await.unwrap();
-        assert_eq!(packet.packet_type(), PacketType::SubAck);
+        let _ = history.find(PacketType::SubAck).await;
 
-        handle_a
+        handle
             .publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
             .await
             .unwrap();
 
-        let publish = match handle_a.any_packet().await.unwrap() {
-            Packet::Publish(publish) => publish,
-            _ => panic!("Invalid packet."),
+        let packet = history.find(PacketType::Publish).await;
+        let Packet::Publish(publish) = packet else {
+            panic!();
         };
         assert_eq!(publish.topic(), TOPIC);
         assert_eq!(publish.payload(), b"test_subscribe_and_publish");
 
-        let packet = handle_a.any_packet().await.unwrap();
-        assert_eq!(packet.packet_type(), PacketType::PingResp);
+        let _ = history.find(PacketType::PingResp).await;
+
+        handle.disconnect().await.unwrap();
+        let _ = history.find(PacketType::Disconnect).await;
+        assert!(_handle.await.is_ok())
     }
 
     // Issue #17 tracked a bug where `MqttBinding` failed to
@@ -236,7 +239,7 @@ mod blocking {
         use crate::env::broker::Broker;
 
         let broker = Broker::new();
-        let (mut handle_a, _task) = create_blocking_client(broker.port).spawn().unwrap();
+        let (mut handle_a, task) = create_blocking_client(broker.port).spawn().unwrap();
 
         handle_a
             .subscribe(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
@@ -256,5 +259,10 @@ mod blocking {
 
         assert_eq!(publish.topic(), TOPIC);
         assert_eq!(publish.payload(), b"test_subscribe_and_publish");
+
+        handle_a.disconnect().unwrap();
+        let res = task.join().unwrap();
+        dbg!(&res);
+        assert!(res.is_ok())
     }
 }

@@ -122,7 +122,8 @@ where
                     Ok(None) => break,
                     Err(_) => {
                         self.socket.close().await?;
-                        info!("disconnected");
+                        info!("The client disconnected.");
+                        return Ok(());
                     }
                 }
             }

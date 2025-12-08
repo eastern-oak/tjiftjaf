@@ -178,6 +178,9 @@ impl MqttBinding {
         }
 
         if let Some(packet) = self.transmits.pop() {
+            if let Packet::Disconnect(..) = &packet {
+                self.connection_status = ConnectionStatus::Disconnected;
+            };
             self.last_io = now;
             debug!("<-- {packet:?}");
             self.statistics.record_outbound_packet(&packet);
