@@ -133,7 +133,7 @@ impl MqttBinding {
             .unwrap()
     }
 
-    /// Retrieve an input buffer. The event loop must fill the buffer.
+    /// Retrieve an input buffer. The event loop must fill the buffer and pass it to `Self::try_decode()`.
     pub fn get_read_buffer(&mut self) -> BytesMut {
         match self.state {
             State::StartOfHeader => {
@@ -153,7 +153,15 @@ impl MqttBinding {
         }
     }
 
-    pub fn poll_transmits(&mut self, now: Instant) -> Option<Bytes> {
+    /// Retrieve bytes that must be transmitted to the server.
+    ///
+    /// `Ok(None)` indicates no bytes are ready to be sent.
+    /// `Err()` indicates that the connection must be closed.
+    pub fn poll_transmits(&mut self, now: Instant) -> Result<Option<Bytes>, ClientDisconnected> {
+        if self.connection_status == ConnectionStatus::Disconnected {
+            return Err(ClientDisconnected);
+        }
+
         if self.connection_status == ConnectionStatus::NotConnected {
             self.connection_status = ConnectionStatus::Connecting;
 
@@ -162,21 +170,24 @@ impl MqttBinding {
             self.statistics.record_outbound_packet(&packet);
 
             self.last_io = now;
-            return Some(packet.into_bytes());
+            return Ok(Some(packet.into_bytes()));
         }
         if self.connection_status == ConnectionStatus::Connecting {
-            return None;
+            return Ok(None);
         }
 
         if let Some(packet) = self.transmits.pop() {
+            if let Packet::Disconnect(..) = &packet {
+                self.connection_status = ConnectionStatus::Disconnected;
+            };
             self.last_io = now;
             debug!("<-- {packet:?}");
             self.statistics.record_outbound_packet(&packet);
 
-            return Some(packet.into_bytes());
+            return Ok(Some(packet.into_bytes()));
         }
 
-        None
+        Ok(None)
     }
 
     // Try parsing the bytes as a Packet.
@@ -299,7 +310,13 @@ enum ConnectionStatus {
 
     Connecting,
     Connected,
+
+    // The client has terminated the connection.
+    Disconnected,
 }
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct ClientDisconnected;
 
 #[derive(Debug, Default)]
 struct Statistics {
