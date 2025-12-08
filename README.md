@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.svg">
+  <img src="https://raw.githubusercontent.com/eastern-oak/tjiftjaf/master/logo.svg">
 </p>
 
 _tjiftjaf_ is a Rust library implementing MQTT 3.1.1.
@@ -8,7 +8,7 @@ _tjiftjaf_ is a Rust library implementing MQTT 3.1.1.
 **MQTT Client**
 
 The crate provides a [blocking `Client`](https://docs.rs/tjiftjaf/latest/tjiftjaf/blocking/index.html)
-and an [asynchronous `Client`](https://docs.rs/tjiftjaf/latest/tjiftjaf/aio/struct.Client.html).
+and an [asynchronous `Client`](https://docs.rs/tjiftjaf/latest/tjiftjaf/aio/index.html).
 
 The latter does not require a specific runtime executor.
 
@@ -42,4 +42,4 @@ cargo +nightly fuzz list
 ```
 
 ## License
-This project is licensed under the [Mozilla Public License](LICENSE).
+This project is licensed under the [Mozilla Public License](https://github.com/eastern-oak/tjiftjaf/blob/master/LICENSE).
