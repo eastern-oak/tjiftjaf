@@ -268,6 +268,7 @@ impl ClientHandle {
         }
     }
 
+    /// Emit a [`Disconnect`] to terminate the connection.
     pub fn disconnect(self) -> Result<(), HandlerError> {
         self.send(Disconnect.into())
     }

@@ -111,8 +111,6 @@ where
                 self.binding.send(packet);
             }
 
-            // TODO: `poll_transmit()` to return  `Result<Option<Bytes>>`
-            // If `Err()`, `Client` close connection.
             loop {
                 match self.binding.poll_transmits(Instant::now()) {
                     Ok(Some(bytes)) => {
@@ -318,6 +316,7 @@ impl ClientHandle {
         }
     }
 
+    /// Emit a [`Disconnect`] to terminate the connection.
     pub async fn disconnect(self) -> Result<(), HandlerError> {
         self.send(Disconnect.into()).await?;
         Ok(())

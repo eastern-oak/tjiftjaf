@@ -154,10 +154,15 @@ impl MqttBinding {
         }
     }
 
-    pub fn poll_transmits(&mut self, now: Instant) -> Result<Option<Bytes>, ()> {
+    /// Retrieve bytes that must be transmitted to the server.
+    ///
+    /// `Ok(None)` indicates no bytes are ready to be send.
+    /// `Err()` indicates that the connection must be closed.
+    pub fn poll_transmits(&mut self, now: Instant) -> Result<Option<Bytes>, ClientDisconnected> {
         if self.connection_status == ConnectionStatus::Disconnected {
-            return Err(());
+            return Err(ClientDisconnected);
         }
+
         if self.connection_status == ConnectionStatus::NotConnected {
             self.connection_status = ConnectionStatus::Connecting;
 
@@ -304,8 +309,12 @@ enum ConnectionStatus {
     Connecting,
     Connected,
 
+    // The client has terminated the connection.
     Disconnected,
 }
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct ClientDisconnected;
 
 #[derive(Debug, Default)]
 struct Statistics {
