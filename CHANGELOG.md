@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.0 - 2025-12-08
+
+[8f11344](8f1134454b9f308e422e739292a1f63ca78bd84f)...[a584200](a5842000fe88f9defabae9a23e31561f23e1e05a)
+
+### Changes
+
+- GH-107 Server to support wildcards `+` and `#` (#108) - ([66122af](66122affc16645a5df7fb1015b747d62264dd129)) - GH-107 (https://github.com/eastern-oak/tjiftjaf/issues/107)
+- GH-111 Refactor new connections in server (#109) - ([6727470](6727470d15bad9d12f1010b8ad46ec31f1d74e60)) - GH-111 (https://github.com/eastern-oak/tjiftjaf/issues/111)
+- GH-87 Document `aio` module - ([abd94db](abd94db5a98ff040300b4033937b86bcf8d0879b)) - GH-87 (https://github.com/eastern-oak/tjiftjaf/issues/87)
+- GH-3 Add support for clients to emit `DISCONNECT` (#117) - ([a584200](a5842000fe88f9defabae9a23e31561f23e1e05a)) - GH-3 (https://github.com/eastern-oak/tjiftjaf/issues/3)
+
 ## 0.5.1 - 2025-11-25
 
 [f728e76](f728e762baf1bae8d424bf154b9088b3a537a8b1)...[bd69f7f](bd69f7f39e171457a064476f86e8eda2771f45af)
