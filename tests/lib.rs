@@ -35,7 +35,6 @@ mod aio {
     // Verify that the client receives published message.
     #[apply(test!)]
     async fn test_subscribe_and_publish() {
-        simple_logger::init_with_level(log::Level::Debug).unwrap();
         let broker = Broker::new();
         let (client, mut history) = wiretapped_client(broker.port).await;
         let (handle, task) = client.spawn();
@@ -239,7 +238,6 @@ mod blocking {
     // Verify that the client receives published message.
     #[test]
     fn test_subscribe_and_publish_with_blocking_client() {
-        simple_logger::init_with_level(log::Level::Debug).unwrap();
         use crate::env::broker::Broker;
 
         let broker = Broker::new();
