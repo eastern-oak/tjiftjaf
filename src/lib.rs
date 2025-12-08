@@ -155,7 +155,7 @@ impl MqttBinding {
 
     /// Retrieve bytes that must be transmitted to the server.
     ///
-    /// `Ok(None)` indicates no bytes are ready to be send.
+    /// `Ok(None)` indicates no bytes are ready to be sent.
     /// `Err()` indicates that the connection must be closed.
     pub fn poll_transmits(&mut self, now: Instant) -> Result<Option<Bytes>, ClientDisconnected> {
         if self.connection_status == ConnectionStatus::Disconnected {
