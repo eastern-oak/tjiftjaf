@@ -168,7 +168,7 @@ mod aio {
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
-        let packet = Publish::builder(TOPIC, "yolo")
+        let _ = Publish::builder(TOPIC, "yolo")
             .qos(tjiftjaf::QoS::ExactlyOnceDelivery)
             .build_packet();
 
