@@ -220,7 +220,7 @@ pub struct ClientHandle {
 }
 
 impl ClientHandle {
-    pub async fn send(&self, packet: Packet) -> Result<(), SendError<Packet>> {
+    pub(crate) async fn send(&self, packet: Packet) -> Result<(), SendError<Packet>> {
         self.sender.send(packet).await
     }
 
