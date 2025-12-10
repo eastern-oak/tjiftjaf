@@ -4,7 +4,7 @@
 //! client in a new future. That method returns a [`ClientHandle`] and a future.
 //! The application is responsible for `await`ing the future and running the client.
 //!
-//! The `ClientHandle` can be used to [subscribe](ClientHandle::subscribe()) to topics, [publish](ClientHandle::publish()) messages and [retrieve
+//! The `ClientHandle` can be used to [subscribe](crate::subscribe()) to topics, [publish](crate::publish()) messages and [retrieve
 //! publications](ClientHandle::subscriptions()).
 //!
 //! Below you find a small snippet based on the executor smol. Also, take a look at [examples/client_with_smol.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/client_with_smol.rs)
