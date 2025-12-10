@@ -1,8 +1,13 @@
 use async_net::TcpStream;
+use bytes::Bytes;
 use futures_lite::FutureExt;
 use log::info;
 use std::env;
-use tjiftjaf::{Connect, QoS, aio::Client, packet_identifier};
+use tjiftjaf::{
+    Connect, QoS,
+    aio::{Client, Emit},
+    packet_identifier, publish,
+};
 
 fn main() {
     simple_logger::init_with_level(log::Level::Debug).unwrap();
@@ -51,10 +56,13 @@ fn main() {
                     let payload = String::from_utf8_lossy(packet.payload());
                     info!("{} - {:?}", packet.topic(), payload);
                     if packet.topic() == "$SYS/broker/uptime" {
-                        handle
-                            .publish(&random_topic, format!("{n} packets received").into())
-                            .await
-                            .unwrap();
+                        publish(
+                            &random_topic,
+                            Bytes::copy_from_slice(format!("{n} packets received").as_bytes()),
+                        )
+                        .send(&handle)
+                        .await
+                        .unwrap()
                     }
                 }
             })

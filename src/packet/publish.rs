@@ -1,11 +1,13 @@
 //! Providing [`Publish`], used by both client and server to send a message on a topic.
 use crate::{
     Frame, Packet, PacketType, QoS,
+    aio::{ClientHandle, Emit},
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
     packet_identifier,
 };
+use async_channel::SendError;
 use bytes::{BufMut, Bytes, BytesMut};
 
 /// [Publish](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718037) is used by both clients and servers
@@ -326,6 +328,15 @@ impl Builder {
     /// Build a `Packet::Publish`.
     pub fn build_packet(self) -> Packet {
         Packet::Publish(self.build())
+    }
+}
+
+impl Emit for Publish {
+    fn send(
+        self,
+        handler: &ClientHandle,
+    ) -> impl std::future::Future<Output = Result<(), SendError<Packet>>> {
+        handler.send(self.into())
     }
 }
 

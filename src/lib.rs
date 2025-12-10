@@ -44,12 +44,24 @@ pub fn connect(client_id: String, keep_alive_interval: u16) -> Packet {
         .build_packet()
 }
 
-pub fn subscribe(topic: &str) -> Packet {
-    Subscribe::builder(topic, QoS::AtMostOnceDelivery).build_packet()
+/// Construct a [`Subscribe`] with the given topic. It is a shorthand for:
+///
+/// ```
+/// use tjiftjaf::{Subscribe, QoS};
+///
+/// let topic = "sensor/1/#";
+/// Subscribe::builder(topic, QoS::AtMostOnceDelivery).build();
+/// ```
+pub fn subscribe(topic: &str) -> Subscribe {
+    Subscribe::builder(topic, QoS::AtMostOnceDelivery).build()
 }
 
-pub fn publish(topic: &str, payload: Bytes) -> Packet {
-    Publish::builder(topic, payload).build_packet()
+pub fn unsubscribe(topic: &str) -> Unsubscribe {
+    Unsubscribe::builder(topic).build()
+}
+
+pub fn publish(topic: &str, payload: Bytes) -> Publish {
+    Publish::builder(topic, payload).build()
 }
 
 #[derive(Default, Debug)]
@@ -397,7 +409,7 @@ mod test {
     fn test_publish() {
         let packet = publish("zigbee2mqtt/light/state", Bytes::from(r#"{"state":"on"}"#));
 
-        let packet = decode_message(packet);
+        let packet = decode_message(packet.into());
 
         assert_eq!(packet.length(), 41);
         assert_eq!(packet.packet_type(), PacketType::Publish);
@@ -406,7 +418,7 @@ mod test {
 
         let packet = publish("$SYS/broker/uptime", Bytes::from(r#"388641 seconds"#));
 
-        let packet = decode_message(packet);
+        let packet = decode_message(packet.into());
         assert_eq!(packet.packet_type(), PacketType::Publish);
         assert_eq!(packet.length(), 36);
         // assert_eq!(packet.topic(), "$SYS/broker/uptime");
@@ -416,7 +428,7 @@ mod test {
             "zigbee2mqtt/binary-switch",
             Bytes::from(r#"{"action":"off","battery":100,"linkquality":3,"voltage":1400}"#),
         );
-        let packet = decode_message(packet);
+        let packet = decode_message(packet.into());
         assert_eq!(packet.packet_type(), PacketType::Publish);
         // assert_eq!(packet.topic(), "zigbee2mqtt/binary-switch");
         assert_eq!(
@@ -431,7 +443,7 @@ mod test {
             ),
         );
 
-        let packet = decode_message(packet);
+        let packet = decode_message(packet.into());
 
         assert_eq!(packet.packet_type(), PacketType::Publish);
         // assert_eq!(packet.topic(), "zigbee2mqtt/thermo-hygrometer");

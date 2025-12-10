@@ -1,11 +1,13 @@
 //! Providing [`Unsubscribe`], used by client to unsubscribe from one or more topics.
 use crate::{
     Frame, Packet, PacketType,
+    aio::{ClientHandle, Emit},
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
     packet_identifier,
 };
+use async_channel::SendError;
 use bytes::{BufMut, Bytes, BytesMut};
 
 /// [Unsubscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718072) allows a client unsubscribe from one or more topics.
@@ -88,6 +90,15 @@ impl Frame for Unsubscribe {
     fn variable_header(&self) -> &[u8] {
         let offset = self.header().len();
         &self.as_bytes()[offset..offset + 2]
+    }
+}
+
+impl Emit for Unsubscribe {
+    fn send(
+        self,
+        handler: &ClientHandle,
+    ) -> impl std::future::Future<Output = Result<(), SendError<Packet>>> {
+        handler.send(self.into())
     }
 }
 

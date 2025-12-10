@@ -323,3 +323,7 @@ impl ClientHandle {
         Ok(())
     }
 }
+
+pub trait Emit {
+    fn send(self, handler: &ClientHandle) -> impl Future<Output = Result<(), SendError<Packet>>>;
+}

@@ -1,11 +1,13 @@
 //! Providing [`Subscribe`], used by client to express interest in one or more topics.
 use crate::{
     Frame, Packet, PacketType, QoS,
+    aio::{ClientHandle, Emit},
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
     packet_identifier,
 };
+use async_channel::SendError;
 use bytes::{BufMut, Bytes, BytesMut};
 
 /// [Subscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718063) allows a client to express interest in one or more topics.
@@ -76,6 +78,15 @@ impl Subscribe {
             topics: self.payload(),
             offset: 0,
         }
+    }
+}
+
+impl Emit for Subscribe {
+    fn send(
+        self,
+        handler: &ClientHandle,
+    ) -> impl std::future::Future<Output = Result<(), SendError<Packet>>> {
+        handler.send(self.into())
     }
 }
 
