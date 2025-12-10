@@ -82,6 +82,27 @@ impl Subscribe {
 }
 
 impl Emit for Subscribe {
+    /// Subscribe to a topic.
+    ///
+    /// ```no_run
+    /// # use async_net::TcpStream;
+    /// # use futures_lite::FutureExt;
+    /// # use tjiftjaf::{subscribe, Connect, QoS, aio::{Emit, Client}, packet_identifier};
+    /// # smol::block_on(async {
+    /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, task) = client.spawn();
+    /// subscribe("sensor/temperature/1").send(&handle).await.unwrap();
+    /// while let Ok(publish) = handle.subscriptions().await {
+    ///    println!(
+    ///       "On topic {} received {:?}",
+    ///        publish.topic(),
+    ///        publish.payload()
+    ///   );
+    /// }
+    /// # });
+    /// ```
     fn send(
         self,
         handler: &ClientHandle,

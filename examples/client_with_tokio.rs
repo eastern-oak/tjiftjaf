@@ -1,10 +1,11 @@
+use bytes::Bytes;
 /// Run with `cargo run --example client_with_tokio`
 use log::info;
 use std::env;
 use tjiftjaf::{
-    Connect, QoS,
-    aio::{Client, ClientHandle},
-    packet_identifier,
+    Connect,
+    aio::{Client, ClientHandle, Emit},
+    packet_identifier, publish, subscribe,
 };
 use tokio::net::TcpStream;
 use tokio_util::compat::TokioAsyncReadCompatExt;
@@ -32,8 +33,8 @@ async fn main() {
     // `handle` allows for sending and receiving MQTT packets.
     let (handle, task) = client.spawn();
 
-    handle
-        .subscribe("$SYS/broker/uptime", QoS::AtMostOnceDelivery)
+    subscribe("$SYS/broker/uptime")
+        .send(&handle)
         .await
         .expect("Failed to subscribe to topic.");
 
@@ -45,8 +46,8 @@ async fn main() {
 
 async fn run(mut handle: ClientHandle) {
     let random_topic = packet_identifier().to_string();
-    handle
-        .subscribe(&random_topic, QoS::AtMostOnceDelivery)
+    subscribe(&random_topic)
+        .send(&handle)
         .await
         .expect("Failed to subscribe to topic.");
     let mut n = 0;
@@ -62,10 +63,13 @@ async fn run(mut handle: ClientHandle) {
         let payload = String::from_utf8_lossy(packet.payload());
         info!("{} - {:?}", packet.topic(), payload);
         if packet.topic() == "$SYS/broker/uptime" {
-            handle
-                .publish(&random_topic, format!("{n} packets received").into())
-                .await
-                .unwrap();
+            publish(
+                &random_topic,
+                Bytes::copy_from_slice(format!("{n} packets received").as_bytes()),
+            )
+            .send(&handle)
+            .await
+            .unwrap()
         }
     }
 }

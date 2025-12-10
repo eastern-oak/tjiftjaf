@@ -4,9 +4,9 @@ use futures_lite::FutureExt;
 use log::info;
 use std::env;
 use tjiftjaf::{
-    Connect, QoS,
+    Connect,
     aio::{Client, Emit},
-    packet_identifier, publish,
+    packet_identifier, publish, subscribe,
 };
 
 fn main() {
@@ -31,14 +31,14 @@ fn main() {
         // `handle` allows for sending and receiving MQTT packets.
         let (mut handle, task) = client.spawn();
 
-        handle
-            .subscribe("$SYS/broker/uptime", QoS::AtMostOnceDelivery)
+        subscribe("$SYS/broker/uptime")
+            .send(&handle)
             .await
             .expect("Failed to subscribe to topic.");
 
         let random_topic = packet_identifier().to_string();
-        handle
-            .subscribe(&random_topic, QoS::AtMostOnceDelivery)
+        subscribe(&random_topic)
+            .send(&handle)
             .await
             .expect("Failed to subscribe to topic.");
 
