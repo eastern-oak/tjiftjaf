@@ -224,11 +224,6 @@ impl ClientHandle {
         self.sender.send(packet).await
     }
 
-    pub async fn any_packet(&mut self) -> Result<Packet, HandlerError> {
-        let packet = self.receiver.recv().await?;
-        Ok(packet)
-    }
-
     /// Wait for the next [`Publish`] messages emitted by the broker.
     ///
     /// ```no_run
@@ -252,7 +247,7 @@ impl ClientHandle {
     /// ```
     pub async fn subscriptions(&mut self) -> Result<Publish, HandlerError> {
         loop {
-            let packet = self.any_packet().await?;
+            let packet = self.receiver.recv().await?;
             if let Packet::Publish(publish) = packet {
                 return Ok(publish);
             }
