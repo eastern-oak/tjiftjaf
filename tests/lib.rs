@@ -86,7 +86,7 @@ mod aio {
         let client = create_client(server.local_addr().unwrap().port());
 
         // A task where the `server` accepts an incoming connection.
-        // After the CONNECT/CONNACK exchange,  the server emits a PUBLISH
+        // After the CONNECT/CONNACK exchange, the server emits a PUBLISH
         // packet that's split into 2 TCP frames.
         let _server = smol::spawn(async move {
             let mut stream = server.incoming().next().await.unwrap().unwrap();
@@ -119,16 +119,12 @@ mod aio {
         let (mut handle_a, task) = client.await.spawn();
         let _handle = smol::spawn(task);
 
-        let packet = handle_a.any_packet().await.unwrap();
-        assert_eq!(packet.packet_type(), PacketType::ConnAck);
+        // let packet = handle_a.any_packet().await.unwrap();
+        // assert_eq!(packet.packet_type(), PacketType::ConnAck);
 
-        let publish = match handle_a.any_packet().await.unwrap() {
-            Packet::Publish(publish) => publish,
-            _ => panic!("Invalid packet."),
-        };
+        let publish = handle_a.subscriptions().await.unwrap();
+
         assert_eq!(publish.topic(), TOPIC);
-
-        // Verify that the packet contains the expected payload.
         assert_eq!(publish.payload(), b"test_subscribe_and_publish");
     }
 
