@@ -1,13 +1,11 @@
 //! Providing [`Publish`], used by both client and server to send a message on a topic.
 use crate::{
     Frame, Packet, PacketType, QoS,
-    aio::{ClientHandle, Emit},
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
     packet_identifier,
 };
-use async_channel::SendError;
 use bytes::{BufMut, Bytes, BytesMut};
 
 /// [Publish](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718037) is used by both clients and servers
@@ -331,7 +329,8 @@ impl Builder {
     }
 }
 
-impl Emit for Publish {
+#[cfg(feature = "async")]
+impl crate::aio::Emit for Publish {
     /// Publish `payload` to the given `topic`.
     ///
     /// ```no_run
@@ -352,8 +351,8 @@ impl Emit for Publish {
     /// ```
     fn send(
         self,
-        handler: &ClientHandle,
-    ) -> impl std::future::Future<Output = Result<(), SendError<Packet>>> {
+        handler: &crate::aio::ClientHandle,
+    ) -> impl std::future::Future<Output = Result<(), async_channel::SendError<Packet>>> {
         handler.send(self.into())
     }
 }
