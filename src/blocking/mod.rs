@@ -226,7 +226,7 @@ impl ClientHandle {
     }
 }
 
-// A trait for sending messages via [`ClientHandle`] to a server.
+/// A trait for sending messages via [`ClientHandle`] to a server.
 pub trait Emit {
     /// Send a message to a client.
     fn emit(self, handler: &ClientHandle) -> Result<(), ConnectionError>;
