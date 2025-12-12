@@ -8,8 +8,8 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes
 
-- GH-120 Replace `aio::Client::{subscribe,unscubscribe,publish}` with new `Emit` trait (#121) - ([5c46c85](5c46c85768f23ba967d7d2241e8fbef1c3e8b443)) - GH-120 (https://github.com/eastern-oak/tjiftjaf/issues/120)
-- GH-122 Replace `blocking::Client::{subscribe,unscubscribe,publish}` with `Emit` trait (#123) - ([3bd4855](3bd4855a7ace52a1df13f66083528efca68b4541)) - GH-122 (https://github.com/eastern-oak/tjiftjaf/issues/122)
+- GH-120 Replace `aio::Client::{subscribe,unsubscribe,publish}` with new `Emit` trait (#121) - ([5c46c85](5c46c85768f23ba967d7d2241e8fbef1c3e8b443)) - GH-120 (https://github.com/eastern-oak/tjiftjaf/issues/120)
+- GH-122 Replace `blocking::Client::{subscribe,unsubscribe,publish}` with `Emit` trait (#123) - ([3bd4855](3bd4855a7ace52a1df13f66083528efca68b4541)) - GH-122 (https://github.com/eastern-oak/tjiftjaf/issues/122)
 
 ## 0.6.0 - 2025-12-08
 
