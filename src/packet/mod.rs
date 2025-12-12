@@ -1,7 +1,7 @@
-use super::decode::{DecodingError, InvalidPacketTypeError, packet_length};
+use super::decode::{packet_length, DecodingError, InvalidPacketTypeError};
 use crate::{
-    ConnAck, Connect, Disconnect, PingReq, PingResp, PubAck, PubComp, PubRec, PubRel, Publish,
-    SubAck, Subscribe, UnsubAck, Unsubscribe, decode,
+    decode, ConnAck, Connect, Disconnect, PingReq, PingResp, PubAck, PubComp, PubRec, PubRel,
+    Publish, SubAck, Subscribe, UnsubAck, Unsubscribe,
 };
 use bytes::Bytes;
 use std::error::Error;

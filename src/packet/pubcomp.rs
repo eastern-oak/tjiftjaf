@@ -1,5 +1,5 @@
 //! Providing [`PubComp`], a message that acknowledges a [`crate::PubRel`].
-use crate::{Frame, Packet, PacketType, decode::DecodingError, packet::ack::Ack};
+use crate::{decode::DecodingError, packet::ack::Ack, Frame, Packet, PacketType};
 use bytes::Bytes;
 
 /// [`PubComp`] is the response to a [`crate::PubRel`] packet with [`crate::QoS::ExactlyOnceDelivery`].

@@ -1,5 +1,5 @@
 //! Providing [`Ack`], a type to compose messages like [`PubAck`], [`UnsubAck`] and more.  
-use crate::{Frame, PacketType, decode::DecodingError};
+use crate::{decode::DecodingError, Frame, PacketType};
 use bytes::Bytes;
 
 /// [`Ack`] is a type to compose messages like [`PubAck`], [`UnsubAck`] and a few others.  

@@ -1,5 +1,5 @@
 //! Providing [`PingReq`]
-use crate::{Frame, Packet, decode::DecodingError};
+use crate::{decode::DecodingError, Frame, Packet};
 use bytes::Bytes;
 
 // A PINGREQ packet consists of only a header of two bytes.

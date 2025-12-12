@@ -3,9 +3,8 @@ use bytes::Bytes;
 use log::info;
 use std::env;
 use tjiftjaf::{
-    Connect,
     aio::{Client, ClientHandle, Emit},
-    packet_identifier, publish, subscribe,
+    packet_identifier, publish, subscribe, Connect,
 };
 use tokio::net::TcpStream;
 use tokio_util::compat::TokioAsyncReadCompatExt;

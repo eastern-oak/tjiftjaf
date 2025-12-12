@@ -4,9 +4,8 @@ use futures_lite::FutureExt;
 use log::info;
 use std::env;
 use tjiftjaf::{
-    Connect,
     aio::{Client, Emit},
-    packet_identifier, publish, subscribe,
+    packet_identifier, publish, subscribe, Connect,
 };
 
 fn main() {
