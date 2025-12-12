@@ -109,6 +109,34 @@ impl crate::aio::Emit for Subscribe {
     }
 }
 
+#[cfg(feature = "blocking")]
+impl crate::blocking::Emit for Subscribe {
+    /// Subscribe to a topic.
+    ///
+    /// ```no_run
+    /// # use std::net::TcpStream;
+    /// # use tjiftjaf::{subscribe, Connect, blocking::{Client, Emit}};
+    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, _task) = client.spawn().unwrap();
+    /// subscribe("sensor/temperature/1")
+    ///    .emit(&handle)
+    ///    .unwrap();
+    /// while let Ok(publish) = handle.publication() {
+    ///    println!(
+    ///       "On topic {} received {:?}",
+    ///        publish.topic(),
+    ///        publish.payload()
+    ///   );
+    /// }
+    /// ```
+    fn emit(self, handler: &crate::blocking::ClientHandle) -> Result<(), ConnectionError> {
+        handler.send(self.into())?;
+        Ok(())
+    }
+}
+
 impl Frame for Subscribe {
     fn as_bytes(&self) -> &[u8] {
         self.inner.as_bytes()

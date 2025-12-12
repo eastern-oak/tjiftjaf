@@ -356,6 +356,30 @@ impl crate::aio::Emit for Publish {
     }
 }
 
+#[cfg(feature = "blocking")]
+impl crate::blocking::Emit for Publish {
+    /// Publish `payload` to the given `topic`.
+    ///
+    /// ```no_run
+    /// use bytes::Bytes;
+    /// # use std::net::TcpStream;
+    /// # use tjiftjaf::{publish, Connect, blocking::{Client, Emit}, packet_identifier};
+    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, _task) = client.spawn().unwrap();
+    ///
+    /// publish("sensor/temperature/1", Bytes::from("26.1"))
+    ///     .emit(&handle)
+    ///     .unwrap();
+    ///```
+    /// ```
+    fn emit(self, handler: &crate::blocking::ClientHandle) -> Result<(), ConnectionError> {
+        handler.send(self.into())?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

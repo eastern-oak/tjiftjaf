@@ -221,7 +221,10 @@ mod blocking {
     use bytes::Bytes;
     use pretty_assertions::assert_eq;
     use std::time::Duration;
-    use tjiftjaf::{blocking, Connect};
+    use tjiftjaf::{
+        blocking::{self, Emit},
+        publish, subscribe, Connect,
+    };
 
     const TOPIC: &str = "topic";
 
@@ -243,9 +246,7 @@ mod blocking {
         let broker = Broker::new();
         let (mut handle_a, task) = create_blocking_client(broker.port).spawn().unwrap();
 
-        handle_a
-            .subscribe(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
-            .unwrap();
+        subscribe(TOPIC).emit(&handle_a).unwrap();
 
         // Until GH-71 is implemented, we need to introduce an artificial
         // sleep.
@@ -253,8 +254,8 @@ mod blocking {
         // https://github.com/eastern-oak/tjiftjaf/issues/71
         std::thread::sleep(Duration::from_secs(1));
 
-        handle_a
-            .publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+            .emit(&handle_a)
             .unwrap();
 
         let publish = handle_a.publication().unwrap();

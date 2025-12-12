@@ -2,7 +2,10 @@
 use log::info;
 use std::env;
 use std::net::TcpStream;
-use tjiftjaf::{blocking::Client, packet_identifier, Connect, QoS};
+use tjiftjaf::{
+    blocking::{Client, Emit},
+    packet_identifier, publish, subscribe, Connect,
+};
 
 fn main() {
     simple_logger::init_with_level(log::Level::Debug).unwrap();
@@ -23,17 +26,17 @@ fn main() {
     // `handle` allows for sending and receiving MQTT packets.
     let (mut handle, _task) = client.spawn().unwrap();
 
-    handle
-        .subscribe("$SYS/broker/uptime", QoS::AtMostOnceDelivery)
+    subscribe("$SYS/broker/uptime")
+        .emit(&handle)
         .expect("Failed to subscribe to topic.");
 
-    handle
-        .subscribe("$SYS/broker/load/publish/sent", QoS::AtMostOnceDelivery)
+    subscribe("$SYS/broker/load/publish/sent")
+        .emit(&handle)
         .expect("Failed to subscribe to topic.");
 
     let random_topic = packet_identifier().to_string();
-    handle
-        .subscribe(&random_topic, QoS::AtMostOnceDelivery)
+    subscribe(&random_topic)
+        .emit(&handle)
         .expect("Failed to subscribe to topic.");
 
     let mut n = 0;
@@ -45,8 +48,8 @@ fn main() {
         let payload = String::from_utf8_lossy(packet.payload());
         info!("{} - {:?}", packet.topic(), payload);
         if packet.topic() == "$SYS/broker/uptime" {
-            handle
-                .publish(&random_topic, format!("{n} packets received").into())
+            publish(&random_topic, format!("{n} packets received").into())
+                .emit(&handle)
                 .unwrap();
         }
     }

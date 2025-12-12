@@ -100,6 +100,27 @@ impl crate::aio::Emit for Unsubscribe {
     }
 }
 
+#[cfg(feature = "blocking")]
+impl crate::blocking::Emit for Unsubscribe {
+    /// Unsubscribe to a topic.
+    ///
+    /// ```no_run
+    /// # use std::net::TcpStream;
+    /// # use tjiftjaf::{unsubscribe, Connect, blocking::{Client, Emit}};
+    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, _task) = client.spawn().unwrap();
+    /// unsubscribe("sensor/temperature/1")
+    ///    .emit(&handle)
+    ///    .unwrap();
+    /// ```
+    fn emit(self, handler: &crate::blocking::ClientHandle) -> Result<(), ConnectionError> {
+        handler.send(self.into())?;
+        Ok(())
+    }
+}
+
 impl TryFrom<Bytes> for Unsubscribe {
     type Error = DecodingError;
 
