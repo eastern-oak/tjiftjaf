@@ -121,6 +121,8 @@ pub struct MqttBinding {
 
     last_io: Instant,
     connect: Connect,
+
+    tokens: Vec<Token>,
 }
 
 // The driver must do 2 things:
@@ -135,6 +137,7 @@ impl MqttBinding {
             statistics: Statistics::default(),
             last_io: Instant::now(),
             connect,
+            tokens: Vec::new(),
         }
     }
 
@@ -229,7 +232,7 @@ impl MqttBinding {
     }
 
     // Try parsing the bytes as a Packet.
-    pub fn try_decode(&mut self, buf: Bytes, _now: Instant) -> Option<Packet> {
+    pub fn try_decode(&mut self, buf: Bytes, _now: Instant) -> Option<(Packet, Option<Token>)> {
         let (state, packet) = match &self.state {
             State::StartOfHeader => {
                 // MQTT uses between 1 and 3 (including) bytes to encode the
@@ -256,7 +259,7 @@ impl MqttBinding {
                         Ok(packet) => {
                             debug!("--> {packet:?}");
 
-                            return Some(packet);
+                            return Some((packet, None));
                         }
                         Err(error) => {
                             error!("Failed to parse a 4 byte packet: {error:?}");
@@ -333,11 +336,53 @@ impl MqttBinding {
         packet.as_ref().inspect(|ref packet| {
             debug!("--> {packet:?}");
         });
-        packet
+
+        let packet = packet?;
+
+        let token_index = match &packet {
+            Packet::SubAck(inner) => self
+                .tokens
+                .iter()
+                .position(|token| token.0 == inner.packet_identifier()),
+            Packet::UnsubAck(inner) => self
+                .tokens
+                .iter()
+                .position(|token| token.0 == inner.packet_identifier()),
+            Packet::PubAck(inner) => self
+                .tokens
+                .iter()
+                .position(|token| token.0 == inner.packet_identifier()),
+            Packet::PubComp(inner) => self
+                .tokens
+                .iter()
+                .position(|token| token.0 == inner.packet_identifier()),
+            // TODO
+            Packet::ConnAck(..) => None,
+            _ => None,
+        };
+
+        let token = token_index.map(|index| self.tokens.remove(index));
+        Some((packet, token))
     }
 
-    pub fn send(&mut self, packet: Packet) {
+    pub fn send(&mut self, packet: Packet) -> Option<Token> {
+        let token = match &packet {
+            // TODO: what identifier to choose? It doesn't have a PacketIdentifier
+            // and I can't pick a random u16, that might collide with real packet identifiers.
+            Packet::Connect(_) => None,
+            Packet::Subscribe(inner) => Some(inner.packet_identifier()),
+            Packet::Unsubscribe(inner) => Some(inner.packet_identifier()),
+            Packet::Publish(inner) => inner.packet_identifier(),
+            _ => None,
+        };
+
+        let token = token.map(Token);
         self.transmits.push(packet);
+        if let Some(token) = &token {
+            self.tokens.push(*token);
+        }
+
+        token
     }
 }
 
@@ -403,6 +448,9 @@ impl<T> From<async_channel::SendError<T>> for ConnectionError {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Token(u16);
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -424,7 +472,7 @@ mod test {
 
             buffer.copy_from_slice(&bytes[offset..offset + size]);
             offset += size;
-            if let Some(packet) = binding.try_decode(buffer.freeze(), Instant::now()) {
+            if let Some((packet, _)) = binding.try_decode(buffer.freeze(), Instant::now()) {
                 return packet;
             }
         }
@@ -499,7 +547,7 @@ mod test {
                 let mut buffer = binding.get_read_buffer();
                 _ = input.read(&mut buffer).unwrap();
 
-                if let Some(packet) = binding.try_decode(buffer.freeze(), Instant::now()) {
+                if let Some((packet, _)) = binding.try_decode(buffer.freeze(), Instant::now()) {
                     break packet;
                 }
             };

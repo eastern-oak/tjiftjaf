@@ -7,6 +7,8 @@ use crate::{
     packet::UnverifiedFrame,
     packet_identifier, Frame, Packet, PacketType,
 };
+#[cfg(feature = "async")]
+use async_channel::Receiver;
 use bytes::{BufMut, Bytes, BytesMut};
 
 /// [Unsubscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718072) allows a client unsubscribe from one or more topics.
@@ -94,9 +96,12 @@ impl Frame for Unsubscribe {
 
 #[cfg(feature = "async")]
 impl crate::aio::Emit for Unsubscribe {
-    async fn emit(self, handler: &crate::aio::ClientHandle) -> Result<(), ConnectionError> {
-        handler.send(self.into()).await?;
-        Ok(())
+    async fn emit(
+        self,
+        handler: &crate::aio::ClientHandle,
+    ) -> Result<Receiver<Packet>, ConnectionError> {
+        let channel = handler.send(self.into()).await?;
+        Ok(channel)
     }
 }
 

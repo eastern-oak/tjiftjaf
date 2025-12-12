@@ -68,7 +68,7 @@ async fn run(mut handle: ClientHandle) {
             )
             .emit(&handle)
             .await
-            .unwrap()
+            .unwrap();
         }
     }
 }

@@ -7,6 +7,8 @@ use crate::{
     packet::UnverifiedFrame,
     packet_identifier, Frame, Packet, PacketType, QoS,
 };
+#[cfg(feature = "async")]
+use async_channel::Receiver;
 use bytes::{BufMut, Bytes, BytesMut};
 
 /// [Subscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718063) allows a client to express interest in one or more topics.
@@ -103,9 +105,12 @@ impl crate::aio::Emit for Subscribe {
     /// }
     /// # });
     /// ```
-    async fn emit(self, handler: &crate::aio::ClientHandle) -> Result<(), ConnectionError> {
-        handler.send(self.into()).await?;
-        Ok(())
+    async fn emit(
+        self,
+        handler: &crate::aio::ClientHandle,
+    ) -> Result<Receiver<Packet>, ConnectionError> {
+        let channel = handler.send(self.into()).await?;
+        Ok(channel)
     }
 }
 

@@ -30,20 +30,22 @@ fn main() {
         // `handle` allows for sending and receiving MQTT packets.
         let (mut handle, task) = client.spawn();
 
-        subscribe("$SYS/broker/uptime")
-            .emit(&handle)
-            .await
-            .expect("Failed to subscribe to topic.");
-
-        let random_topic = packet_identifier().to_string();
-        subscribe(&random_topic)
-            .emit(&handle)
-            .await
-            .expect("Failed to subscribe to topic.");
-
         let mut n = 0;
         _ = task
             .race(async {
+                let confirmation = subscribe("$SYS/broker/uptime")
+                    .emit(&handle)
+                    .await
+                    .expect("Failed to subscribe to topic.");
+
+                let ack = confirmation.recv().await.unwrap();
+
+                let random_topic = packet_identifier().to_string();
+                subscribe(&random_topic)
+                    .emit(&handle)
+                    .await
+                    .expect("Failed to subscribe to topic.");
+
                 loop {
                     let packet = handle
                         .subscriptions()
@@ -61,7 +63,7 @@ fn main() {
                         )
                         .emit(&handle)
                         .await
-                        .unwrap()
+                        .unwrap();
                     }
                 }
             })

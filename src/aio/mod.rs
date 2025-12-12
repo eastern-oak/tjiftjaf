@@ -42,13 +42,13 @@
 //! ```
 use crate::{
     Connect, ConnectionError, Disconnect, MqttBinding, Packet, PubAck, PubComp, PubRec, PubRel,
-    Publish, QoS,
+    Publish, QoS, Token,
 };
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
 use futures_lite::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
-use log::{error, info, trace};
-use std::time::Instant;
+use log::{debug, error, info, trace};
+use std::{collections::HashMap, time::Instant};
 
 #[cfg(feature = "experimental")]
 pub mod server;
@@ -60,6 +60,8 @@ pub struct Client<S: AsyncRead + AsyncWrite + Unpin> {
     // Socket for interacting with the MQTT broker.
     socket: S,
     binding: MqttBinding,
+
+    acks: HashMap<Token, async_channel::Sender<Packet>>,
 }
 
 impl<S> Client<S>
@@ -70,6 +72,7 @@ where
         Self {
             socket,
             binding: MqttBinding::from_connect(connect),
+            acks: HashMap::new(),
         }
     }
 
@@ -96,7 +99,7 @@ where
     async fn run(
         mut self,
         sender: Sender<Packet>,
-        receiver: Receiver<Packet>,
+        receiver: Receiver<(Packet, Sender<Packet>)>,
     ) -> Result<(), std::io::Error> {
         // In this loop, check with the binding if any outbound
         // packets are waiting. We call them 'transmits'. Send all pending
@@ -106,8 +109,10 @@ where
         // the buffer is full. Then, request the binding to decode the buffer.
         // This operation might yield a mqtt::Packet for further processing.
         loop {
-            while let Ok(packet) = receiver.try_recv() {
-                self.binding.send(packet);
+            while let Ok((packet, channel)) = receiver.try_recv() {
+                if let Some(token) = self.binding.send(packet) {
+                    self.acks.insert(token, channel);
+                }
             }
 
             loop {
@@ -133,7 +138,7 @@ where
             enum Winner {
                 Future1(Result<usize, std::io::Error>),
                 Future2,
-                Future3(Result<Packet, RecvError>),
+                Future3(Result<(Packet, Sender<Packet>), RecvError>),
             }
 
             let future1 = async { Winner::Future1(self.socket.read(&mut buffer).await) };
@@ -156,7 +161,7 @@ where
                         buffer.len()
                     );
 
-                    if let Some(packet) = self
+                    if let Some((packet, token)) = self
                         .binding
                         .try_decode(buffer.freeze().slice(0..bytes_read), Instant::now())
                     {
@@ -187,6 +192,16 @@ where
                                 .send(PubComp::new(packet.packet_identifier()).into());
                         }
 
+                        if let Some(token) = token {
+                            if let Some(channel) = self.acks.remove(&token) {
+                                // Don't worry if the  channel is closed. Then the receiver
+                                // is not caring about the confirmation.
+                                let _ = channel.send(packet).await;
+                            }
+
+                            continue;
+                        }
+
                         if sender.send(packet).await.is_err() {
                             // TODO: Change error type. std::io::Error is not really fitting here.
                             return Err(std::io::Error::other("Failed to send message to handler"));
@@ -199,7 +214,13 @@ where
                 Winner::Future2 => {
                     self.binding.handle_timeout(Instant::now());
                 }
-                Winner::Future3(Ok(packet)) => self.binding.send(packet),
+                Winner::Future3(Ok((packet, channel))) => {
+                    let token = self.binding.send(packet);
+                    if let Some(token) = token {
+                        debug!("Insert token {token:?}");
+                        self.acks.insert(token, channel);
+                    }
+                }
                 Winner::Future3(Err(_)) => {
                     return Err(std::io::Error::other("Failed to read message from channel"));
                 }
@@ -213,15 +234,20 @@ where
 /// See the [module documentation](crate::aio) for more information.
 pub struct ClientHandle {
     // Send packets to the `Client`.
-    sender: Sender<Packet>,
+    sender: Sender<(Packet, Sender<Packet>)>,
 
     // Receive packets from the `Client`
     receiver: Receiver<Packet>,
 }
 
 impl ClientHandle {
-    pub(crate) async fn send(&self, packet: Packet) -> Result<(), SendError<Packet>> {
-        self.sender.send(packet).await
+    pub(crate) async fn send(
+        &self,
+        packet: Packet,
+    ) -> Result<Receiver<Packet>, SendError<(Packet, Sender<Packet>)>> {
+        let (tx, rx) = async_channel::bounded(1);
+
+        self.sender.send((packet, tx)).await.map(|_| rx)
     }
 
     /// Wait for the next [`Publish`] messages emitted by the broker.
@@ -267,5 +293,5 @@ pub trait Emit {
     fn emit(
         self,
         handler: &ClientHandle,
-    ) -> impl std::future::Future<Output = Result<(), ConnectionError>>;
+    ) -> impl std::future::Future<Output = Result<Receiver<Packet>, ConnectionError>>;
 }

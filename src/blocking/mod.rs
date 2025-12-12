@@ -146,7 +146,9 @@ impl Client {
                     // Maybe `try_decode` should return an Error. Maybe with variant `NotEnoughBytes`
                     // to indicate that more bytes are expected and event loop should continue.
                     // Any other error indicates an issue and event loop must break the loop
-                    if let Some(packet) = self.binding.try_decode(buffer.freeze(), Instant::now()) {
+                    if let Some((packet, _channel)) =
+                        self.binding.try_decode(buffer.freeze(), Instant::now())
+                    {
                         sender
                             .send_blocking(packet)
                             .map_err(std::io::Error::other)?;
