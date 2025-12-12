@@ -2,7 +2,7 @@
 //!
 //! After creating the `Client`, [`Client::spawn()`] runs the
 //! client in a new thread. That method returns a [`ClientHandle`]
-//! allowing an application to [subscribe](ClientHandle::subscribe()) to topics, [publish](ClientHandle::publish()) messages and [retrieve
+//! allowing an application to [subscribe](crate::Subscribe::emit()) to topics, [publish](crate::Publish::emit()) messages and [retrieve
 //! publications](ClientHandle::publication()).
 //!
 //! Below you find a small snippet. Also, take a look at [examples/blocking_client.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/blocking_client.rs)
@@ -10,7 +10,7 @@
 //!
 //! ```no_run
 //! use std::net::TcpStream;
-//! use tjiftjaf::{Connect, QoS, blocking::Client, packet_identifier};
+//! use tjiftjaf::{publish, subscribe, Connect, blocking::{Client, Emit}, packet_identifier};
 //!
 //! let stream = TcpStream::connect("localhost:1883").unwrap();
 //! let connect = Connect::builder()
@@ -23,16 +23,20 @@
 //! let (mut handle, _task) = client.spawn().unwrap();
 //!
 //! // Use the handle to subscribe to topics...
-//! handle.subscribe("$SYS/broker/uptime", QoS::AtMostOnceDelivery).unwrap();
+//! subscribe("$SYS/broker/uptime")
+//!    .emit(&handle)
+//!    .unwrap();
 //!
 //! // ...to publish messages...
-//! handle.publish("some-topic", r"payload".into()).unwrap();
+//! publish("some-topic", r"payload".into())
+//!    .emit(&handle)
+//!    .unwrap();
 //!
 //! // ...or to wait for publications on topics you subscribed to.
 //! let publication = handle.publication().unwrap();
 //! println!("Received message on topic {}", publication.topic());
 //! ```
-use crate::{Connect, ConnectionError, Disconnect, MqttBinding, Packet, Publish, QoS, Subscribe};
+use crate::{Connect, ConnectionError, Disconnect, MqttBinding, Packet, Publish};
 use async_channel::{Receiver, Sender};
 use log::info;
 use mio::{Events, Interest, Poll, Token, Waker};
@@ -180,74 +184,25 @@ impl ClientHandle {
         }
     }
 
-    /// Subscribe to the given `topic` using the provided `qos`.
-    ///
-    /// ```no_run
-    /// # use std::net::TcpStream;
-    /// # use tjiftjaf::{Connect, blocking::Client, packet_identifier, QoS};
-    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
-    /// # let connect = Connect::builder().build();
-    /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, _task) = client.spawn().unwrap();
-    /// handle.subscribe("sensor/temperature/1", QoS::AtMostOnceDelivery).unwrap();
-    /// while let Ok(publish) = handle.publication() {
-    ///    println!(
-    ///       "On topic {} received {:?}",
-    ///        publish.topic(),
-    ///        publish.payload()
-    ///   );
-    /// }
-    /// ```
-    pub fn subscribe(&self, topic: impl Into<String>, qos: QoS) -> Result<(), ConnectionError> {
-        let packet = Subscribe::builder(topic, qos).build_packet();
-        self.send(packet)
-    }
-
-    /// Publish `payload` to the given `topic`.
-    ///
-    /// ```no_run
-    /// use bytes::Bytes;
-    /// # use std::net::TcpStream;
-    /// # use tjiftjaf::{Connect, blocking::Client, packet_identifier};
-    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
-    /// # let connect = Connect::builder().build();
-    /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, _task) = client.spawn().unwrap();
-    /// handle
-    ///     .publish("sensor/temperature/1", Bytes::from("26.1"))
-    ///     .unwrap();
-    ///```
-    pub fn publish(
-        &self,
-        topic: impl Into<String>,
-        payload: bytes::Bytes,
-    ) -> Result<(), ConnectionError> {
-        let packet = Publish::builder(topic, payload).build_packet();
-        self.send(packet)
-    }
-
     /// Send any `Packet` to the broker.
-    fn send(&self, packet: Packet) -> Result<(), ConnectionError> {
+    pub(crate) fn send(&self, packet: Packet) -> Result<(), ConnectionError> {
         self.sender.send_blocking(packet)?;
         self.waker.wake().map_err(|_| ConnectionError)?;
         Ok(())
-    }
-
-    fn any_packet(&mut self) -> Result<Packet, ConnectionError> {
-        let packet = self.receiver.recv_blocking()?;
-        Ok(packet)
     }
 
     /// Wait for the next [`Publish`] messages emitted by the broker.
     ///
     /// ```no_run
     /// # use std::net::TcpStream;
-    /// # use tjiftjaf::{Connect, blocking::Client, packet_identifier, QoS};
+    /// # use tjiftjaf::{subscribe, Connect, blocking::{Client, Emit}, packet_identifier};
     /// # let stream = TcpStream::connect("localhost:1883").unwrap();
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, _task) = client.spawn().unwrap();
-    /// handle.subscribe("sensor/temperature/1", QoS::AtMostOnceDelivery).unwrap();
+    /// subscribe("sensor/temperature/1")
+    ///     .emit(&handle)
+    ///     .unwrap();
     /// while let Ok(publish) = handle.publication() {
     ///    println!(
     ///       "On topic {} received {:?}",
@@ -258,7 +213,7 @@ impl ClientHandle {
     /// ```
     pub fn publication(&mut self) -> Result<Publish, ConnectionError> {
         loop {
-            let packet = self.any_packet()?;
+            let packet = self.receiver.recv_blocking()?;
             if let Packet::Publish(publish) = packet {
                 return Ok(publish);
             }
@@ -269,4 +224,10 @@ impl ClientHandle {
     pub fn disconnect(&self) -> Result<(), ConnectionError> {
         self.send(Disconnect.into())
     }
+}
+
+/// A trait for sending messages via [`ClientHandle`] to a server.
+pub trait Emit {
+    /// Send a message via the the client to the broker.
+    fn emit(self, handler: &ClientHandle) -> Result<(), ConnectionError>;
 }

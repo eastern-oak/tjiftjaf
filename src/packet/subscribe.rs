@@ -1,11 +1,9 @@
 //! Providing [`Subscribe`], used by client to express interest in one or more topics.
-#[cfg(feature = "async")]
-use crate::ConnectionError;
 use crate::{
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
-    packet_identifier, Frame, Packet, PacketType, QoS,
+    packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -105,6 +103,34 @@ impl crate::aio::Emit for Subscribe {
     /// ```
     async fn emit(self, handler: &crate::aio::ClientHandle) -> Result<(), ConnectionError> {
         handler.send(self.into()).await?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "blocking")]
+impl crate::blocking::Emit for Subscribe {
+    /// Subscribe to a topic.
+    ///
+    /// ```no_run
+    /// # use std::net::TcpStream;
+    /// # use tjiftjaf::{subscribe, Connect, blocking::{Client, Emit}};
+    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, _task) = client.spawn().unwrap();
+    /// subscribe("sensor/temperature/1")
+    ///    .emit(&handle)
+    ///    .unwrap();
+    /// while let Ok(publish) = handle.publication() {
+    ///    println!(
+    ///       "On topic {} received {:?}",
+    ///        publish.topic(),
+    ///        publish.payload()
+    ///   );
+    /// }
+    /// ```
+    fn emit(self, handler: &crate::blocking::ClientHandle) -> Result<(), ConnectionError> {
+        handler.send(self.into())?;
         Ok(())
     }
 }

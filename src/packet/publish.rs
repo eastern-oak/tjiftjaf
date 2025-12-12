@@ -1,11 +1,9 @@
 //! Providing [`Publish`], used by both client and server to send a message on a topic.
-#[cfg(feature = "async")]
-use crate::ConnectionError;
 use crate::{
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
-    packet_identifier, Frame, Packet, PacketType, QoS,
+    packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -27,7 +25,6 @@ use bytes::{BufMut, Bytes, BytesMut};
 /// assert_eq!(packet.payload(), b"Hello MQTT!");
 /// assert_eq!(packet.qos(), QoS::AtMostOnceDelivery);
 /// ```
-///
 ///
 /// Alternatively, decode `Publish` from some bytes:
 ///
@@ -352,6 +349,29 @@ impl crate::aio::Emit for Publish {
     /// ```
     async fn emit(self, handler: &crate::aio::ClientHandle) -> Result<(), ConnectionError> {
         handler.send(self.into()).await?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "blocking")]
+impl crate::blocking::Emit for Publish {
+    /// Publish `payload` to the given `topic`.
+    ///
+    /// ```no_run
+    /// use bytes::Bytes;
+    /// # use std::net::TcpStream;
+    /// # use tjiftjaf::{publish, Connect, blocking::{Client, Emit}, packet_identifier};
+    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, _task) = client.spawn().unwrap();
+    ///
+    /// publish("sensor/temperature/1", Bytes::from("26.1"))
+    ///     .emit(&handle)
+    ///     .unwrap();
+    ///```
+    fn emit(self, handler: &crate::blocking::ClientHandle) -> Result<(), ConnectionError> {
+        handler.send(self.into())?;
         Ok(())
     }
 }

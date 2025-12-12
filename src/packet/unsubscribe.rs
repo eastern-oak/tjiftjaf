@@ -1,11 +1,9 @@
 //! Providing [`Unsubscribe`], used by client to unsubscribe from one or more topics.
-#[cfg(feature = "async")]
-use crate::ConnectionError;
 use crate::{
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
-    packet_identifier, Frame, Packet, PacketType,
+    packet_identifier, ConnectionError, Frame, Packet, PacketType,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -96,6 +94,27 @@ impl Frame for Unsubscribe {
 impl crate::aio::Emit for Unsubscribe {
     async fn emit(self, handler: &crate::aio::ClientHandle) -> Result<(), ConnectionError> {
         handler.send(self.into()).await?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "blocking")]
+impl crate::blocking::Emit for Unsubscribe {
+    /// Unsubscribe from a topic.
+    ///
+    /// ```no_run
+    /// # use std::net::TcpStream;
+    /// # use tjiftjaf::{unsubscribe, Connect, blocking::{Client, Emit}};
+    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, _task) = client.spawn().unwrap();
+    /// unsubscribe("sensor/temperature/1")
+    ///    .emit(&handle)
+    ///    .unwrap();
+    /// ```
+    fn emit(self, handler: &crate::blocking::ClientHandle) -> Result<(), ConnectionError> {
+        handler.send(self.into())?;
         Ok(())
     }
 }
