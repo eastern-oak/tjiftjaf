@@ -195,7 +195,7 @@ impl ClientHandle {
     ///
     /// ```no_run
     /// # use std::net::TcpStream;
-    /// # use tjiftjaf::{subscribe, Connect, blocking::{Client, Emit}, packet_identifier, QoS};
+    /// # use tjiftjaf::{subscribe, Connect, blocking::{Client, Emit}, packet_identifier};
     /// # let stream = TcpStream::connect("localhost:1883").unwrap();
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
