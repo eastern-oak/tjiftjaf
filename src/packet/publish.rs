@@ -1,4 +1,6 @@
 //! Providing [`Publish`], used by both client and server to send a message on a topic.
+#[cfg(feature = "async")]
+use crate::ConnectionError;
 use crate::{
     decode::{self, DecodingError},
     encode,
@@ -351,8 +353,11 @@ impl crate::aio::Emit for Publish {
     fn emit(
         self,
         handler: &crate::aio::ClientHandle,
-    ) -> impl std::future::Future<Output = Result<(), async_channel::SendError<Packet>>> {
-        handler.send(self.into())
+    ) -> impl std::future::Future<Output = Result<(), ConnectionError>> {
+        async {
+            handler.send(self.into()).await?;
+            Ok(())
+        }
     }
 }
 

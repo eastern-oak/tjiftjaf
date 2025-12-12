@@ -41,7 +41,7 @@
 //! });
 //! ```
 use crate::{
-    Connect, Disconnect, HandlerError, MqttBinding, Packet, PubAck, PubComp, PubRec, PubRel,
+    Connect, ConnectionError, Disconnect, MqttBinding, Packet, PubAck, PubComp, PubRec, PubRel,
     Publish, QoS,
 };
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
@@ -245,7 +245,7 @@ impl ClientHandle {
     /// }
     /// # });
     /// ```
-    pub async fn subscriptions(&mut self) -> Result<Publish, HandlerError> {
+    pub async fn subscriptions(&mut self) -> Result<Publish, ConnectionError> {
         loop {
             let packet = self.receiver.recv().await?;
             if let Packet::Publish(publish) = packet {
@@ -255,7 +255,7 @@ impl ClientHandle {
     }
 
     /// Emit a [`Disconnect`] to terminate the connection.
-    pub async fn disconnect(self) -> Result<(), HandlerError> {
+    pub async fn disconnect(self) -> Result<(), ConnectionError> {
         self.send(Disconnect.into()).await?;
         Ok(())
     }
@@ -267,5 +267,5 @@ pub trait Emit {
     fn emit(
         self,
         handler: &ClientHandle,
-    ) -> impl std::future::Future<Output = Result<(), SendError<Packet>>>;
+    ) -> impl std::future::Future<Output = Result<(), ConnectionError>>;
 }

@@ -3,10 +3,10 @@
 pub use crate::decode::DecodingError;
 #[doc(inline)]
 pub use crate::packet::{
-    Frame, Packet, PacketType, ProtocolLevel, QoS, connack::ConnAck, connect::Connect,
-    disconnect::Disconnect, ping_req::PingReq, ping_resp::PingResp, puback::PubAck,
-    pubcomp::PubComp, publish::Publish, pubrec::PubRec, pubrel::PubRel, suback::SubAck,
-    subscribe::Subscribe, unsuback::UnsubAck, unsubscribe::Unsubscribe,
+    connack::ConnAck, connect::Connect, disconnect::Disconnect, ping_req::PingReq,
+    ping_resp::PingResp, puback::PubAck, pubcomp::PubComp, publish::Publish, pubrec::PubRec,
+    pubrel::PubRel, suback::SubAck, subscribe::Subscribe, unsuback::UnsubAck,
+    unsubscribe::Unsubscribe, Frame, Packet, PacketType, ProtocolLevel, QoS,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 use log::{debug, error, trace};
@@ -376,32 +376,30 @@ impl Statistics {
     }
 }
 
+/// Type indicating that the connection between a handle and the is broken.
+/// It's likely happened after the connection to the MQTT server broke.
 #[derive(Debug)]
-pub struct HandlerError(String);
+pub struct ConnectionError;
 
-impl Error for HandlerError {}
+impl Error for ConnectionError {}
 
-impl Display for HandlerError {
+impl Display for ConnectionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "HandlerError: {}", self.0)
+        write!(f, "The connection to the `Client` is broken. It probably happened because the connection to the MQTT server broke.")
     }
 }
 
 #[cfg(any(feature = "blocking", feature = "async"))]
-impl From<async_channel::RecvError> for HandlerError {
-    fn from(value: async_channel::RecvError) -> Self {
-        HandlerError(format!(
-            "Handler failed receiving packet from Client: {value:?}"
-        ))
+impl From<async_channel::RecvError> for ConnectionError {
+    fn from(_: async_channel::RecvError) -> Self {
+        ConnectionError
     }
 }
 
 #[cfg(any(feature = "blocking", feature = "async"))]
-impl<T> From<async_channel::SendError<T>> for HandlerError {
-    fn from(value: async_channel::SendError<T>) -> Self {
-        HandlerError(format!(
-            "Handler failed to send packet to Client: {value:?}"
-        ))
+impl<T> From<async_channel::SendError<T>> for ConnectionError {
+    fn from(_: async_channel::SendError<T>) -> Self {
+        ConnectionError
     }
 }
 

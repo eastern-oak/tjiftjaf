@@ -32,7 +32,7 @@
 //! let publication = handle.publication().unwrap();
 //! println!("Received message on topic {}", publication.topic());
 //! ```
-use crate::{Connect, Disconnect, HandlerError, MqttBinding, Packet, Publish, QoS, Subscribe};
+use crate::{Connect, ConnectionError, Disconnect, MqttBinding, Packet, Publish, QoS, Subscribe};
 use async_channel::{Receiver, Sender};
 use log::info;
 use mio::{Events, Interest, Poll, Token, Waker};
@@ -198,7 +198,7 @@ impl ClientHandle {
     ///   );
     /// }
     /// ```
-    pub fn subscribe(&self, topic: impl Into<String>, qos: QoS) -> Result<(), HandlerError> {
+    pub fn subscribe(&self, topic: impl Into<String>, qos: QoS) -> Result<(), ConnectionError> {
         let packet = Subscribe::builder(topic, qos).build_packet();
         self.send(packet)
     }
@@ -221,23 +221,23 @@ impl ClientHandle {
         &self,
         topic: impl Into<String>,
         payload: bytes::Bytes,
-    ) -> Result<(), HandlerError> {
+    ) -> Result<(), ConnectionError> {
         let packet = Publish::builder(topic, payload).build_packet();
         self.send(packet)
     }
 
     /// Send any `Packet` to the broker.
-    fn send(&self, packet: Packet) -> Result<(), HandlerError> {
+    fn send(&self, packet: Packet) -> Result<(), ConnectionError> {
         self.sender.send_blocking(packet)?;
         self.waker.wake().map_err(|error| {
-            HandlerError(format!(
+            ConnectionError(format!(
                 "Failed sending packet: couldn't wake the waker: {error:?}"
             ))
         })?;
         Ok(())
     }
 
-    fn any_packet(&mut self) -> Result<Packet, HandlerError> {
+    fn any_packet(&mut self) -> Result<Packet, ConnectionError> {
         let packet = self.receiver.recv_blocking()?;
         Ok(packet)
     }
@@ -260,7 +260,7 @@ impl ClientHandle {
     ///   );
     /// }
     /// ```
-    pub fn publication(&mut self) -> Result<Publish, HandlerError> {
+    pub fn publication(&mut self) -> Result<Publish, ConnectionError> {
         loop {
             let packet = self.any_packet()?;
             if let Packet::Publish(publish) = packet {
@@ -270,7 +270,7 @@ impl ClientHandle {
     }
 
     /// Emit a [`Disconnect`] to terminate the connection.
-    pub fn disconnect(&self) -> Result<(), HandlerError> {
+    pub fn disconnect(&self) -> Result<(), ConnectionError> {
         self.send(Disconnect.into())
     }
 }

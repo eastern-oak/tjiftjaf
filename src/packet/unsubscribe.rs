@@ -1,10 +1,11 @@
 //! Providing [`Unsubscribe`], used by client to unsubscribe from one or more topics.
+#[cfg(feature = "async")]
+use crate::ConnectionError;
 use crate::{
-    Frame, Packet, PacketType,
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
-    packet_identifier,
+    packet_identifier, Frame, Packet, PacketType,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -96,8 +97,11 @@ impl crate::aio::Emit for Unsubscribe {
     fn emit(
         self,
         handler: &crate::aio::ClientHandle,
-    ) -> impl std::future::Future<Output = Result<(), async_channel::SendError<Packet>>> {
-        handler.send(self.into())
+    ) -> impl std::future::Future<Output = Result<(), ConnectionError>> {
+        async {
+            handler.send(self.into()).await?;
+            Ok(())
+        }
     }
 }
 
