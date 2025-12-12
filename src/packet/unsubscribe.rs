@@ -1,11 +1,9 @@
 //! Providing [`Unsubscribe`], used by client to unsubscribe from one or more topics.
-#[cfg(feature = "async")]
-use crate::ConnectionError;
 use crate::{
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
-    packet_identifier, Frame, Packet, PacketType,
+    packet_identifier, ConnectionError, Frame, Packet, PacketType,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 

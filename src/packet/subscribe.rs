@@ -1,11 +1,9 @@
 //! Providing [`Subscribe`], used by client to express interest in one or more topics.
-#[cfg(feature = "async")]
-use crate::ConnectionError;
 use crate::{
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
-    packet_identifier, Frame, Packet, PacketType, QoS,
+    packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
