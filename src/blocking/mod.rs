@@ -228,6 +228,6 @@ impl ClientHandle {
 
 /// A trait for sending messages via [`ClientHandle`] to a server.
 pub trait Emit {
-    /// Send a message to a client.
+    /// Send a message via the the client to the broker.
     fn emit(self, handler: &ClientHandle) -> Result<(), ConnectionError>;
 }
