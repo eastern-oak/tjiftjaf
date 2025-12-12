@@ -229,11 +229,7 @@ impl ClientHandle {
     /// Send any `Packet` to the broker.
     fn send(&self, packet: Packet) -> Result<(), ConnectionError> {
         self.sender.send_blocking(packet)?;
-        self.waker.wake().map_err(|error| {
-            ConnectionError(format!(
-                "Failed sending packet: couldn't wake the waker: {error:?}"
-            ))
-        })?;
+        self.waker.wake().map_err(|_| ConnectionError)?;
         Ok(())
     }
 

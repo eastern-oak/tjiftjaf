@@ -350,14 +350,9 @@ impl crate::aio::Emit for Publish {
     ///     .unwrap();
     /// # });
     /// ```
-    fn emit(
-        self,
-        handler: &crate::aio::ClientHandle,
-    ) -> impl std::future::Future<Output = Result<(), ConnectionError>> {
-        async {
-            handler.send(self.into()).await?;
-            Ok(())
-        }
+    async fn emit(self, handler: &crate::aio::ClientHandle) -> Result<(), ConnectionError> {
+        handler.send(self.into()).await?;
+        Ok(())
     }
 }
 
