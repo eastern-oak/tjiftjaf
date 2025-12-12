@@ -100,7 +100,7 @@ impl crate::aio::Emit for Unsubscribe {
 
 #[cfg(feature = "blocking")]
 impl crate::blocking::Emit for Unsubscribe {
-    /// Unsubscribe to a topic.
+    /// Unsubscribe from a topic.
     ///
     /// ```no_run
     /// # use std::net::TcpStream;
