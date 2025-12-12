@@ -376,7 +376,7 @@ impl Statistics {
     }
 }
 
-/// Type indicating that the connection between a handle and the is broken.
+/// Type indicating that the connection between a handle and the Client is broken.
 /// It's likely happened after the connection to the MQTT server broke.
 #[derive(Debug)]
 pub struct ConnectionError;
