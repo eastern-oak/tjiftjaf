@@ -12,9 +12,8 @@ mod aio {
     use smol_macros::test;
     use std::{future, time::Duration};
     use tjiftjaf::{
-        ConnAck, Connect, Frame, Packet, PacketType, Publish, Subscribe,
         aio::{Client, Emit},
-        publish, subscribe,
+        publish, subscribe, ConnAck, Connect, Frame, Packet, PacketType, Publish, Subscribe,
     };
 
     #[cfg(feature = "experimental")]
@@ -48,11 +47,11 @@ mod aio {
         // After connecting, the broker returns a CONNACK packet.
         let _ = history.find(PacketType::ConnAck).await;
 
-        subscribe(TOPIC).send(&handle).await.unwrap();
+        subscribe(TOPIC).emit(&handle).await.unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
         publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
-            .send(&handle)
+            .emit(&handle)
             .await
             .unwrap();
 
@@ -150,13 +149,13 @@ mod aio {
 
         Subscribe::builder(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
             .build()
-            .send(&handle_a)
+            .emit(&handle_a)
             .await
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
         publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
-            .send(&handle_a)
+            .emit(&handle_a)
             .await
             .unwrap();
 
@@ -166,7 +165,7 @@ mod aio {
         // Now subscribe with QoS of 2.
         Subscribe::builder(TOPIC, tjiftjaf::QoS::ExactlyOnceDelivery)
             .build()
-            .send(&handle_a)
+            .emit(&handle_a)
             .await
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
@@ -174,7 +173,7 @@ mod aio {
         Publish::builder(TOPIC, "yolo")
             .qos(tjiftjaf::QoS::ExactlyOnceDelivery)
             .build()
-            .send(&handle_a)
+            .emit(&handle_a)
             .await
             .unwrap();
 
@@ -199,7 +198,7 @@ mod aio {
 
         Subscribe::builder("test/#", tjiftjaf::QoS::AtLeastOnceDelivery)
             .build()
-            .send(&handle_1)
+            .emit(&handle_1)
             .await
             .unwrap();
 
@@ -207,7 +206,7 @@ mod aio {
             "test/client_and_server",
             Bytes::from_static(b"test_subscribe_and_publish"),
         )
-        .send(&handle_2)
+        .emit(&handle_2)
         .await
         .unwrap();
 
@@ -222,7 +221,7 @@ mod blocking {
     use bytes::Bytes;
     use pretty_assertions::assert_eq;
     use std::time::Duration;
-    use tjiftjaf::{Connect, blocking};
+    use tjiftjaf::{blocking, Connect};
 
     const TOPIC: &str = "topic";
 

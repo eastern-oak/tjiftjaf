@@ -93,7 +93,7 @@ impl Frame for Unsubscribe {
 
 #[cfg(feature = "async")]
 impl crate::aio::Emit for Unsubscribe {
-    fn send(
+    fn emit(
         self,
         handler: &crate::aio::ClientHandle,
     ) -> impl std::future::Future<Output = Result<(), async_channel::SendError<Packet>>> {

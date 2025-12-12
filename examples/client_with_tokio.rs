@@ -34,7 +34,7 @@ async fn main() {
     let (handle, task) = client.spawn();
 
     subscribe("$SYS/broker/uptime")
-        .send(&handle)
+        .emit(&handle)
         .await
         .expect("Failed to subscribe to topic.");
 
@@ -47,7 +47,7 @@ async fn main() {
 async fn run(mut handle: ClientHandle) {
     let random_topic = packet_identifier().to_string();
     subscribe(&random_topic)
-        .send(&handle)
+        .emit(&handle)
         .await
         .expect("Failed to subscribe to topic.");
     let mut n = 0;
@@ -67,7 +67,7 @@ async fn run(mut handle: ClientHandle) {
                 &random_topic,
                 Bytes::copy_from_slice(format!("{n} packets received").as_bytes()),
             )
-            .send(&handle)
+            .emit(&handle)
             .await
             .unwrap()
         }

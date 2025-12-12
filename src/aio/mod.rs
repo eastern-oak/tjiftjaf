@@ -28,10 +28,10 @@
 //!
 //!   task.race(async {
 //!     // Use the handle to subscribe to topics...
-//!     subscribe("$SYS/broker/uptime").send(&handle).await.unwrap();
+//!     subscribe("$SYS/broker/uptime").emit(&handle).await.unwrap();
 //!
 //!     // ...to publish messages...
-//!     publish("some-topic", r"payload".into()).send(&handle).await.unwrap();
+//!     publish("some-topic", r"payload".into()).emit(&handle).await.unwrap();
 //!
 //!     // ...or to wait for publications on topics you subscribed to.
 //!     let publication = handle.subscriptions().await.unwrap();
@@ -78,7 +78,7 @@ where
         self,
     ) -> (
         ClientHandle,
-        impl Future<Output = Result<(), std::io::Error>>,
+        impl std::future::Future<Output = Result<(), std::io::Error>>,
     ) {
         // TODO: GH-83 decide on capacity of channel.
         // For communication _to_ the handler.
@@ -235,7 +235,7 @@ impl ClientHandle {
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
-    /// subscribe("sensor/temperature/1").send(&handle).await.unwrap();
+    /// subscribe("sensor/temperature/1").emit(&handle).await.unwrap();
     /// while let Ok(publish) = handle.subscriptions().await {
     ///    println!(
     ///       "On topic {} received {:?}",
@@ -261,6 +261,11 @@ impl ClientHandle {
     }
 }
 
+// A trait for sending messages via [`ClientHandle`] to a server.
 pub trait Emit {
-    fn send(self, handler: &ClientHandle) -> impl Future<Output = Result<(), SendError<Packet>>>;
+    /// Send a message to a client.
+    fn emit(
+        self,
+        handler: &ClientHandle,
+    ) -> impl std::future::Future<Output = Result<(), SendError<Packet>>>;
 }

@@ -1,10 +1,9 @@
 //! Providing [`Subscribe`], used by client to express interest in one or more topics.
 use crate::{
-    Frame, Packet, PacketType, QoS,
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
-    packet_identifier,
+    packet_identifier, Frame, Packet, PacketType, QoS,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -92,7 +91,7 @@ impl crate::aio::Emit for Subscribe {
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
-    /// subscribe("sensor/temperature/1").send(&handle).await.unwrap();
+    /// subscribe("sensor/temperature/1").emit(&handle).await.unwrap();
     /// while let Ok(publish) = handle.subscriptions().await {
     ///    println!(
     ///       "On topic {} received {:?}",
@@ -102,7 +101,7 @@ impl crate::aio::Emit for Subscribe {
     /// }
     /// # });
     /// ```
-    fn send(
+    fn emit(
         self,
         handler: &crate::aio::ClientHandle,
     ) -> impl std::future::Future<Output = Result<(), async_channel::SendError<Packet>>> {

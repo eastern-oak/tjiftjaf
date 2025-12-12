@@ -44,7 +44,9 @@ pub fn connect(client_id: String, keep_alive_interval: u16) -> Packet {
         .build_packet()
 }
 
-/// Construct a [`Subscribe`] with the given topic. It is a shorthand for:
+/// Construct a [`Subscribe`] with the given topic and [`QoS::AtMostOnceDelivery`].
+///
+/// It is analogous to:
 ///
 /// ```
 /// use tjiftjaf::{Subscribe, QoS};
@@ -56,10 +58,34 @@ pub fn subscribe(topic: &str) -> Subscribe {
     Subscribe::builder(topic, QoS::AtMostOnceDelivery).build()
 }
 
+/// Construct a [`Unsubscribe`] with the given topic.
+///
+/// It is analogous to:
+///
+/// ```
+/// use tjiftjaf::Unsubscribe;
+///
+/// let topic = "sensor/1/#";
+/// Unsubscribe::builder(topic).build();
+/// ```
 pub fn unsubscribe(topic: &str) -> Unsubscribe {
     Unsubscribe::builder(topic).build()
 }
 
+/// Construct a [`Publish`] with the given topic and payload.
+///
+/// The flags for QoS, retain and duplicate are all 0.
+///
+/// It is analogous to:
+///
+/// ```
+/// use bytes::Bytes;
+/// use tjiftjaf::Publish;
+///
+/// let topic = "sensor/1/#";
+/// let payload = Bytes::from("26.1");
+/// Publish::builder(topic, payload).build();
+/// ```
 pub fn publish(topic: &str, payload: Bytes) -> Publish {
     Publish::builder(topic, payload).build()
 }
@@ -349,6 +375,7 @@ impl Statistics {
         self.packets_sent += 1;
     }
 }
+
 #[derive(Debug)]
 pub struct HandlerError(String);
 

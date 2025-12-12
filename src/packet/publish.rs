@@ -1,10 +1,9 @@
 //! Providing [`Publish`], used by both client and server to send a message on a topic.
 use crate::{
-    Frame, Packet, PacketType, QoS,
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
-    packet_identifier,
+    packet_identifier, Frame, Packet, PacketType, QoS,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -344,12 +343,12 @@ impl crate::aio::Emit for Publish {
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
     /// publish("sensor/temperature/1", Bytes::from("26.1"))
-    ///     .send(&handle)
+    ///     .emit(&handle)
     ///     .await
     ///     .unwrap();
     /// # });
     /// ```
-    fn send(
+    fn emit(
         self,
         handler: &crate::aio::ClientHandle,
     ) -> impl std::future::Future<Output = Result<(), async_channel::SendError<Packet>>> {

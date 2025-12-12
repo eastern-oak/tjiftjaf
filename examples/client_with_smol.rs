@@ -32,13 +32,13 @@ fn main() {
         let (mut handle, task) = client.spawn();
 
         subscribe("$SYS/broker/uptime")
-            .send(&handle)
+            .emit(&handle)
             .await
             .expect("Failed to subscribe to topic.");
 
         let random_topic = packet_identifier().to_string();
         subscribe(&random_topic)
-            .send(&handle)
+            .emit(&handle)
             .await
             .expect("Failed to subscribe to topic.");
 
@@ -60,7 +60,7 @@ fn main() {
                             &random_topic,
                             Bytes::copy_from_slice(format!("{n} packets received").as_bytes()),
                         )
-                        .send(&handle)
+                        .emit(&handle)
                         .await
                         .unwrap()
                     }
