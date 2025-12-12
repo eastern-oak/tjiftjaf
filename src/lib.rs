@@ -3,10 +3,10 @@
 pub use crate::decode::DecodingError;
 #[doc(inline)]
 pub use crate::packet::{
-    Frame, Packet, PacketType, ProtocolLevel, QoS, connack::ConnAck, connect::Connect,
-    disconnect::Disconnect, ping_req::PingReq, ping_resp::PingResp, puback::PubAck,
-    pubcomp::PubComp, publish::Publish, pubrec::PubRec, pubrel::PubRel, suback::SubAck,
-    subscribe::Subscribe, unsuback::UnsubAck, unsubscribe::Unsubscribe,
+    connack::ConnAck, connect::Connect, disconnect::Disconnect, ping_req::PingReq,
+    ping_resp::PingResp, puback::PubAck, pubcomp::PubComp, publish::Publish, pubrec::PubRec,
+    pubrel::PubRel, suback::SubAck, subscribe::Subscribe, unsuback::UnsubAck,
+    unsubscribe::Unsubscribe, Frame, Packet, PacketType, ProtocolLevel, QoS,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 use log::{debug, error, trace};
@@ -44,12 +44,50 @@ pub fn connect(client_id: String, keep_alive_interval: u16) -> Packet {
         .build_packet()
 }
 
-pub fn subscribe(topic: &str) -> Packet {
-    Subscribe::builder(topic, QoS::AtMostOnceDelivery).build_packet()
+/// Construct a [`Subscribe`] with the given topic and [`QoS::AtMostOnceDelivery`].
+///
+/// It is analogous to:
+///
+/// ```
+/// use tjiftjaf::{Subscribe, QoS};
+///
+/// let topic = "sensor/1/#";
+/// Subscribe::builder(topic, QoS::AtMostOnceDelivery).build();
+/// ```
+pub fn subscribe(topic: &str) -> Subscribe {
+    Subscribe::builder(topic, QoS::AtMostOnceDelivery).build()
 }
 
-pub fn publish(topic: &str, payload: Bytes) -> Packet {
-    Publish::builder(topic, payload).build_packet()
+/// Construct a [`Unsubscribe`] with the given topic.
+///
+/// It is analogous to:
+///
+/// ```
+/// use tjiftjaf::Unsubscribe;
+///
+/// let topic = "sensor/1/#";
+/// Unsubscribe::builder(topic).build();
+/// ```
+pub fn unsubscribe(topic: &str) -> Unsubscribe {
+    Unsubscribe::builder(topic).build()
+}
+
+/// Construct a [`Publish`] with the given topic and payload.
+///
+/// The flags for QoS, retain and duplicate are all 0.
+///
+/// It is analogous to:
+///
+/// ```
+/// use bytes::Bytes;
+/// use tjiftjaf::Publish;
+///
+/// let topic = "sensor/1/#";
+/// let payload = Bytes::from("26.1");
+/// Publish::builder(topic, payload).build();
+/// ```
+pub fn publish(topic: &str, payload: Bytes) -> Publish {
+    Publish::builder(topic, payload).build()
 }
 
 #[derive(Default, Debug)]
@@ -337,32 +375,31 @@ impl Statistics {
         self.packets_sent += 1;
     }
 }
+
+/// Type indicating that the connection between a handle and the Client is broken.
+/// It's likely happened after the connection to the MQTT server broke.
 #[derive(Debug)]
-pub struct HandlerError(String);
+pub struct ConnectionError;
 
-impl Error for HandlerError {}
+impl Error for ConnectionError {}
 
-impl Display for HandlerError {
+impl Display for ConnectionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "HandlerError: {}", self.0)
+        write!(f, "The connection to the `Client` is broken. It probably happened because the connection to the MQTT server broke.")
     }
 }
 
 #[cfg(any(feature = "blocking", feature = "async"))]
-impl From<async_channel::RecvError> for HandlerError {
-    fn from(value: async_channel::RecvError) -> Self {
-        HandlerError(format!(
-            "Handler failed receiving packet from Client: {value:?}"
-        ))
+impl From<async_channel::RecvError> for ConnectionError {
+    fn from(_: async_channel::RecvError) -> Self {
+        ConnectionError
     }
 }
 
 #[cfg(any(feature = "blocking", feature = "async"))]
-impl<T> From<async_channel::SendError<T>> for HandlerError {
-    fn from(value: async_channel::SendError<T>) -> Self {
-        HandlerError(format!(
-            "Handler failed to send packet to Client: {value:?}"
-        ))
+impl<T> From<async_channel::SendError<T>> for ConnectionError {
+    fn from(_: async_channel::SendError<T>) -> Self {
+        ConnectionError
     }
 }
 
@@ -397,7 +434,7 @@ mod test {
     fn test_publish() {
         let packet = publish("zigbee2mqtt/light/state", Bytes::from(r#"{"state":"on"}"#));
 
-        let packet = decode_message(packet);
+        let packet = decode_message(packet.into());
 
         assert_eq!(packet.length(), 41);
         assert_eq!(packet.packet_type(), PacketType::Publish);
@@ -406,7 +443,7 @@ mod test {
 
         let packet = publish("$SYS/broker/uptime", Bytes::from(r#"388641 seconds"#));
 
-        let packet = decode_message(packet);
+        let packet = decode_message(packet.into());
         assert_eq!(packet.packet_type(), PacketType::Publish);
         assert_eq!(packet.length(), 36);
         // assert_eq!(packet.topic(), "$SYS/broker/uptime");
@@ -416,7 +453,7 @@ mod test {
             "zigbee2mqtt/binary-switch",
             Bytes::from(r#"{"action":"off","battery":100,"linkquality":3,"voltage":1400}"#),
         );
-        let packet = decode_message(packet);
+        let packet = decode_message(packet.into());
         assert_eq!(packet.packet_type(), PacketType::Publish);
         // assert_eq!(packet.topic(), "zigbee2mqtt/binary-switch");
         assert_eq!(
@@ -431,7 +468,7 @@ mod test {
             ),
         );
 
-        let packet = decode_message(packet);
+        let packet = decode_message(packet.into());
 
         assert_eq!(packet.packet_type(), PacketType::Publish);
         // assert_eq!(packet.topic(), "zigbee2mqtt/thermo-hygrometer");

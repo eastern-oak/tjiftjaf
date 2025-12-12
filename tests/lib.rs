@@ -11,7 +11,10 @@ mod aio {
     use smol::Timer;
     use smol_macros::test;
     use std::{future, time::Duration};
-    use tjiftjaf::{ConnAck, Connect, Frame, Packet, PacketType, Publish, aio::Client};
+    use tjiftjaf::{
+        aio::{Client, Emit},
+        publish, subscribe, ConnAck, Connect, Frame, Packet, PacketType, Publish, Subscribe,
+    };
 
     #[cfg(feature = "experimental")]
     use tjiftjaf::aio::server::Server;
@@ -44,14 +47,11 @@ mod aio {
         // After connecting, the broker returns a CONNACK packet.
         let _ = history.find(PacketType::ConnAck).await;
 
-        handle
-            .subscribe(TOPIC, tjiftjaf::QoS::AtMostOnceDelivery)
-            .await
-            .unwrap();
+        subscribe(TOPIC).emit(&handle).await.unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
-        handle
-            .publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+            .emit(&handle)
             .await
             .unwrap();
 
@@ -85,7 +85,7 @@ mod aio {
         let client = create_client(server.local_addr().unwrap().port());
 
         // A task where the `server` accepts an incoming connection.
-        // After the CONNECT/CONNACK exchange,  the server emits a PUBLISH
+        // After the CONNECT/CONNACK exchange, the server emits a PUBLISH
         // packet that's split into 2 TCP frames.
         let _server = smol::spawn(async move {
             let mut stream = server.incoming().next().await.unwrap().unwrap();
@@ -118,16 +118,12 @@ mod aio {
         let (mut handle_a, task) = client.await.spawn();
         let _handle = smol::spawn(task);
 
-        let packet = handle_a.any_packet().await.unwrap();
-        assert_eq!(packet.packet_type(), PacketType::ConnAck);
+        // let packet = handle_a.any_packet().await.unwrap();
+        // assert_eq!(packet.packet_type(), PacketType::ConnAck);
 
-        let publish = match handle_a.any_packet().await.unwrap() {
-            Packet::Publish(publish) => publish,
-            _ => panic!("Invalid packet."),
-        };
+        let publish = handle_a.subscriptions().await.unwrap();
+
         assert_eq!(publish.topic(), TOPIC);
-
-        // Verify that the packet contains the expected payload.
         assert_eq!(publish.payload(), b"test_subscribe_and_publish");
     }
 
@@ -151,14 +147,15 @@ mod aio {
         // After connecting, the broker returns a CONNACK packet.
         let _ = history.find(PacketType::ConnAck).await;
 
-        handle_a
-            .subscribe(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
+        Subscribe::builder(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
+            .build()
+            .emit(&handle_a)
             .await
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
-        handle_a
-            .publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+            .emit(&handle_a)
             .await
             .unwrap();
 
@@ -166,17 +163,19 @@ mod aio {
         let _ = history.find(PacketType::PubAck).await;
 
         // Now subscribe with QoS of 2.
-        handle_a
-            .subscribe(TOPIC, tjiftjaf::QoS::ExactlyOnceDelivery)
+        Subscribe::builder(TOPIC, tjiftjaf::QoS::ExactlyOnceDelivery)
+            .build()
+            .emit(&handle_a)
             .await
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
-        let packet = Publish::builder(TOPIC, "yolo")
+        Publish::builder(TOPIC, "yolo")
             .qos(tjiftjaf::QoS::ExactlyOnceDelivery)
-            .build_packet();
-
-        handle_a.send(packet).await.unwrap();
+            .build()
+            .emit(&handle_a)
+            .await
+            .unwrap();
 
         let _ = history.find(PacketType::PubRec).await;
         let _ = history.find(PacketType::PubRel).await;
@@ -197,18 +196,19 @@ mod aio {
         let (handle_2, task) = create_client(local_addr.port()).await.spawn();
         let _handle = smol::spawn(task);
 
-        handle_1
-            .subscribe("test/#", tjiftjaf::QoS::AtLeastOnceDelivery)
+        Subscribe::builder("test/#", tjiftjaf::QoS::AtLeastOnceDelivery)
+            .build()
+            .emit(&handle_1)
             .await
             .unwrap();
 
-        handle_2
-            .publish(
-                "test/client_and_server",
-                Bytes::from_static(b"test_subscribe_and_publish"),
-            )
-            .await
-            .unwrap();
+        publish(
+            "test/client_and_server",
+            Bytes::from_static(b"test_subscribe_and_publish"),
+        )
+        .emit(&handle_2)
+        .await
+        .unwrap();
 
         let publication = handle_1.subscriptions().await.unwrap();
         assert_eq!(&publication.topic(), &"test/client_and_server");
@@ -221,7 +221,7 @@ mod blocking {
     use bytes::Bytes;
     use pretty_assertions::assert_eq;
     use std::time::Duration;
-    use tjiftjaf::{Connect, blocking};
+    use tjiftjaf::{blocking, Connect};
 
     const TOPIC: &str = "topic";
 

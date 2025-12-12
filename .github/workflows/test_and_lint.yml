@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v5
-    - uses: dtolnay/rust-toolchain@1.91.0
+    - uses: dtolnay/rust-toolchain@1.92.0
       with:
         components: clippy,rustfmt
 
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v5
-    - uses: dtolnay/rust-toolchain@1.91.0
+    - uses: dtolnay/rust-toolchain@1.92.0
 
     - name: Print version info
       run: rustc --version && cargo --version

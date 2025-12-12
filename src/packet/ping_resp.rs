@@ -1,5 +1,5 @@
 //! Providing [`PingResp`]
-use crate::{Frame, decode::DecodingError};
+use crate::{decode::DecodingError, Frame};
 use bytes::Bytes;
 
 // A PINGRESP packet consists of only a header of two bytes.

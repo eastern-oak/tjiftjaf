@@ -1,5 +1,5 @@
 //! Providing [`ConnAck`], a response from server to a `Connect`
-use crate::{Frame, Packet, decode::DecodingError};
+use crate::{decode::DecodingError, Frame, Packet};
 use bytes::Bytes;
 
 /// [Connack](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718033)
@@ -213,7 +213,7 @@ impl Default for ConnAckBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::{ConnAck, packet::connack::ReturnCode};
+    use crate::{packet::connack::ReturnCode, ConnAck};
     use bytes::Bytes;
 
     #[test]

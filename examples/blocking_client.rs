@@ -2,7 +2,7 @@
 use log::info;
 use std::env;
 use std::net::TcpStream;
-use tjiftjaf::{Connect, QoS, blocking::Client, packet_identifier};
+use tjiftjaf::{blocking::Client, packet_identifier, Connect, QoS};
 
 fn main() {
     simple_logger::init_with_level(log::Level::Debug).unwrap();

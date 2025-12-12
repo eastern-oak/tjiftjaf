@@ -1,15 +1,15 @@
 use crate::{
-    ConnAck, Connect, DecodingError, Packet, PingResp, SubAck,
     packet::{self, connack::ReturnCode},
+    ConnAck, Connect, DecodingError, Packet, PingResp, SubAck,
 };
 use async_channel::{SendError, Sender};
 use async_net::{TcpListener, TcpStream};
 use bytes::{BufMut, BytesMut};
 use futures::FutureExt;
 use futures::{
-    AsyncRead,
     io::{AsyncReadExt, AsyncWriteExt},
     stream::{FuturesOrdered, StreamExt},
+    AsyncRead,
 };
 use log::{debug, error, info, warn};
 use std::collections::HashMap;

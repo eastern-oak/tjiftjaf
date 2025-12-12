@@ -1,5 +1,5 @@
 //! Providing [`Disconnect`]
-use crate::{Frame, Packet, PacketType, decode::DecodingError};
+use crate::{decode::DecodingError, Frame, Packet, PacketType};
 use bytes::Bytes;
 
 // A DISCONNECT packet consists of only a header of two bytes.

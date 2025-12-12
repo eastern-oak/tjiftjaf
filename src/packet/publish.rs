@@ -1,10 +1,11 @@
 //! Providing [`Publish`], used by both client and server to send a message on a topic.
+#[cfg(feature = "async")]
+use crate::ConnectionError;
 use crate::{
-    Frame, Packet, PacketType, QoS,
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
-    packet_identifier,
+    packet_identifier, Frame, Packet, PacketType, QoS,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -326,6 +327,32 @@ impl Builder {
     /// Build a `Packet::Publish`.
     pub fn build_packet(self) -> Packet {
         Packet::Publish(self.build())
+    }
+}
+
+#[cfg(feature = "async")]
+impl crate::aio::Emit for Publish {
+    /// Publish `payload` to the given `topic`.
+    ///
+    /// ```no_run
+    /// use bytes::Bytes;
+    /// # use async_net::TcpStream;
+    /// # use futures_lite::FutureExt;
+    /// # use tjiftjaf::{publish, Connect, QoS, aio::{Client, Emit}, packet_identifier};
+    /// # smol::block_on(async {
+    /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
+    /// # let connect = Connect::builder().build();
+    /// # let client = Client::new(connect, stream);
+    /// # let (mut handle, task) = client.spawn();
+    /// publish("sensor/temperature/1", Bytes::from("26.1"))
+    ///     .emit(&handle)
+    ///     .await
+    ///     .unwrap();
+    /// # });
+    /// ```
+    async fn emit(self, handler: &crate::aio::ClientHandle) -> Result<(), ConnectionError> {
+        handler.send(self.into()).await?;
+        Ok(())
     }
 }
 

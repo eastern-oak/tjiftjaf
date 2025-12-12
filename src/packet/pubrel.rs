@@ -1,5 +1,5 @@
 //! Providing [`PubRel`], to acknowledge a [`crate::PubRec`].
-use crate::{Frame, Packet, PacketType, decode::DecodingError, packet::ack::Ack};
+use crate::{decode::DecodingError, packet::ack::Ack, Frame, Packet, PacketType};
 use bytes::Bytes;
 
 /// A [`PubRel`] packet is the response to a [`crate::PubRec`].

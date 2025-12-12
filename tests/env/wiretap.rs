@@ -4,7 +4,7 @@ use async_net::{TcpListener, TcpStream};
 use bytes::{BufMut, BytesMut};
 use futures_lite::{AsyncReadExt, AsyncWriteExt, FutureExt, StreamExt};
 use smol::spawn;
-use tjiftjaf::{Connect, Packet, PacketType, aio::Client, decode::DecodingError, packet};
+use tjiftjaf::{aio::Client, decode::DecodingError, packet, Connect, Packet, PacketType};
 
 /// Start a proxy and connect `Client` through that proxy to the broker.
 /// The interaction between `Client` and broker is recorded in a `Transcription`.

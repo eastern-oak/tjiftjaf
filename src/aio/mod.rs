@@ -4,7 +4,7 @@
 //! client in a new future. That method returns a [`ClientHandle`] and a future.
 //! The application is responsible for `await`ing the future and running the client.
 //!
-//! The `ClientHandle` can be used to [subscribe](ClientHandle::subscribe()) to topics, [publish](ClientHandle::publish()) messages and [retrieve
+//! The `ClientHandle` can be used to [subscribe](crate::subscribe()) to topics, [publish](crate::publish()) messages and [retrieve
 //! publications](ClientHandle::subscriptions()).
 //!
 //! Below you find a small snippet based on the executor smol. Also, take a look at [examples/client_with_smol.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/client_with_smol.rs)
@@ -13,7 +13,7 @@
 //! ```no_run
 //! use async_net::TcpStream;
 //! use futures_lite::FutureExt;
-//! use tjiftjaf::{Connect, QoS, aio::Client, packet_identifier};
+//! use tjiftjaf::{publish, subscribe, Connect, QoS, aio::{Client, Emit}, packet_identifier};
 //!
 //! smol::block_on(async {
 //!   let stream = TcpStream::connect("localhost:1883").await.unwrap();
@@ -28,10 +28,10 @@
 //!
 //!   task.race(async {
 //!     // Use the handle to subscribe to topics...
-//!     handle.subscribe("$SYS/broker/uptime", QoS::AtMostOnceDelivery).await.unwrap();
+//!     subscribe("$SYS/broker/uptime").emit(&handle).await.unwrap();
 //!
 //!     // ...to publish messages...
-//!     handle.publish("some-topic", r"payload".into()).await.unwrap();
+//!     publish("some-topic", r"payload".into()).emit(&handle).await.unwrap();
 //!
 //!     // ...or to wait for publications on topics you subscribed to.
 //!     let publication = handle.subscriptions().await.unwrap();
@@ -41,12 +41,11 @@
 //! });
 //! ```
 use crate::{
-    Connect, Disconnect, HandlerError, MqttBinding, Packet, PubAck, PubComp, PubRec, PubRel,
-    Publish, QoS, Subscribe,
+    Connect, ConnectionError, Disconnect, MqttBinding, Packet, PubAck, PubComp, PubRec, PubRel,
+    Publish, QoS,
 };
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
-use bytes::Bytes;
 use futures_lite::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
 use log::{error, info, trace};
 use std::time::Instant;
@@ -79,7 +78,7 @@ where
         self,
     ) -> (
         ClientHandle,
-        impl Future<Output = Result<(), std::io::Error>>,
+        impl std::future::Future<Output = Result<(), std::io::Error>>,
     ) {
         // TODO: GH-83 decide on capacity of channel.
         // For communication _to_ the handler.
@@ -221,70 +220,8 @@ pub struct ClientHandle {
 }
 
 impl ClientHandle {
-    /// Subscribe to the given `topic` using the provided `qos`.
-    ///
-    /// ```no_run
-    /// # use async_net::TcpStream;
-    /// # use futures_lite::FutureExt;
-    /// # use tjiftjaf::{Connect, QoS, aio::Client, packet_identifier};
-    /// # smol::block_on(async {
-    /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
-    /// # let connect = Connect::builder().build();
-    /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, task) = client.spawn();
-    /// handle.subscribe("sensor/temperature/1", QoS::AtMostOnceDelivery).await.unwrap();
-    /// while let Ok(publish) = handle.subscriptions().await {
-    ///    println!(
-    ///       "On topic {} received {:?}",
-    ///        publish.topic(),
-    ///        publish.payload()
-    ///   );
-    /// }
-    /// # });
-    /// ```
-    pub async fn subscribe(
-        &self,
-        topic: impl Into<String>,
-        qos: QoS,
-    ) -> Result<(), SendError<Packet>> {
-        let packet = Subscribe::builder(topic, qos).build_packet();
-        self.send(packet).await
-    }
-
-    /// Publish `payload` to the given `topic`.
-    ///
-    /// ```no_run
-    /// use bytes::Bytes;
-    /// # use async_net::TcpStream;
-    /// # use futures_lite::FutureExt;
-    /// # use tjiftjaf::{Connect, QoS, aio::Client, packet_identifier};
-    /// # smol::block_on(async {
-    /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
-    /// # let connect = Connect::builder().build();
-    /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, task) = client.spawn();
-    /// handle
-    ///     .publish("sensor/temperature/1", Bytes::from("26.1"))
-    ///     .await
-    ///     .unwrap();
-    /// # });
-    /// ```
-    pub async fn publish(
-        &self,
-        topic: impl Into<String>,
-        payload: Bytes,
-    ) -> Result<(), SendError<Packet>> {
-        let packet = Publish::builder(topic, payload).build_packet();
-        self.send(packet).await
-    }
-
-    pub async fn send(&self, packet: Packet) -> Result<(), SendError<Packet>> {
+    pub(crate) async fn send(&self, packet: Packet) -> Result<(), SendError<Packet>> {
         self.sender.send(packet).await
-    }
-
-    pub async fn any_packet(&mut self) -> Result<Packet, HandlerError> {
-        let packet = self.receiver.recv().await?;
-        Ok(packet)
     }
 
     /// Wait for the next [`Publish`] messages emitted by the broker.
@@ -292,13 +229,13 @@ impl ClientHandle {
     /// ```no_run
     /// # use async_net::TcpStream;
     /// # use futures_lite::FutureExt;
-    /// # use tjiftjaf::{Connect, QoS, aio::Client, packet_identifier};
+    /// # use tjiftjaf::{subscribe, Connect, QoS, aio::{Emit, Client}, packet_identifier};
     /// # smol::block_on(async {
     /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
-    /// handle.subscribe("sensor/temperature/1", QoS::AtMostOnceDelivery).await.unwrap();
+    /// subscribe("sensor/temperature/1").emit(&handle).await.unwrap();
     /// while let Ok(publish) = handle.subscriptions().await {
     ///    println!(
     ///       "On topic {} received {:?}",
@@ -308,9 +245,9 @@ impl ClientHandle {
     /// }
     /// # });
     /// ```
-    pub async fn subscriptions(&mut self) -> Result<Publish, HandlerError> {
+    pub async fn subscriptions(&mut self) -> Result<Publish, ConnectionError> {
         loop {
-            let packet = self.any_packet().await?;
+            let packet = self.receiver.recv().await?;
             if let Packet::Publish(publish) = packet {
                 return Ok(publish);
             }
@@ -318,8 +255,17 @@ impl ClientHandle {
     }
 
     /// Emit a [`Disconnect`] to terminate the connection.
-    pub async fn disconnect(self) -> Result<(), HandlerError> {
+    pub async fn disconnect(self) -> Result<(), ConnectionError> {
         self.send(Disconnect.into()).await?;
         Ok(())
     }
+}
+
+// A trait for sending messages via [`ClientHandle`] to a server.
+pub trait Emit {
+    /// Send a message to a client.
+    fn emit(
+        self,
+        handler: &ClientHandle,
+    ) -> impl std::future::Future<Output = Result<(), ConnectionError>>;
 }

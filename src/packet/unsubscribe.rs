@@ -1,10 +1,11 @@
 //! Providing [`Unsubscribe`], used by client to unsubscribe from one or more topics.
+#[cfg(feature = "async")]
+use crate::ConnectionError;
 use crate::{
-    Frame, Packet, PacketType,
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
-    packet_identifier,
+    packet_identifier, Frame, Packet, PacketType,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -88,6 +89,14 @@ impl Frame for Unsubscribe {
     fn variable_header(&self) -> &[u8] {
         let offset = self.header().len();
         &self.as_bytes()[offset..offset + 2]
+    }
+}
+
+#[cfg(feature = "async")]
+impl crate::aio::Emit for Unsubscribe {
+    async fn emit(self, handler: &crate::aio::ClientHandle) -> Result<(), ConnectionError> {
+        handler.send(self.into()).await?;
+        Ok(())
     }
 }
 

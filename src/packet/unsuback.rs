@@ -1,5 +1,5 @@
 //! Providing [`UnsubAck`], to acknowledge a [`crate::Unsubscribe`].
-use crate::{Frame, Packet, PacketType, decode::DecodingError, packet::ack::Ack};
+use crate::{decode::DecodingError, packet::ack::Ack, Frame, Packet, PacketType};
 use bytes::Bytes;
 
 /// A [`UnsubAck`] packet is the response to a [`crate::Unsubscribe`].

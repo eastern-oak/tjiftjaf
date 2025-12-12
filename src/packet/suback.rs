@@ -1,9 +1,9 @@
 /// Providing the [`SubAck`] frame, used by a broker to confirm a [`crate::Subscribe`].
 use crate::{
-    Frame, Packet, PacketType, QoS,
     decode::{self, DecodingError},
     encode,
     packet::UnverifiedFrame,
+    Frame, Packet, PacketType, QoS,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 

@@ -1,9 +1,8 @@
 //! Providing [`Connect`], the first message a client sends to the server.
 use super::UnverifiedFrame;
 use crate::{
-    Frame, Packet, PacketType, ProtocolLevel, QoS,
     decode::{self, DecodingError},
-    encode,
+    encode, Frame, Packet, PacketType, ProtocolLevel, QoS,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 use core::fmt;
@@ -821,7 +820,7 @@ impl<'a> arbitrary::Arbitrary<'a> for Connect {
 
 #[cfg(test)]
 mod test {
-    use crate::{Connect, packet::Frame};
+    use crate::{packet::Frame, Connect};
     use bytes::Bytes;
 
     #[test]
