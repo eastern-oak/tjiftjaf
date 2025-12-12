@@ -28,7 +28,6 @@ use bytes::{BufMut, Bytes, BytesMut};
 /// assert_eq!(packet.qos(), QoS::AtMostOnceDelivery);
 /// ```
 ///
-///
 /// Alternatively, decode `Publish` from some bytes:
 ///
 /// ```
@@ -373,7 +372,6 @@ impl crate::blocking::Emit for Publish {
     ///     .emit(&handle)
     ///     .unwrap();
     ///```
-    /// ```
     fn emit(self, handler: &crate::blocking::ClientHandle) -> Result<(), ConnectionError> {
         handler.send(self.into())?;
         Ok(())

@@ -2,7 +2,7 @@
 //!
 //! After creating the `Client`, [`Client::spawn()`] runs the
 //! client in a new thread. That method returns a [`ClientHandle`]
-//! allowing an application to [subscribe](ClientHandle::subscribe()) to topics, [publish](ClientHandle::publish()) messages and [retrieve
+//! allowing an application to [subscribe](crate::Subscribe::emit()) to topics, [publish](crate::Publish::emit()) messages and [retrieve
 //! publications](ClientHandle::publication()).
 //!
 //! Below you find a small snippet. Also, take a look at [examples/blocking_client.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/blocking_client.rs)
