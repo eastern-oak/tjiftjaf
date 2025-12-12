@@ -10,7 +10,7 @@
 //!
 //! ```no_run
 //! use std::net::TcpStream;
-//! use tjiftjaf::{publish, subscribe, Connect, QoS, blocking::{Client, Emit}, packet_identifier};
+//! use tjiftjaf::{publish, subscribe, Connect, blocking::{Client, Emit}, packet_identifier};
 //!
 //! let stream = TcpStream::connect("localhost:1883").unwrap();
 //! let connect = Connect::builder()
