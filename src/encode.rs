@@ -23,7 +23,7 @@ pub fn remaining_length(length: usize) -> Bytes {
     assert!(length <= 268_435_455);
 
     let mut length = length;
-    let mut bytes = BytesMut::with_capacity(1);
+    let mut bytes = BytesMut::with_capacity(4);
 
     loop {
         let mut byte = (length % 128) as u8;
