@@ -34,10 +34,10 @@ pub fn packet_identifier() -> u16 {
         Err(_) => panic!("SystemTime before UNIX EPOCH!"),
     };
 
-    // Use a combination of seconds and subsec_micros for better distribution
-    // without the overhead of computing nanoseconds
-    ((duration.as_secs() as u16).wrapping_mul(1000))
-        .wrapping_add((duration.subsec_micros() / 1000) as u16)
+    // Use subsec_micros for better distribution without the overhead of computing nanoseconds.
+    // Microseconds provide sufficient granularity (wraps every ~65ms) while being much cheaper
+    // to compute than nanoseconds.
+    (duration.subsec_micros() as u16).wrapping_add((duration.as_secs() as u16).wrapping_mul(1000))
 }
 
 pub fn connect(client_id: String, keep_alive_interval: u16) -> Packet {
@@ -179,23 +179,17 @@ impl MqttBinding {
         match self.state {
             State::StartOfHeader => {
                 trace!("Waiting for start of header.");
-                let mut buf = BytesMut::with_capacity(2);
-                buf.resize(2, 0);
-                buf
+                BytesMut::zeroed(2)
             }
             State::EndOfHeader { .. } => {
                 trace!("Waiting for end of the header.");
-                let mut buf = BytesMut::with_capacity(2);
-                buf.resize(2, 0);
-                buf
+                BytesMut::zeroed(2)
             }
             State::RestOfPacket {
                 bytes_remaining, ..
             } => {
                 trace!("Waiting for remainder of the packet.");
-                let mut buf = BytesMut::with_capacity(bytes_remaining as usize);
-                buf.resize(bytes_remaining as usize, 0);
-                buf
+                BytesMut::zeroed(bytes_remaining as usize)
             }
         }
     }
