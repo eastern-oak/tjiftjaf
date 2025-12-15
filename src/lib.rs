@@ -1,4 +1,3 @@
-#![warn(missing_docs)]
 #![doc = include_str!("../README.md")]
 #[doc(inline)]
 pub use crate::decode::DecodingError;
