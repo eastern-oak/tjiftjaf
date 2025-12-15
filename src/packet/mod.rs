@@ -48,13 +48,13 @@ pub enum Packet {
     PubAck(PubAck),
 
     /// A peers's response to a PUBLISH with QoS of 2.
-    PubComp(PubComp),
-
-    /// A peer's response to a PUBCOMP.
     PubRec(PubRec),
 
-    /// A peer's response to a PUBREL.
+    /// A peer's response to a PUBREC.
     PubRel(PubRel),
+
+    /// A peer's response to a PUBREL.
+    PubComp(PubComp),
 
     /// Send by the client to keep the connection alive.
     PingReq(PingReq),
