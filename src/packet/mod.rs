@@ -32,15 +32,6 @@ pub enum Packet {
     /// A server's response on a CONNECT.
     ConnAck(ConnAck),
 
-    /// Terminate the connection, sent the client.
-    Disconnect(Disconnect),
-
-    /// A client's way to express interest in a topic.
-    Subscribe(Subscribe),
-
-    /// A server's response to a SUBSCRIBE.
-    SubAck(SubAck),
-
     /// Emitting a payload to a topic.
     Publish(Publish),
 
@@ -56,17 +47,26 @@ pub enum Packet {
     /// A peer's response to a PUBREL.
     PubComp(PubComp),
 
-    /// Send by the client to keep the connection alive.
-    PingReq(PingReq),
+    /// A client's way to express interest in a topic.
+    Subscribe(Subscribe),
 
-    /// A server's response to a PINGREQ.
-    PingResp(PingResp),
+    /// A server's response to a SUBSCRIBE.
+    SubAck(SubAck),
 
     /// Used by the client to unsubscribe from a topic.
     Unsubscribe(Unsubscribe),
 
     /// A server's response to a UNSUBSCRIBE.
     UnsubAck(UnsubAck),
+
+    /// Send by the client to keep the connection alive.
+    PingReq(PingReq),
+
+    /// A server's response to a PINGREQ.
+    PingResp(PingResp),
+
+    /// Terminate the connection, sent the client.
+    Disconnect(Disconnect),
 }
 
 impl Packet {
