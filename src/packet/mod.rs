@@ -213,41 +213,41 @@ pub enum PacketType {
     /// A server's response on a CONNECT.
     ConnAck = 2,
 
-    /// Terminate the connection, sent the client.
-    Disconnect = 3,
-
-    /// A client's way to express interest in a topic.
-    Subscribe = 4,
-
-    /// A server's response to a SUBSCRIBE.
-    SubAck = 5,
-
     /// Emitting a payload to a topic.
-    Publish = 6,
+    Publish = 3,
 
     /// A peer's response to a PUBLISH with QoS of 1.
-    PubAck = 7,
+    PubAck = 4,
 
     /// A peers's response to a PUBLISH with QoS of 2.
-    PubComp = 8,
+    PubRec = 5,
 
-    /// A peer's response to a PUBCOMP.
-    PubRec = 9,
+    /// A peer's response to a PUBREC.
+    PubRel = 6,
 
     /// A peer's response to a PUBREL.
-    PubRel = 10,
+    PubComp = 7,
 
-    /// Send by the client to keep the connection alive.
-    PingReq = 11,
+    /// A client's way to express interest in a topic.
+    Subscribe = 8,
 
-    /// A server's response to a PINGREQ.
-    PingResp = 12,
+    /// A server's response to a SUBSCRIBE.
+    SubAck = 9,
 
     /// Used by the client to unsubscribe from a topic.
-    Unsubscribe = 13,
+    Unsubscribe = 10,
 
     /// A server's response to a UNSUBSCRIBE.
-    UnsubAck = 14,
+    UnsubAck = 11,
+
+    /// Send by the client to keep the connection alive.
+    PingReq = 12,
+
+    /// A server's response to a PINGREQ.
+    PingResp = 13,
+
+    /// Terminate the connection, sent the client.
+    Disconnect = 14,
 }
 
 impl From<PacketType> for u8 {
