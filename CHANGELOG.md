@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.7.1 - 2025-12-15
+
+[c73dae2](c73dae2365d93beef6a669f6bf7686bc08236b64)...[1bb4f66](1bb4f66c57839a33692156bc48250d7a5cef4539)
+
+- Improve documentation coverage (#126)
+
 ## 0.7.0 - 2025-12-12
 
 [5e57929](5e579291c828457ed6b414d4c9d13303af60a648)...[3bd4855](3bd4855a7ace52a1df13f66083528efca68b4541)
