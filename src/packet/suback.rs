@@ -1,4 +1,4 @@
-/// Providing the [`SubAck`] frame, used by a broker to confirm a [`crate::Subscribe`].
+//! Providing the [`SubAck`] frame, used by a broker to confirm a [`crate::Subscribe`].
 use crate::{
     decode::{self, DecodingError},
     encode,

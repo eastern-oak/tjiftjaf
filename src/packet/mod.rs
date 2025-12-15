@@ -23,25 +23,54 @@ pub mod subscribe;
 pub mod unsuback;
 pub mod unsubscribe;
 
+/// A model for each MQTT packet.
 #[derive(Clone)]
 pub enum Packet {
+    /// The first message send by a client.
     Connect(Connect),
+
+    /// A server's response on a CONNECT.
     ConnAck(ConnAck),
+
+    /// Terminate the connection, sent the client.
     Disconnect(Disconnect),
+
+    /// A client's way to express interest in a topic.
     Subscribe(Subscribe),
+
+    /// A server's response to a SUBSCRIBE.
     SubAck(SubAck),
+
+    /// Emitting a payload to a topic.
     Publish(Publish),
-    PubComp(PubComp),
+
+    /// A peer's response to a PUBLISH with QoS of 1.
     PubAck(PubAck),
+
+    /// A peers's response to a PUBLISH with QoS of 2.
+    PubComp(PubComp),
+
+    /// A peer's response to a PUBCOMP.
     PubRec(PubRec),
+
+    /// A peer's response to a PUBREL.
     PubRel(PubRel),
+
+    /// Send by the client to keep the connection alive.
     PingReq(PingReq),
+
+    /// A server's response to a PINGREQ.
     PingResp(PingResp),
-    UnsubAck(UnsubAck),
+
+    /// Used by the client to unsubscribe from a topic.
     Unsubscribe(Unsubscribe),
+
+    /// A server's response to a UNSUBSCRIBE.
+    UnsubAck(UnsubAck),
 }
 
 impl Packet {
+    /// Retrieve the [`PacketType`].
     pub fn packet_type(&self) -> PacketType {
         match self {
             Self::Connect(packet) => packet.packet_type(),
@@ -61,6 +90,7 @@ impl Packet {
         }
     }
 
+    /// Serialize the packet into bytes.
     pub fn into_bytes(self) -> Bytes {
         match self {
             Self::Connect(packet) => packet.into_bytes(),
@@ -80,6 +110,7 @@ impl Packet {
         }
     }
 
+    /// Retrieve the length of the packet in number of bytes.
     pub fn length(&self) -> usize {
         match self {
             Self::Connect(packet) => packet.length() as usize,
@@ -99,6 +130,8 @@ impl Packet {
         }
     }
 
+    /// Retrieve the payload from a packet. For packets without a payload, the
+    /// length of the returned slice is 0.
     pub fn payload(&self) -> &[u8] {
         match self {
             Self::Connect(packet) => packet.payload(),
@@ -170,26 +203,51 @@ impl TryFrom<Bytes> for Packet {
         }
     }
 }
-// An mqtt frame consists of 3 parts:
-// - A fixed header, present in all MQTT Control Packets
-// - A variable header, present in some
-// - A payload, present in some
+
+/// Every packet type of MQTT 3.1.1.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PacketType {
+    /// The first message send by a client.
     Connect = 1,
+
+    /// A server's response on a CONNECT.
     ConnAck = 2,
-    Publish = 3,
-    PubAck = 4,
-    PubRec = 5,
-    PubRel = 6,
-    PubComp = 7,
-    Subscribe = 8,
-    SubAck = 9,
-    Unsubscribe = 10,
-    UnsubAck = 11,
-    PingReq = 12,
-    PingResp = 13,
-    Disconnect = 14,
+
+    /// Terminate the connection, sent the client.
+    Disconnect = 3,
+
+    /// A client's way to express interest in a topic.
+    Subscribe = 4,
+
+    /// A server's response to a SUBSCRIBE.
+    SubAck = 5,
+
+    /// Emitting a payload to a topic.
+    Publish = 6,
+
+    /// A peer's response to a PUBLISH with QoS of 1.
+    PubAck = 7,
+
+    /// A peers's response to a PUBLISH with QoS of 2.
+    PubComp = 8,
+
+    /// A peer's response to a PUBCOMP.
+    PubRec = 9,
+
+    /// A peer's response to a PUBREL.
+    PubRel = 10,
+
+    /// Send by the client to keep the connection alive.
+    PingReq = 11,
+
+    /// A server's response to a PINGREQ.
+    PingResp = 12,
+
+    /// Used by the client to unsubscribe from a topic.
+    Unsubscribe = 13,
+
+    /// A server's response to a UNSUBSCRIBE.
+    UnsubAck = 14,
 }
 
 impl From<PacketType> for u8 {
@@ -265,13 +323,18 @@ pub trait Frame {
         &inner[0..5]
     }
 
+    /// Return the index where the variable header starts.
+    /// The offset is relative to the start of the packet.
     fn offset_variable_header(&self) -> usize {
         self.header().len()
     }
-    // Return the bytes forming the variable header.
-    // The slice might be empty for packets without payload.
+
+    /// Return the bytes making up the variable header.
+    /// The slice might be empty for packets without a variable header.
     fn variable_header(&self) -> &[u8];
 
+    /// Return the index where the payload starts.
+    /// The offset is relative to the start of the packet.
     fn offset_payload(&self) -> usize {
         self.header().len() + self.variable_header().len()
     }
@@ -285,7 +348,7 @@ pub trait Frame {
         &self.as_bytes()[offset..offset + size]
     }
 
-    // Return the length of the frame in bytes.
+    /// Return the length of the frame in bytes.
     fn length(&self) -> u32 {
         let inner = self.as_bytes();
 
@@ -302,17 +365,25 @@ pub trait Frame {
     }
 }
 
+/// The revision of the MQTT protocol.
 #[repr(u8)]
 pub enum ProtocolLevel {
+    /// MQTT 3.1.1
     _3_1_1 = 4,
 }
 
+/// The delivery guarantee for packets [`Subscribe`] and [`Publish`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[repr(u8)]
 pub enum QoS {
+    /// The message is not guaranteed to be delivered.
     AtMostOnceDelivery = 0,
+
+    /// The message arrives at once or more at the receiving end.
     AtLeastOnceDelivery = 1,
+
+    /// The message is delivered exactly once time.
     ExactlyOnceDelivery = 2,
 }
 

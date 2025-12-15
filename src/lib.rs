@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 #![doc = include_str!("../README.md")]
 #[doc(inline)]
 pub use crate::decode::DecodingError;
@@ -123,10 +124,9 @@ pub struct MqttBinding {
     connect: Connect,
 }
 
-// The driver must do 2 things:
-// * request a buffer, it'll need to read bytes from the socket and fill the buffer until it's fill.
-// * request a buffer to write,
 impl MqttBinding {
+    /// Construct an new `MqttBinding`. The given `Connect` is
+    /// the first message emitted to the server.
     pub fn from_connect(connect: Connect) -> Self {
         Self {
             connection_status: ConnectionStatus::default(),
@@ -228,7 +228,7 @@ impl MqttBinding {
         Ok(None)
     }
 
-    // Try parsing the bytes as a Packet.
+    /// Try parsing the bytes as a Packet.
     pub fn try_decode(&mut self, buf: Bytes, _now: Instant) -> Option<Packet> {
         let (state, packet) = match &self.state {
             State::StartOfHeader => {
@@ -336,6 +336,7 @@ impl MqttBinding {
         packet
     }
 
+    /// Push a packet to the inner queue.
     pub fn send(&mut self, packet: Packet) {
         self.transmits.push(packet);
     }
@@ -353,6 +354,7 @@ enum ConnectionStatus {
     Disconnected,
 }
 
+/// An error indicating that the client terminated the the connection with the server.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct ClientDisconnected;
 
@@ -377,7 +379,7 @@ impl Statistics {
 }
 
 /// Type indicating that the connection between a handle and the Client is broken.
-/// It's likely happened after the connection to the MQTT server broke.
+/// It's likely that the connection to the MQTT server broke.
 #[derive(Debug)]
 pub struct ConnectionError;
 
