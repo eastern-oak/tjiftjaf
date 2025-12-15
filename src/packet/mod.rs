@@ -26,7 +26,7 @@ pub mod unsubscribe;
 /// A model for each MQTT packet.
 #[derive(Clone)]
 pub enum Packet {
-    /// The first message send by a client.
+    /// The first message sent by a client.
     Connect(Connect),
 
     /// A server's response on a CONNECT.
@@ -59,7 +59,7 @@ pub enum Packet {
     /// A server's response to a UNSUBSCRIBE.
     UnsubAck(UnsubAck),
 
-    /// Send by the client to keep the connection alive.
+    /// Sent by the client to keep the connection alive.
     PingReq(PingReq),
 
     /// A server's response to a PINGREQ.
@@ -207,7 +207,7 @@ impl TryFrom<Bytes> for Packet {
 /// Every packet type of MQTT 3.1.1.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PacketType {
-    /// The first message send by a client.
+    /// The first message sent by a client.
     Connect = 1,
 
     /// A server's response on a CONNECT.
@@ -219,7 +219,7 @@ pub enum PacketType {
     /// A peer's response to a PUBLISH with QoS of 1.
     PubAck = 4,
 
-    /// A peers's response to a PUBLISH with QoS of 2.
+    /// A peer's response to a PUBLISH with QoS of 2.
     PubRec = 5,
 
     /// A peer's response to a PUBREC.
@@ -240,7 +240,7 @@ pub enum PacketType {
     /// A server's response to a UNSUBSCRIBE.
     UnsubAck = 11,
 
-    /// Send by the client to keep the connection alive.
+    /// Sent by the client to keep the connection alive.
     PingReq = 12,
 
     /// A server's response to a PINGREQ.
@@ -380,10 +380,10 @@ pub enum QoS {
     /// The message is not guaranteed to be delivered.
     AtMostOnceDelivery = 0,
 
-    /// The message arrives at once or more at the receiving end.
+    /// The message arrives once or more times at the receiving end.
     AtLeastOnceDelivery = 1,
 
-    /// The message is delivered exactly once time.
+    /// The message is delivered exactly once.
     ExactlyOnceDelivery = 2,
 }
 

@@ -353,7 +353,7 @@ enum ConnectionStatus {
     Disconnected,
 }
 
-/// An error indicating that the client terminated the the connection with the server.
+/// An error indicating that the client terminated the connection with the server.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct ClientDisconnected;
 
