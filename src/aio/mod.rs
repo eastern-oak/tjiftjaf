@@ -44,9 +44,9 @@ use crate::{
     Connect, ConnectionError, Disconnect, MqttBinding, Packet, PubAck, PubComp, PubRec, PubRel,
     Publish, QoS,
 };
-use async_channel::{self, Receiver, RecvError, SendError, Sender};
+use async_channel::{self, Receiver, SendError, Sender};
 use async_io::Timer;
-use futures_lite::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
+use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
 use log::{error, info, trace};
 use std::time::Instant;
 
@@ -130,22 +130,10 @@ where
             let timeout = self.binding.poll_timeout();
             let mut buffer = self.binding.get_read_buffer();
 
-            enum Winner {
-                Future1(Result<usize, std::io::Error>),
-                Future2,
-                Future3(Result<Packet, RecvError>),
-            }
+            futures::select! {
+                bytes_read = self.socket.read(&mut buffer).fuse() => {
+                    let bytes_read = bytes_read?;
 
-            let future1 = async { Winner::Future1(self.socket.read(&mut buffer).await) };
-            let future2 = async {
-                Timer::at(timeout).await;
-                Winner::Future2
-            };
-            let future3 = async { Winner::Future3(receiver.recv().await) };
-
-            let winner = future1.race(future2).race(future3).await;
-            match winner {
-                Winner::Future1(Ok(bytes_read)) => {
                     if bytes_read == 0 {
                         error!("Packet empty, reconnecting!");
                         return Err(std::io::Error::other("Packet is empty"));
@@ -192,18 +180,22 @@ where
                             return Err(std::io::Error::other("Failed to send message to handler"));
                         }
                     }
-                }
-                Winner::Future1(Err(error)) => {
-                    return Err(error);
-                }
-                Winner::Future2 => {
+                },
+                _ = Timer::at(timeout).fuse() => {
                     self.binding.handle_timeout(Instant::now());
                 }
-                Winner::Future3(Ok(packet)) => self.binding.send(packet),
-                Winner::Future3(Err(_)) => {
-                    return Err(std::io::Error::other("Failed to read message from channel"));
+                packet = receiver.recv().fuse() => {
+                    match packet {
+                        Ok(packet) => self.binding.send(packet),
+                        Err(_) => {
+                        return Err(std::io::Error::other("Failed to read message from channel"));
+
+                        }
+
+                    }
+
                 }
-            }
+            };
         }
     }
 }
