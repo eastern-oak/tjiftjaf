@@ -171,21 +171,21 @@ impl MqttBinding {
     }
 
     /// Retrieve an input buffer. The event loop must fill the buffer and pass it to `Self::try_decode()`.
-    pub fn get_read_buffer(&mut self) -> BytesMut {
+    pub fn get_read_buffer(&mut self) -> Vec<u8> {
         match self.state {
             State::StartOfHeader => {
                 trace!("Waiting for start of header.");
-                BytesMut::zeroed(2)
+                Vec::with_capacity(2)
             }
             State::EndOfHeader { .. } => {
                 trace!("Waiting for end of the header.");
-                BytesMut::zeroed(2)
+                Vec::with_capacity(2)
             }
             State::RestOfPacket {
                 bytes_remaining, ..
             } => {
                 trace!("Waiting for remainder of the packet.");
-                BytesMut::zeroed(bytes_remaining as usize)
+                Vec::with_capacity(bytes_remaining as usize)
             }
         }
     }
@@ -425,7 +425,9 @@ mod test {
 
             buffer.copy_from_slice(&bytes[offset..offset + size]);
             offset += size;
-            if let Some(packet) = binding.try_decode(buffer.freeze(), Instant::now()) {
+            if let Some(packet) =
+                binding.try_decode(Bytes::copy_from_slice(&buffer), Instant::now())
+            {
                 return packet;
             }
         }
@@ -500,7 +502,9 @@ mod test {
                 let mut buffer = binding.get_read_buffer();
                 _ = input.read(&mut buffer).unwrap();
 
-                if let Some(packet) = binding.try_decode(buffer.freeze(), Instant::now()) {
+                if let Some(packet) =
+                    binding.try_decode(Bytes::copy_from_slice(&buffer), Instant::now())
+                {
                     break packet;
                 }
             };
