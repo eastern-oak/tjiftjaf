@@ -31,13 +31,8 @@ tokio-util = { version = "0.7.17", default-features = false, features = ["compat
 [features]
 default = ["async"]
 blocking = ["async-channel", "mio"]
-<<<<<<< HEAD
-async = ["async-channel", "async-io", "futures-lite"]
-experimental = ["async-net", "futures", "smol"]
-=======
 async = ["async-channel", "async-io", "futures"]
 experimental = ["futures"]
->>>>>>> 24b3060 (GH-129 Replace `futures-lite::race()` with `futures::select!`)
 
 [[example]]
 name = "blocking_client"
