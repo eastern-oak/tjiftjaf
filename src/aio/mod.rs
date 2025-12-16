@@ -188,12 +188,9 @@ where
                     match packet {
                         Ok(packet) => self.binding.send(packet),
                         Err(_) => {
-                        return Err(std::io::Error::other("Failed to read message from channel"));
-
+                            return Err(std::io::Error::other("Failed to read message from channel"));
                         }
-
                     }
-
                 }
             };
         }
