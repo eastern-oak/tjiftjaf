@@ -2,7 +2,8 @@ use crate::env::broker::wait_server_listening;
 use async_channel::{Receiver, Sender};
 use async_net::{TcpListener, TcpStream};
 use bytes::{BufMut, BytesMut};
-use futures_lite::{AsyncReadExt, AsyncWriteExt, FutureExt, StreamExt};
+use futures::FutureExt;
+use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use smol::spawn;
 use tjiftjaf::{aio::Client, decode::DecodingError, packet, Connect, Packet, PacketType};
 
@@ -32,14 +33,6 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
             .await
             .expect("Failed to open TCP connection to broker.");
 
-        enum Winner {
-            // The client has some data for the broker.
-            Client(Packet),
-
-            // The broker has some data for the client.
-            Broker(Packet),
-        }
-
         let mut broker_parser = Parser::new();
         let mut client_parser = Parser::new();
         loop {
@@ -59,7 +52,6 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
 
                 client_parser
                     .parse()
-                    .map(Winner::Client)
                     .unwrap_or_else(|error| panic!("Wiretap failed to parse packet: {error:?}"))
             };
             let future_2 = async {
@@ -78,13 +70,11 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
 
                 broker_parser
                     .parse()
-                    .map(Winner::Broker)
                     .unwrap_or_else(|error| panic!("Wiretap failed to parse packet: {error:?}"))
             };
 
-            let winner = future_1.race(future_2).await;
-            match winner {
-                Winner::Client(payload) => {
+            futures::select! {
+                payload = future_1.fuse() => {
                     history_handler
                         .send(Line::Client(payload.clone()))
                         .await
@@ -101,9 +91,8 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
                                 "Failed to forward a payload to the broker's TCP connection: {e:?}"
                             )
                         });
-                }
-
-                Winner::Broker(payload) => {
+                },
+                payload = future_2.fuse() => {
                     history_handler
                         .send(Line::Broker(payload.clone()))
                         .await
@@ -121,7 +110,7 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
                             )
                         });
                 }
-            };
+            }
         }
     })
     .detach();
