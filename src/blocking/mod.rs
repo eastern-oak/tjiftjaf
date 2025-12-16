@@ -38,6 +38,7 @@
 //! ```
 use crate::{Connect, ConnectionError, Disconnect, MqttBinding, Packet, Publish};
 use async_channel::{Receiver, Sender};
+use bytes::Bytes;
 use log::info;
 use mio::{Events, Interest, Poll, Token, Waker};
 use std::{
@@ -150,7 +151,10 @@ impl Client {
                     // Maybe `try_decode` should return an Error. Maybe with variant `NotEnoughBytes`
                     // to indicate that more bytes are expected and event loop should continue.
                     // Any other error indicates an issue and event loop must break the loop
-                    if let Some(packet) = self.binding.try_decode(buffer.freeze(), Instant::now()) {
+                    if let Some(packet) = self
+                        .binding
+                        .try_decode(Bytes::copy_from_slice(&buffer), Instant::now())
+                    {
                         sender
                             .send_blocking(packet)
                             .map_err(std::io::Error::other)?;
