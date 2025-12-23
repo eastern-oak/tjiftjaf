@@ -53,13 +53,14 @@ impl Server {
                 }
             }
             Message::Packet(_, Packet::Publish(publish)) => {
-                let mut disconnected_clients: Vec<String> = Vec::new();
                 let needle = publish.topic();
                 let subscriptions = self.subscriptions.iter().filter(|(_, (_, topics))| {
                     topics
                         .iter()
                         .any(|subscription| does_topic_match_subscription(subscription, needle))
                 });
+                
+                let mut disconnected_clients = Vec::new();
 
                 for (client_id, (peer, _)) in subscriptions {
                     if let Err(error) = peer.send(Packet::Publish(publish.clone())).await {

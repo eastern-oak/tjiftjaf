@@ -29,12 +29,15 @@ pub mod blocking;
 pub mod aio;
 
 pub fn packet_identifier() -> u16 {
-    let seconds = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_nanos(),
+    let duration = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(n) => n,
         Err(_) => panic!("SystemTime before UNIX EPOCH!"),
     };
 
-    seconds as u16
+    // Use subsec_micros for better distribution without the overhead of computing nanoseconds.
+    // Microseconds provide sufficient granularity (wraps every ~65ms) while being much cheaper
+    // to compute than nanoseconds.
+    (duration.subsec_micros() as u16).wrapping_add((duration.as_secs() as u16).wrapping_mul(1000))
 }
 
 pub fn connect(client_id: String, keep_alive_interval: u16) -> Packet {

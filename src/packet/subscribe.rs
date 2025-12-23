@@ -232,28 +232,26 @@ impl UnverifiedSubscribe {
     }
 
     // TODO: figure out if returning `Topics` is better.
-    fn try_topics(&self) -> Result<Vec<(String, QoS)>, DecodingError> {
+    fn try_topics(&self) -> Result<(), DecodingError> {
         let payload = self.try_payload()?;
         let mut offset = 0;
-        let mut topics = vec![];
 
         loop {
-            let (topic, length) = decode::field::utf8(&payload[offset..])?;
+            let (_, length) = decode::field::utf8(&payload[offset..])?;
             offset += length;
-            let qos = QoS::try_from(payload[offset]).map_err(|_| {
+            QoS::try_from(payload[offset]).map_err(|_| {
                 DecodingError::InvalidValue(format!(
                     "{} is not a valid value for QoS",
                     payload[offset]
                 ))
             })?;
             offset += 1;
-            topics.push((topic.to_string(), qos));
 
             if offset >= payload.len() {
                 break;
             }
         }
-        Ok(topics)
+        Ok(())
     }
 
     fn verify_variable_header(&self) -> Result<(), DecodingError> {
