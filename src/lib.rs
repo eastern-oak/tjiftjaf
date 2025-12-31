@@ -175,17 +175,17 @@ impl MqttBinding {
         match self.state {
             State::StartOfHeader => {
                 trace!("Waiting for start of header.");
-                Vec::with_capacity(2)
+                vec![0; 2]
             }
             State::EndOfHeader { .. } => {
                 trace!("Waiting for end of the header.");
-                Vec::with_capacity(2)
+                vec![0; 2]
             }
             State::RestOfPacket {
                 bytes_remaining, ..
             } => {
                 trace!("Waiting for remainder of the packet.");
-                Vec::with_capacity(bytes_remaining as usize)
+                vec![0; bytes_remaining as usize]
             }
         }
     }
