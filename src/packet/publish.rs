@@ -5,7 +5,6 @@ use crate::{
     packet::UnverifiedFrame,
     packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
 };
-use bytes::{BufMut, Bytes, BytesMut};
 
 /// [Publish](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718037) is used by both clients and servers
 /// to emit a message for a specific topic.
@@ -46,12 +45,12 @@ pub struct Publish {
 
 impl Publish {
     /// Creates a [`Builder`] to configure `Publish`.
-    pub fn builder(topic: impl Into<String>, payload: impl Into<Bytes>) -> Builder {
+    pub fn builder(topic: impl Into<String>, payload: impl Into<Vec<u8>>) -> Builder {
         Builder::new(topic, payload)
     }
 
     /// Serialize `Publish`.
-    pub fn into_bytes(self) -> Bytes {
+    pub fn into_bytes(self) -> Vec<u8> {
         self.inner.inner
     }
 
@@ -109,16 +108,16 @@ impl std::fmt::Debug for Publish {
             .finish()
     }
 }
-impl TryFrom<Bytes> for Publish {
+impl TryFrom<Vec<u8>> for Publish {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         UnverifiedPublish { inner: value }.verify()
     }
 }
 
-impl From<Publish> for Bytes {
-    fn from(value: Publish) -> Bytes {
+impl From<Publish> for Vec<u8> {
+    fn from(value: Publish) -> Vec<u8> {
         value.inner.inner
     }
 }
@@ -131,7 +130,7 @@ impl From<Publish> for Packet {
 
 #[derive(Clone, PartialEq, Eq)]
 struct UnverifiedPublish {
-    pub inner: Bytes,
+    pub inner: Vec<u8>,
 }
 
 impl UnverifiedPublish {
@@ -233,7 +232,7 @@ impl UnverifiedFrame for UnverifiedPublish {
 #[derive(Clone, Debug)]
 pub struct Builder {
     topic: String,
-    payload: Bytes,
+    payload: Vec<u8>,
     qos: QoS,
     retain: bool,
     duplicate: bool,
@@ -241,7 +240,7 @@ pub struct Builder {
 }
 
 impl Builder {
-    pub fn new(topic: impl Into<String>, payload: impl Into<Bytes>) -> Self {
+    pub fn new(topic: impl Into<String>, payload: impl Into<Vec<u8>>) -> Self {
         Builder {
             topic: topic.into(),
             payload: payload.into(),
@@ -277,7 +276,7 @@ impl Builder {
     }
 
     /// Build the `Publish` packet.
-    pub fn build(self) -> Publish {
+    pub fn build(mut self) -> Publish {
         // The 4 least significant bits configure
         // * Retain
         // * QoS
@@ -295,27 +294,33 @@ impl Builder {
             flags |= 0b1000;
         }
 
-        let mut fixed_header = BytesMut::new();
-        fixed_header.put_u8((PacketType::Publish as u8) << 4 | flags);
+        let mut fixed_header = Vec::new();
+        fixed_header.push((PacketType::Publish as u8) << 4 | flags);
 
-        let mut variable_header = BytesMut::new();
-        variable_header.put(encode::utf8(self.topic));
+        let mut variable_header = Vec::new();
+        variable_header.append(&mut encode::utf8(self.topic).to_vec());
 
         // The Packet Identifier field is only present in PUBLISH Packets where the QoS level is 1 or 2. Section 2.3.1 provides more information about Packet Identifiers.
         if self.qos != QoS::AtMostOnceDelivery {
-            variable_header.put_u16(self.packet_identifier.unwrap_or_else(packet_identifier));
+            variable_header.append(
+                &mut self
+                    .packet_identifier
+                    .unwrap_or_else(packet_identifier)
+                    .to_be_bytes()
+                    .to_vec(),
+            );
         }
 
-        let mut payload = BytesMut::new();
-        payload.put_slice(&self.payload);
+        let mut payload = Vec::new();
+        payload.append(&mut self.payload);
 
         let remaining_length = encode::remaining_length(variable_header.len() + payload.len());
-        fixed_header.put(remaining_length);
-        fixed_header.put(variable_header);
-        fixed_header.put(payload);
+        fixed_header.append(&mut remaining_length.to_vec());
+        fixed_header.append(&mut variable_header);
+        fixed_header.append(&mut payload);
 
         UnverifiedPublish {
-            inner: fixed_header.freeze(),
+            inner: fixed_header,
         }
         .verify()
         .unwrap()

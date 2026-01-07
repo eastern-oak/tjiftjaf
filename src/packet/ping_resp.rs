@@ -1,6 +1,5 @@
 //! Providing [`PingResp`]
 use crate::{decode::DecodingError, Frame};
-use bytes::Bytes;
 
 // A PINGRESP packet consists of only a header of two bytes.
 // The first byte encodes the packet type, PINGRESP in this case.
@@ -21,10 +20,10 @@ impl Frame for PingResp {
     }
 }
 
-impl TryFrom<Bytes> for PingResp {
+impl TryFrom<Vec<u8>> for PingResp {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         PingResp::try_from(value.as_ref())
     }
 }
@@ -52,9 +51,9 @@ impl TryFrom<&[u8]> for PingResp {
     }
 }
 
-impl From<PingResp> for Bytes {
-    fn from(_: PingResp) -> Bytes {
-        Bytes::copy_from_slice(&PINGRESP)
+impl From<PingResp> for Vec<u8> {
+    fn from(_: PingResp) -> Vec<u8> {
+        PINGRESP.to_vec()
     }
 }
 
@@ -70,13 +69,12 @@ impl std::fmt::Debug for PingResp {
 mod test {
     use super::PingResp;
     use crate::Frame;
-    use bytes::Bytes;
 
     #[test]
     fn test_encode_and_decode() {
         // Verify conversion to and from &[u8].
         PingResp::try_from(PingResp.as_bytes()).unwrap();
-        PingResp::try_from(Bytes::from(PingResp)).unwrap();
+        PingResp::try_from(Vec::from(PingResp)).unwrap();
 
         // Verify that decoding from invalid bytes fails.
         assert!(PingResp::try_from(&[15 << 4, 0][..]).is_err());

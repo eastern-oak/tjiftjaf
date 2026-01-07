@@ -1,6 +1,5 @@
 //! Providing [`UnsubAck`], to acknowledge a [`crate::Unsubscribe`].
 use crate::{decode::DecodingError, packet::ack::Ack, Frame, Packet, PacketType};
-use bytes::Bytes;
 
 /// A [`UnsubAck`] packet is the response to a [`crate::Unsubscribe`].
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -27,10 +26,10 @@ impl Frame for UnsubAck {
     }
 }
 
-impl TryFrom<Bytes> for UnsubAck {
+impl TryFrom<Vec<u8>> for UnsubAck {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         UnsubAck::try_from(value.as_ref())
     }
 }
@@ -48,9 +47,9 @@ impl TryFrom<&[u8]> for UnsubAck {
     }
 }
 
-impl From<UnsubAck> for Bytes {
-    fn from(value: UnsubAck) -> Bytes {
-        Bytes::copy_from_slice(value.0.as_bytes())
+impl From<UnsubAck> for Vec<u8> {
+    fn from(value: UnsubAck) -> Vec<u8> {
+        value.0.into()
     }
 }
 

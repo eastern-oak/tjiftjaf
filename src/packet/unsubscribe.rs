@@ -5,7 +5,6 @@ use crate::{
     packet::UnverifiedFrame,
     packet_identifier, ConnectionError, Frame, Packet, PacketType,
 };
-use bytes::{BufMut, Bytes, BytesMut};
 
 /// [Unsubscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718072) allows a client unsubscribe from one or more topics.
 ///
@@ -42,7 +41,7 @@ pub struct Unsubscribe {
 
 impl Unsubscribe {
     /// Serialize `Unsubscribe`.
-    pub fn into_bytes(self) -> Bytes {
+    pub fn into_bytes(self) -> Vec<u8> {
         self.inner.inner
     }
 
@@ -119,16 +118,16 @@ impl crate::blocking::Emit for Unsubscribe {
     }
 }
 
-impl TryFrom<Bytes> for Unsubscribe {
+impl TryFrom<Vec<u8>> for Unsubscribe {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         UnverifiedUnsubscribe { inner: value }.verify()
     }
 }
 
-impl From<Unsubscribe> for Bytes {
-    fn from(value: Unsubscribe) -> Bytes {
+impl From<Unsubscribe> for Vec<u8> {
+    fn from(value: Unsubscribe) -> Vec<u8> {
         value.inner.inner
     }
 }
@@ -172,7 +171,7 @@ impl<'a> Iterator for Topics<'a> {
 
 #[derive(Clone, PartialEq, Eq)]
 struct UnverifiedUnsubscribe {
-    pub inner: Bytes,
+    pub inner: Vec<u8>,
 }
 
 impl UnverifiedUnsubscribe {
@@ -270,28 +269,23 @@ impl Builder {
     }
 
     pub fn build(self) -> Unsubscribe {
-        let mut variable_header = BytesMut::with_capacity(2);
-        variable_header.put_u16(self.packet_identifier);
+        let mut variable_header = self.packet_identifier.to_be_bytes().to_vec();
 
-        let mut payload = BytesMut::new();
+        let mut payload = Vec::new();
         for topic in self.topics {
-            payload.put(encode::utf8(topic));
+            payload.append(&mut encode::utf8(topic).to_vec());
         }
 
-        let mut packet = BytesMut::new();
+        let mut packet = Vec::new();
         let packet_type: u8 = PacketType::Unsubscribe.into();
-        packet.put_u8((packet_type << 4) + 2);
+        packet.push((packet_type << 4) + 2);
 
         let remaining_length = encode::remaining_length(variable_header.len() + payload.len());
-        packet.put(remaining_length);
-        packet.put(variable_header);
-        packet.put(payload);
+        packet.append(&mut remaining_length.to_vec());
+        packet.append(&mut variable_header);
+        packet.append(&mut payload);
 
-        UnverifiedUnsubscribe {
-            inner: packet.freeze(),
-        }
-        .verify()
-        .unwrap()
+        UnverifiedUnsubscribe { inner: packet }.verify().unwrap()
     }
 
     pub fn build_packet(self) -> Packet {

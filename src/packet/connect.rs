@@ -4,7 +4,7 @@ use crate::{
     decode::{self, DecodingError},
     encode, Frame, Packet, PacketType, ProtocolLevel, QoS,
 };
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{BufMut, BytesMut};
 use core::fmt;
 use std::marker::PhantomData;
 
@@ -50,7 +50,7 @@ impl Connect {
         Builder::new()
     }
 
-    pub fn into_bytes(self) -> Bytes {
+    pub fn into_bytes(self) -> Vec<u8> {
         self.inner.inner
     }
 
@@ -164,16 +164,16 @@ impl Frame for Connect {
     }
 }
 
-impl TryFrom<Bytes> for Connect {
+impl TryFrom<Vec<u8>> for Connect {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         UnverifiedConnect { inner: value }.verify()
     }
 }
 
-impl From<Connect> for Bytes {
-    fn from(value: Connect) -> Bytes {
+impl From<Connect> for Vec<u8> {
+    fn from(value: Connect) -> Vec<u8> {
         value.inner.inner
     }
 }
@@ -198,7 +198,7 @@ impl std::fmt::Debug for Connect {
 
 #[derive(Clone, PartialEq, Eq)]
 struct UnverifiedConnect {
-    pub inner: Bytes,
+    pub inner: Vec<u8>,
 }
 
 impl UnverifiedConnect {
@@ -348,8 +348,8 @@ impl UnverifiedConnect {
     }
 }
 
-impl From<Bytes> for UnverifiedConnect {
-    fn from(value: Bytes) -> Self {
+impl From<Vec<u8>> for UnverifiedConnect {
+    fn from(value: Vec<u8>) -> Self {
         Self { inner: value }
     }
 }
@@ -685,7 +685,7 @@ impl<A, W> Builder<A, W> {
         fixed_header.put(payload);
 
         UnverifiedConnect {
-            inner: fixed_header.freeze()
+            inner: fixed_header.to_vec()
         }
         .verify()
         .unwrap_or_else(|e| panic!("`Builder` failed to build `Connect`. This is a bug. Please report it to https://github.com/eastern-oak/tjiftjaf/issues. The error is '{e}'."))
@@ -820,21 +820,18 @@ impl<'a> arbitrary::Arbitrary<'a> for Connect {
 
 #[cfg(test)]
 mod test {
-    use crate::{packet::Frame, Connect};
-    use bytes::Bytes;
+    use crate::Connect;
 
     #[test]
     fn test_connect() {
         let packet = Connect::builder().build();
 
-        let bytes = Bytes::copy_from_slice(packet.as_bytes());
-        let connect = Connect::try_from(bytes).unwrap();
+        let connect = Connect::try_from(packet.into_bytes()).unwrap();
         assert!(connect.will().is_none());
 
         let packet = Connect::builder().username("admin").build();
-        let bytes = Bytes::copy_from_slice(packet.as_bytes());
 
-        let connect = Connect::try_from(bytes).unwrap();
+        let connect = Connect::try_from(packet.into_bytes()).unwrap();
         assert_eq!(connect.username(), Some("admin"));
         assert_eq!(connect.password(), None);
     }
@@ -849,6 +846,6 @@ mod test {
     #[test]
     fn test_gh_61_fix_for_building_long_connect_packet() {
         let packet = Connect::builder().will("topic", [0; 255]).build();
-        assert!(Connect::try_from(Bytes::copy_from_slice(packet.as_bytes())).is_ok());
+        assert!(Connect::try_from(packet.into_bytes()).is_ok());
     }
 }

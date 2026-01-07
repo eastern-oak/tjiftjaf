@@ -91,7 +91,7 @@ impl Packet {
     }
 
     /// Serialize the packet into bytes.
-    pub fn into_bytes(self) -> Bytes {
+    pub fn into_bytes(self) -> Vec<u8> {
         match self {
             Self::Connect(packet) => packet.into_bytes(),
             Self::ConnAck(packet) => packet.into(),
@@ -177,6 +177,14 @@ impl TryFrom<Bytes> for Packet {
     type Error = DecodingError;
 
     fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+        Packet::try_from(value.to_vec())
+    }
+}
+
+impl TryFrom<Vec<u8>> for Packet {
+    type Error = DecodingError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         let packet_type: PacketType = value
             .first()
             .ok_or(DecodingError::NotEnoughBytes {
