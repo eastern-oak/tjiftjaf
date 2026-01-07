@@ -46,7 +46,6 @@ use crate::{
 };
 use async_channel::{self, Receiver, RecvError, SendError, Sender};
 use async_io::Timer;
-use bytes::Bytes;
 use futures_lite::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
 use log::{error, info, trace};
 use std::time::Instant;
@@ -157,10 +156,10 @@ where
                         buffer.len()
                     );
 
-                    if let Some(packet) = self.binding.try_decode(
-                        Bytes::copy_from_slice(&buffer).slice(0..bytes_read),
-                        Instant::now(),
-                    ) {
+                    if let Some(packet) = self
+                        .binding
+                        .try_decode(buffer[0..bytes_read].to_vec(), Instant::now())
+                    {
                         if let Packet::Publish(publish) = &packet {
                             match (publish.qos(), publish.packet_identifier()) {
                                 (QoS::AtMostOnceDelivery, _) => {}

@@ -1,6 +1,5 @@
 //! Providing [`Disconnect`]
 use crate::{decode::DecodingError, Frame, Packet, PacketType};
-use bytes::Bytes;
 
 // A DISCONNECT packet consists of only a header of two bytes.
 // The first byte encodes the packet type, DISCONNECT in this case.
@@ -21,10 +20,10 @@ impl Frame for Disconnect {
     }
 }
 
-impl TryFrom<Bytes> for Disconnect {
+impl TryFrom<Vec<u8>> for Disconnect {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         Disconnect::try_from(value.as_ref())
     }
 }
@@ -52,9 +51,9 @@ impl TryFrom<&[u8]> for Disconnect {
     }
 }
 
-impl From<Disconnect> for Bytes {
-    fn from(_: Disconnect) -> Bytes {
-        Bytes::copy_from_slice(&DISCONNECT)
+impl From<Disconnect> for Vec<u8> {
+    fn from(_: Disconnect) -> Self {
+        DISCONNECT.to_vec()
     }
 }
 
@@ -76,13 +75,12 @@ impl std::fmt::Debug for Disconnect {
 mod test {
     use super::Disconnect;
     use crate::Frame;
-    use bytes::Bytes;
 
     #[test]
     fn test_encode_and_decode() {
         // Verify conversion to and from &[u8].
         Disconnect::try_from(Disconnect.as_bytes()).unwrap();
-        Disconnect::try_from(Bytes::from(Disconnect)).unwrap();
+        Disconnect::try_from(Vec::from(Disconnect)).unwrap();
 
         // Verify that decoding from invalid bytes fails.
         assert!(Disconnect::try_from(&[15 << 4, 0][..]).is_err());

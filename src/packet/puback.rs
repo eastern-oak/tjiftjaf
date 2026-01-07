@@ -1,6 +1,5 @@
 //! Providing [`PubAck`], to acknowledge a [`crate::Publish`].
 use crate::{decode::DecodingError, packet::ack::Ack, Frame, Packet, PacketType};
-use bytes::Bytes;
 
 /// A [`PubAck`] packet is the response to a [`crate::Publish`] packet with
 /// [`crate::QoS::AtLeastOnceDelivery`].
@@ -29,10 +28,10 @@ impl Frame for PubAck {
     }
 }
 
-impl TryFrom<Bytes> for PubAck {
+impl TryFrom<Vec<u8>> for PubAck {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         PubAck::try_from(value.as_ref())
     }
 }
@@ -50,9 +49,9 @@ impl TryFrom<&[u8]> for PubAck {
     }
 }
 
-impl From<PubAck> for Bytes {
-    fn from(value: PubAck) -> Bytes {
-        Bytes::copy_from_slice(value.0.as_bytes())
+impl From<PubAck> for Vec<u8> {
+    fn from(value: PubAck) -> Vec<u8> {
+        value.0.into()
     }
 }
 
