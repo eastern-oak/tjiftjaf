@@ -509,7 +509,6 @@ mod test {
                 iterations += 1;
                 let mut buffer = binding.get_read_buffer();
                 let n = input.read(&mut buffer).unwrap();
-                dbg!(n);
 
                 if let Some(packet) = binding.try_decode(buffer, Instant::now()) {
                     break packet;
@@ -518,6 +517,7 @@ mod test {
 
             assert!(iterations > 0);
             assert!(iterations < 4);
+
             assert_eq!(test.into_bytes(), packet.into_bytes());
         }
     }

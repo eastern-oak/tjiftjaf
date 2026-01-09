@@ -41,7 +41,7 @@ impl Frame for ConnAck {
 
 impl From<ConnAck> for Vec<u8> {
     fn from(value: ConnAck) -> Self {
-        value.into()
+        value.inner.to_vec()
     }
 }
 

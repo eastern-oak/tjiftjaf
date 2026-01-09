@@ -49,7 +49,7 @@ impl TryFrom<&[u8]> for PubComp {
 
 impl From<PubComp> for Vec<u8> {
     fn from(value: PubComp) -> Vec<u8> {
-        value.into()
+        value.0.into()
     }
 }
 

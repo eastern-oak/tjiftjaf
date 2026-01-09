@@ -49,7 +49,7 @@ impl TryFrom<&[u8]> for PubRec {
 
 impl From<PubRec> for Vec<u8> {
     fn from(value: PubRec) -> Vec<u8> {
-        value.into()
+        value.0.into()
     }
 }
 
