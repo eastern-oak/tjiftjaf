@@ -1,11 +1,10 @@
 #![no_main]
-use bytes::Bytes;
 use libfuzzer_sys::fuzz_target;
 use tjiftjaf::{Connect, Frame};
 
 fuzz_target!(|connect_1: Connect| {
     // Verify this call doesn't panic.
-    let bytes = Bytes::copy_from_slice(connect_1.as_bytes());
+    let bytes = connect_1.clone().into_bytes();
     let connect_2 = Connect::try_from(bytes.clone()).unwrap();
 
     // Verify that both packets are equal.
