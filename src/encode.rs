@@ -13,7 +13,7 @@ pub fn bytes(value: &[u8]) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(value.len() + 2);
     // TODO: Check for maximum length of string.
     bytes.extend_from_slice(&((value.len() as u16).to_be_bytes()));
-    bytes.extend_from_slice(&value);
+    bytes.extend_from_slice(value);
     bytes
 }
 

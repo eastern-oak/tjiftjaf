@@ -93,7 +93,7 @@ mod aio {
 
             stream.read(&mut buf).await.unwrap();
             let packet = ConnAck::builder().build();
-            stream.write_all(&packet.as_bytes()).await.unwrap();
+            stream.write_all(packet.as_bytes()).await.unwrap();
 
             let packet =
                 Publish::builder(TOPIC, Bytes::from_static(b"test_subscribe_and_publish")).build();
