@@ -1,8 +1,6 @@
 use crate::env::broker::wait_server_listening;
 use async_channel::{Receiver, Sender};
 use async_net::{TcpListener, TcpStream};
-use bytes::{BufMut, BytesMut};
-use futures::FutureExt;
 use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use smol::spawn;
 use tjiftjaf::{aio::Client, decode::DecodingError, packet, Connect, Packet, PacketType};
@@ -243,18 +241,16 @@ impl Line {
 pub struct NotFoundError;
 
 struct Parser {
-    inner: BytesMut,
+    inner: Vec<u8>,
 }
 
 impl Parser {
     pub fn new() -> Self {
-        Self {
-            inner: BytesMut::new(),
-        }
+        Self { inner: Vec::new() }
     }
 
     pub fn push(&mut self, data: &[u8]) {
-        self.inner.put(data);
+        self.inner.append(&mut data.to_vec());
     }
 
     pub fn bytes_required(&self) -> u32 {
@@ -262,9 +258,9 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Packet, DecodingError> {
-        match Packet::try_from(self.inner.clone().freeze()) {
+        match Packet::try_from(self.inner.clone()) {
             Ok(packet) => {
-                self.inner = BytesMut::new();
+                self.inner = Vec::new();
                 Ok(packet)
             }
             Err(error) => Err(error),
