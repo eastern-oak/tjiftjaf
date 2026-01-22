@@ -29,9 +29,8 @@ use crate::{
 ///
 /// ```
 /// use tjiftjaf::Publish;
-/// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[49, 23, 0, 10, 116, 101, 115, 116, 47, 116, 111, 112, 105, 99, 72, 101, 108, 108, 111, 32, 77, 81, 84, 84, 33]);
+/// let frame = vec![49, 23, 0, 10, 116, 101, 115, 116, 47, 116, 111, 112, 105, 99, 72, 101, 108, 108, 111, 32, 77, 81, 84, 84, 33];
 /// let packet = Publish::try_from(frame).unwrap();
 /// assert_eq!(packet.topic(), "test/topic");
 /// assert_eq!(packet.payload(), b"Hello MQTT!");

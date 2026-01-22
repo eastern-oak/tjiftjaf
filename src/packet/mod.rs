@@ -3,7 +3,6 @@ use crate::{
     decode, ConnAck, Connect, Disconnect, PingReq, PingResp, PubAck, PubComp, PubRec, PubRel,
     Publish, SubAck, Subscribe, UnsubAck, Unsubscribe,
 };
-use bytes::Bytes;
 use std::error::Error;
 use std::fmt::{self, Display};
 
@@ -170,14 +169,6 @@ impl std::fmt::Debug for Packet {
             Self::UnsubAck(packet) => packet.fmt(f),
             Self::Unsubscribe(packet) => packet.fmt(f),
         }
-    }
-}
-
-impl TryFrom<Bytes> for Packet {
-    type Error = DecodingError;
-
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
-        Packet::try_from(value.to_vec())
     }
 }
 

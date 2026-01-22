@@ -27,9 +27,8 @@ use crate::{
 ///
 /// ```
 /// use tjiftjaf::{SubAck, QoS, packet::suback::ReturnCode};
-/// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[144, 3, 55, 219, 0]);
+/// let frame = vec![144, 3, 55, 219, 0];
 /// let packet = SubAck::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 14299);
 /// assert_eq!(packet.return_codes(), vec![ReturnCode::QoS(QoS::AtMostOnceDelivery)]);

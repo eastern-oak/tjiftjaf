@@ -23,12 +23,11 @@ use crate::{
 /// assert_eq!(topics.next(), None);
 /// ```
 ///
-/// Alternatively, try decoding [`Bytes`] as `Subscribe`.
+/// Alternatively, try decoding some bytes as `Subscribe`.
 /// ```
 /// use tjiftjaf::{Subscribe, QoS};
-/// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[130, 12, 75, 66, 0, 7, 116, 111, 112, 105, 99, 45, 49, 0]);
+/// let frame = vec![130, 12, 75, 66, 0, 7, 116, 111, 112, 105, 99, 45, 49, 0];
 /// let packet = Subscribe::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 19266);
 /// assert_eq!(packet.topics().next(), Some(("topic-1", QoS::AtMostOnceDelivery)));

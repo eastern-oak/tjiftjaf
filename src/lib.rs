@@ -8,7 +8,6 @@ pub use crate::packet::{
     pubrel::PubRel, suback::SubAck, subscribe::Subscribe, unsuback::UnsubAck,
     unsubscribe::Unsubscribe, Frame, Packet, PacketType, ProtocolLevel, QoS,
 };
-use bytes::Bytes;
 use log::{debug, error, trace};
 use std::{
     error::Error,
@@ -79,14 +78,13 @@ pub fn unsubscribe(topic: &str) -> Unsubscribe {
 /// It is analogous to:
 ///
 /// ```
-/// use bytes::Bytes;
 /// use tjiftjaf::Publish;
 ///
 /// let topic = "sensor/1/#";
-/// let payload = Bytes::from("26.1");
+/// let payload = "26.1";
 /// Publish::builder(topic, payload).build();
 /// ```
-pub fn publish(topic: &str, payload: Bytes) -> Publish {
+pub fn publish(topic: &str, payload: impl Into<Vec<u8>>) -> Publish {
     Publish::builder(topic, payload).build()
 }
 
@@ -417,6 +415,7 @@ impl<T> From<async_channel::SendError<T>> for ConnectionError {
 mod test {
     use super::*;
     use crate::ConnAck;
+    use bytes::Bytes;
     use std::io::{Cursor, Read};
 
     fn as_str(bytes: &[u8]) -> &str {
@@ -443,7 +442,7 @@ mod test {
 
     #[test]
     fn test_publish() {
-        let packet = publish("zigbee2mqtt/light/state", Bytes::from(r#"{"state":"on"}"#));
+        let packet = publish("zigbee2mqtt/light/state", r#"{"state":"on"}"#);
 
         let packet = decode_message(packet.into());
 
@@ -452,7 +451,7 @@ mod test {
         // assert_eq!(packet.topic(), "$SYS/broker/uptime");
         assert_eq!(as_str(packet.payload()), r#"{"state":"on"}"#);
 
-        let packet = publish("$SYS/broker/uptime", Bytes::from(r#"388641 seconds"#));
+        let packet = publish("$SYS/broker/uptime", r#"388641 seconds"#);
 
         let packet = decode_message(packet.into());
         assert_eq!(packet.packet_type(), PacketType::Publish);
@@ -508,7 +507,7 @@ mod test {
             let packet = loop {
                 iterations += 1;
                 let mut buffer = binding.get_read_buffer();
-                let n = input.read(&mut buffer).unwrap();
+                let _ = input.read(&mut buffer).unwrap();
 
                 if let Some(packet) = binding.try_decode(buffer, Instant::now()) {
                     break packet;

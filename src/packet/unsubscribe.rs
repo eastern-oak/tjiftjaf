@@ -24,12 +24,11 @@ use crate::{
 /// assert_eq!(topics.next(), None);
 /// ```
 ///
-/// Alternatively, try decoding [`Bytes`] as `Unsubscribe`.
+/// Alternatively, try decoding some bytes as `Unsubscribe`.
 /// ```
 /// use tjiftjaf::{Unsubscribe, QoS};
-/// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[162, 11,103,235,  0,  7,116,111,112,105, 99, 45, 49]);
+/// let frame = vec![162, 11,103,235,  0,  7,116,111,112,105, 99, 45, 49];
 /// let packet = Unsubscribe::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 26603);
 /// assert_eq!(packet.topics().next(), Some("topic-1"));

@@ -31,7 +31,7 @@
 //!     subscribe("$SYS/broker/uptime").emit(&handle).await.unwrap();
 //!
 //!     // ...to publish messages...
-//!     publish("some-topic", r"payload".into()).emit(&handle).await.unwrap();
+//!     publish("some-topic", r"payload").emit(&handle).await.unwrap();
 //!
 //!     // ...or to wait for publications on topics you subscribed to.
 //!     let publication = handle.subscriptions().await.unwrap();
@@ -109,6 +109,8 @@ where
             while let Ok(packet) = receiver.try_recv() {
                 self.binding.send(packet);
             }
+
+            // self.binding.dbg!();
 
             loop {
                 match self.binding.poll_transmits(Instant::now()) {
