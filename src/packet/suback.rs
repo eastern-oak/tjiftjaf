@@ -23,7 +23,7 @@ use crate::{
 /// assert_eq!(frame.return_codes(), vec![ReturnCode::QoS(QoS::AtMostOnceDelivery), ReturnCode::Failure]);
 /// ```
 ///
-/// Alternatively, try decoding [`Bytes`] as `SubAck`.
+/// Alternatively, try decoding some bytes as `SubAck`.
 ///
 /// ```
 /// use tjiftjaf::{SubAck, QoS, packet::suback::ReturnCode};
