@@ -227,9 +227,11 @@ impl MqttBinding {
 
     /// Try parsing the bytes as a Packet.
     pub fn try_decode(&mut self, mut buf: Vec<u8>, _now: Instant) -> Option<Packet> {
-        let (state, packet) = match &self.state {
+        let state = std::mem::take(&mut self.state);
+
+        let (state, packet) = match state {
             State::StartOfHeader => {
-                // MQTT uses between 1 and 3 (including) bytes to encode the
+                // MQTT uses between 1 and 4 (including) bytes to encode the
                 // length of the packet.
                 let packet_length = match decode::packet_length(&buf[1..]) {
                     Ok(packet_length) => packet_length,
@@ -252,7 +254,6 @@ impl MqttBinding {
                     match Packet::try_from(buf) {
                         Ok(packet) => {
                             debug!("--> {packet:?}");
-
                             return Some(packet);
                         }
                         Err(error) => {
@@ -270,10 +271,8 @@ impl MqttBinding {
                     None,
                 )
             }
-            State::EndOfHeader { ref partial_header } => {
+            State::EndOfHeader { mut partial_header } => {
                 let header = {
-                    // TODO: Remove to_owned()
-                    let mut partial_header = partial_header.to_owned();
                     partial_header.append(&mut buf);
                     partial_header
                 };
@@ -289,8 +288,7 @@ impl MqttBinding {
                 let bytes_remaining = packet_length - header.len() as u32;
                 (
                     State::RestOfPacket {
-                        // TODO: remove clone
-                        header: header.clone(),
+                        header,
                         bytes_remaining,
                     },
                     None,
@@ -298,14 +296,14 @@ impl MqttBinding {
             }
 
             State::RestOfPacket {
-                header: ref prefix,
+                header: mut prefix,
                 bytes_remaining: length,
             } => {
-                if buf.len() < *length as usize {
+                // First, check if the `buf` contains the bytes that are still lacking.
+                // If that is not the case and more bytes are expected're still expecting some more bytes),
+                if buf.len() < length as usize {
                     let remaining_length = length - buf.len() as u32;
                     let partial_header: Vec<u8> = {
-                        // TODO: remove to_owned()
-                        let mut prefix = prefix.to_owned();
                         prefix.append(&mut buf);
                         prefix
                     };
@@ -318,8 +316,6 @@ impl MqttBinding {
                 }
 
                 let frame = {
-                    // TODO: remove to_owned()
-                    let mut prefix = prefix.to_owned();
                     prefix.append(&mut buf);
                     prefix
                 };

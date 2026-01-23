@@ -41,5 +41,38 @@ List all fuzz targets using:
 cargo +nightly fuzz list
 ```
 
+## Benchmarks
+
+The project uses [Criteron.rs](https://criterion-rs.github.io/book/) to benchmark encoding and decoding speed of packets.
+Run all bench marks using:
+
+```shell
+$ cargo bench
+````
+
+To list all benchmarks run:
+
+```shell
+$ cargo bench -- --list
+```
+You can plot a flamegraph of a benchmark. First build the benchmark into a binary.
+
+```bash
+$ cargo bench --no-run
+  ...
+  Executable benches/bytez.rs (target/release/deps/bytez-1e806daa0e74ef62)
+```
+
+Then, invoke the binary with `flamegraph`. This example runs only 1 benchmark that matches the string 'Publish':
+
+```bash
+$ flamegraph -- target/release/deps/bytez-1e806daa0e74ef62 --bench Publish
+...
+Benchmarking decode/encode Publish: Complete (Analysis Disabled)
+...
+[ perf record: Captured and wrote 1264.806 MB perf.data (79730 samples) ]
+writing flamegraph to "flamegraph.svg"
+```
+
 ## License
 This project is licensed under the [Mozilla Public License](https://github.com/eastern-oak/tjiftjaf/blob/master/LICENSE).
