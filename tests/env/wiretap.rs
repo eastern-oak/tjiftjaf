@@ -1,6 +1,7 @@
 use crate::env::broker::wait_server_listening;
 use async_channel::{Receiver, Sender};
 use async_net::{TcpListener, TcpStream};
+use futures::FutureExt;
 use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use smol::spawn;
 use tjiftjaf::{aio::Client, decode::DecodingError, packet, Connect, Packet, PacketType};
