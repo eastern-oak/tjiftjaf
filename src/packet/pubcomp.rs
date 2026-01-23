@@ -1,6 +1,5 @@
 //! Providing [`PubComp`], a message that acknowledges a [`crate::PubRel`].
 use crate::{decode::DecodingError, packet::ack::Ack, Frame, Packet, PacketType};
-use bytes::Bytes;
 
 /// [`PubComp`] is the response to a [`crate::PubRel`] packet with [`crate::QoS::ExactlyOnceDelivery`].
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -27,10 +26,10 @@ impl Frame for PubComp {
     }
 }
 
-impl TryFrom<Bytes> for PubComp {
+impl TryFrom<Vec<u8>> for PubComp {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         PubComp::try_from(value.as_ref())
     }
 }
@@ -48,9 +47,9 @@ impl TryFrom<&[u8]> for PubComp {
     }
 }
 
-impl From<PubComp> for Bytes {
-    fn from(value: PubComp) -> Bytes {
-        Bytes::copy_from_slice(value.0.as_bytes())
+impl From<PubComp> for Vec<u8> {
+    fn from(value: PubComp) -> Vec<u8> {
+        value.0.into()
     }
 }
 

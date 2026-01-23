@@ -5,7 +5,6 @@ use crate::{
     packet::UnverifiedFrame,
     packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
 };
-use bytes::{BufMut, Bytes, BytesMut};
 
 /// [Subscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718063) allows a client to express interest in one or more topics.
 ///
@@ -24,12 +23,11 @@ use bytes::{BufMut, Bytes, BytesMut};
 /// assert_eq!(topics.next(), None);
 /// ```
 ///
-/// Alternatively, try decoding [`Bytes`] as `Subscribe`.
+/// Alternatively, try decoding some bytes as `Subscribe`.
 /// ```
 /// use tjiftjaf::{Subscribe, QoS};
-/// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[130, 12, 75, 66, 0, 7, 116, 111, 112, 105, 99, 45, 49, 0]);
+/// let frame = vec![130, 12, 75, 66, 0, 7, 116, 111, 112, 105, 99, 45, 49, 0];
 /// let packet = Subscribe::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 19266);
 /// assert_eq!(packet.topics().next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
@@ -41,7 +39,7 @@ pub struct Subscribe {
 
 impl Subscribe {
     /// Serialize `Subscribe`.
-    pub fn into_bytes(self) -> Bytes {
+    pub fn into_bytes(self) -> Vec<u8> {
         self.inner.inner
     }
 
@@ -146,16 +144,16 @@ impl Frame for Subscribe {
     }
 }
 
-impl TryFrom<Bytes> for Subscribe {
+impl TryFrom<Vec<u8>> for Subscribe {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         UnverifiedSubscribe { inner: value }.verify()
     }
 }
 
-impl From<Subscribe> for Bytes {
-    fn from(value: Subscribe) -> Bytes {
+impl From<Subscribe> for Vec<u8> {
+    fn from(value: Subscribe) -> Vec<u8> {
         value.inner.inner
     }
 }
@@ -205,7 +203,7 @@ impl<'a> Iterator for Topics<'a> {
 
 #[derive(Clone, PartialEq, Eq)]
 struct UnverifiedSubscribe {
-    pub inner: Bytes,
+    pub inner: Vec<u8>,
 }
 
 impl UnverifiedSubscribe {
@@ -326,29 +324,24 @@ impl Builder {
     }
 
     pub fn build(self) -> Subscribe {
-        let mut variable_header = BytesMut::with_capacity(2);
-        variable_header.put_u16(self.packet_identifier);
+        let mut variable_header: Vec<u8> = self.packet_identifier.to_be_bytes().to_vec();
 
-        let mut payload = BytesMut::new();
+        let mut payload = Vec::new();
         for (topic, qos) in self.topics {
-            payload.put(encode::utf8(topic));
-            payload.put_u8(qos as u8);
+            payload.append(&mut encode::utf8(topic).to_vec());
+            payload.push(qos as u8);
         }
 
-        let mut packet = BytesMut::new();
+        let mut packet = Vec::new();
         let packet_type: u8 = PacketType::Subscribe.into();
-        packet.put_u8((packet_type << 4) + 2);
+        packet.push((packet_type << 4) + 2);
 
         let remaining_length = encode::remaining_length(variable_header.len() + payload.len());
-        packet.put(remaining_length);
-        packet.put(variable_header);
-        packet.put(payload);
+        packet.append(&mut remaining_length.to_vec());
+        packet.append(&mut variable_header);
+        packet.append(&mut payload);
 
-        UnverifiedSubscribe {
-            inner: packet.freeze(),
-        }
-        .verify()
-        .unwrap()
+        UnverifiedSubscribe { inner: packet }.verify().unwrap()
     }
 
     pub fn build_packet(self) -> Packet {

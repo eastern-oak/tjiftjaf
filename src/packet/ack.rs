@@ -1,6 +1,5 @@
 //! Providing [`Ack`], a type to compose messages like [`PubAck`], [`UnsubAck`] and more.  
 use crate::{decode::DecodingError, Frame, PacketType};
-use bytes::Bytes;
 
 /// [`Ack`] is a type to compose messages like [`PubAck`], [`UnsubAck`] and a few others.  
 ///
@@ -47,10 +46,10 @@ impl Frame for Ack {
     }
 }
 
-impl TryFrom<Bytes> for Ack {
+impl TryFrom<Vec<u8>> for Ack {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         Ack::try_from(value.as_ref())
     }
 }
@@ -83,5 +82,11 @@ impl TryFrom<&[u8]> for Ack {
         // This unwrap is fine. We already verified that the length
         // is 4 bytes.
         Ok(Self(value.try_into().expect("Whoops! Failed to create an `Ack` because the input is not 4 bytes. Please report an issue and provide this input: {value}")))
+    }
+}
+
+impl From<Ack> for Vec<u8> {
+    fn from(value: Ack) -> Self {
+        value.0.to_vec()
     }
 }

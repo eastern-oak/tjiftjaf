@@ -1,6 +1,5 @@
 //! Providing [`PubRec`], to acknowledge a [`crate::Publish`].
 use crate::{decode::DecodingError, packet::ack::Ack, Frame, Packet, PacketType};
-use bytes::Bytes;
 
 /// A [`PubRec`] packet is the response to a [`crate::Publish`] packet with [`crate::QoS::ExactlyOnceDelivery`].
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -27,10 +26,10 @@ impl Frame for PubRec {
     }
 }
 
-impl TryFrom<Bytes> for PubRec {
+impl TryFrom<Vec<u8>> for PubRec {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         PubRec::try_from(value.as_ref())
     }
 }
@@ -48,9 +47,9 @@ impl TryFrom<&[u8]> for PubRec {
     }
 }
 
-impl From<PubRec> for Bytes {
-    fn from(value: PubRec) -> Bytes {
-        Bytes::copy_from_slice(value.0.as_bytes())
+impl From<PubRec> for Vec<u8> {
+    fn from(value: PubRec) -> Vec<u8> {
+        value.0.into()
     }
 }
 

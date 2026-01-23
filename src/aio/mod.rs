@@ -31,7 +31,7 @@
 //!     subscribe("$SYS/broker/uptime").emit(&handle).await.unwrap();
 //!
 //!     // ...to publish messages...
-//!     publish("some-topic", r"payload".into()).emit(&handle).await.unwrap();
+//!     publish("some-topic", r"payload").emit(&handle).await.unwrap();
 //!
 //!     // ...or to wait for publications on topics you subscribed to.
 //!     let publication = handle.subscriptions().await.unwrap();
@@ -146,7 +146,7 @@ where
 
                     if let Some(packet) = self
                         .binding
-                        .try_decode(buffer.freeze().slice(0..bytes_read), Instant::now())
+                        .try_decode(buffer[0..bytes_read].to_vec(), Instant::now())
                     {
                         if let Packet::Publish(publish) = &packet {
                             match (publish.qos(), publish.packet_identifier()) {

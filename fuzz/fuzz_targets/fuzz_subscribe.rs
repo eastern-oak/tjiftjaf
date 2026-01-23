@@ -1,13 +1,11 @@
 #![no_main]
-
-use bytes::Bytes;
 use libfuzzer_sys::fuzz_target;
-use tjiftjaf::{Frame, Subscribe, packet::subscribe::Builder};
+use tjiftjaf::{packet::subscribe::Builder, Frame, Subscribe};
 
 fuzz_target!(|data: Builder| {
     // Verify this call doesn't panic.
     let subscribe_1 = data.build();
-    let bytes = Bytes::copy_from_slice(subscribe_1.as_bytes());
+    let bytes = subscribe_1.clone().into_bytes();
     let subscribe_2 = Subscribe::try_from(bytes.clone()).unwrap();
 
     // Verify that both packets are equal.

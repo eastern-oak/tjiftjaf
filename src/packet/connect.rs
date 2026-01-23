@@ -4,7 +4,6 @@ use crate::{
     decode::{self, DecodingError},
     encode, Frame, Packet, PacketType, ProtocolLevel, QoS,
 };
-use bytes::{BufMut, Bytes, BytesMut};
 use core::fmt;
 use std::marker::PhantomData;
 
@@ -27,12 +26,11 @@ use std::marker::PhantomData;
 /// assert_eq!(packet.password(), Some("prime".as_bytes()));
 /// ```
 ///
-/// Alternatively, try decoding [`Bytes`] as `Connect`.
+/// Alternatively, try decoding some bytes as `Connect`.
 /// ```
 /// use tjiftjaf::Connect;
-/// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[16, 16, 0, 4, 77, 81, 84, 84, 4, 2, 1, 44, 0, 4, 116, 101, 115, 116]);
+/// let frame = vec![16, 16, 0, 4, 77, 81, 84, 84, 4, 2, 1, 44, 0, 4, 116, 101, 115, 116];
 /// let packet = Connect::try_from(frame).unwrap();
 /// assert_eq!(packet.client_id(), "test");
 /// assert_eq!(packet.flags().clean_session(), true);
@@ -50,7 +48,7 @@ impl Connect {
         Builder::new()
     }
 
-    pub fn into_bytes(self) -> Bytes {
+    pub fn into_bytes(self) -> Vec<u8> {
         self.inner.inner
     }
 
@@ -164,16 +162,16 @@ impl Frame for Connect {
     }
 }
 
-impl TryFrom<Bytes> for Connect {
+impl TryFrom<Vec<u8>> for Connect {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         UnverifiedConnect { inner: value }.verify()
     }
 }
 
-impl From<Connect> for Bytes {
-    fn from(value: Connect) -> Bytes {
+impl From<Connect> for Vec<u8> {
+    fn from(value: Connect) -> Vec<u8> {
         value.inner.inner
     }
 }
@@ -198,7 +196,7 @@ impl std::fmt::Debug for Connect {
 
 #[derive(Clone, PartialEq, Eq)]
 struct UnverifiedConnect {
-    pub inner: Bytes,
+    pub inner: Vec<u8>,
 }
 
 impl UnverifiedConnect {
@@ -348,8 +346,8 @@ impl UnverifiedConnect {
     }
 }
 
-impl From<Bytes> for UnverifiedConnect {
-    fn from(value: Bytes) -> Self {
+impl From<Vec<u8>> for UnverifiedConnect {
+    fn from(value: Vec<u8>) -> Self {
         Self { inner: value }
     }
 }
@@ -639,15 +637,14 @@ impl<A, W> Builder<A, W> {
 
     /// Build a `Connect`.
     pub fn build(mut self) -> Connect {
-        let mut fixed_header = BytesMut::with_capacity(2);
-        fixed_header.put_u8((PacketType::Connect as u8) << 4);
+        let mut fixed_header = Vec::with_capacity(2);
+        fixed_header.push((PacketType::Connect as u8) << 4);
 
-        let mut variable_header = BytesMut::with_capacity(10);
+        let mut variable_header = Vec::with_capacity(10);
 
-        let protocol_name = encode::utf8("MQTT".into());
-        variable_header.put(protocol_name);
+        variable_header.append(&mut encode::utf8("MQTT".into()));
         // Version of the protocol.
-        variable_header.put_u8(ProtocolLevel::_3_1_1 as u8);
+        variable_header.push(ProtocolLevel::_3_1_1 as u8);
 
         // [MQTT-3.1.3-7] If the Client supplies a zero-byte ClientId, the Client MUST also set CleanSession to 1.
         if self.client_id.is_empty() {
@@ -655,37 +652,37 @@ impl<A, W> Builder<A, W> {
         }
 
         // Connection flags
-        variable_header.put_u8(self.flags.0);
+        variable_header.push(self.flags.0);
 
         // Keep Alive
-        variable_header.put_u16(self.keep_alive);
+        variable_header.append(&mut self.keep_alive.to_be_bytes().to_vec());
 
-        let mut payload: BytesMut = encode::utf8(self.client_id).into();
+        let mut payload = encode::utf8(self.client_id);
         if let Some(will_topic) = self.will_topic {
-            payload.put_slice(&encode::utf8(will_topic));
+            payload.append(&mut encode::utf8(will_topic));
         }
 
         if let Some(will_message) = self.will_message {
-            payload.put_slice(&encode::bytes(&will_message));
+            payload.append(&mut encode::bytes(&will_message));
         }
 
         if let Some(username) = self.username {
-            payload.put_slice(&encode::utf8(username));
+            payload.append(&mut encode::utf8(username));
 
             if let Some(password) = self.password {
-                payload.put_slice(&encode::bytes(&password));
+                payload.append(&mut encode::bytes(&password));
             }
         }
 
-        fixed_header.put(encode::remaining_length(
+        fixed_header.append(&mut encode::remaining_length(
             variable_header.len() + payload.len(),
         ));
 
-        fixed_header.put(variable_header);
-        fixed_header.put(payload);
+        fixed_header.append(&mut variable_header);
+        fixed_header.append(&mut payload);
 
         UnverifiedConnect {
-            inner: fixed_header.freeze()
+            inner: fixed_header.to_vec()
         }
         .verify()
         .unwrap_or_else(|e| panic!("`Builder` failed to build `Connect`. This is a bug. Please report it to https://github.com/eastern-oak/tjiftjaf/issues. The error is '{e}'."))
@@ -820,21 +817,18 @@ impl<'a> arbitrary::Arbitrary<'a> for Connect {
 
 #[cfg(test)]
 mod test {
-    use crate::{packet::Frame, Connect};
-    use bytes::Bytes;
+    use crate::Connect;
 
     #[test]
     fn test_connect() {
         let packet = Connect::builder().build();
 
-        let bytes = Bytes::copy_from_slice(packet.as_bytes());
-        let connect = Connect::try_from(bytes).unwrap();
+        let connect = Connect::try_from(packet.into_bytes()).unwrap();
         assert!(connect.will().is_none());
 
         let packet = Connect::builder().username("admin").build();
-        let bytes = Bytes::copy_from_slice(packet.as_bytes());
 
-        let connect = Connect::try_from(bytes).unwrap();
+        let connect = Connect::try_from(packet.into_bytes()).unwrap();
         assert_eq!(connect.username(), Some("admin"));
         assert_eq!(connect.password(), None);
     }
@@ -849,6 +843,6 @@ mod test {
     #[test]
     fn test_gh_61_fix_for_building_long_connect_packet() {
         let packet = Connect::builder().will("topic", [0; 255]).build();
-        assert!(Connect::try_from(Bytes::copy_from_slice(packet.as_bytes())).is_ok());
+        assert!(Connect::try_from(packet.into_bytes()).is_ok());
     }
 }

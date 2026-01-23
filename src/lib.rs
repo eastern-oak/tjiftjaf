@@ -8,7 +8,6 @@ pub use crate::packet::{
     pubrel::PubRel, suback::SubAck, subscribe::Subscribe, unsuback::UnsubAck,
     unsubscribe::Unsubscribe, Frame, Packet, PacketType, ProtocolLevel, QoS,
 };
-use bytes::{BufMut, Bytes, BytesMut};
 use log::{debug, error, trace};
 use std::{
     error::Error,
@@ -79,14 +78,13 @@ pub fn unsubscribe(topic: &str) -> Unsubscribe {
 /// It is analogous to:
 ///
 /// ```
-/// use bytes::Bytes;
 /// use tjiftjaf::Publish;
 ///
 /// let topic = "sensor/1/#";
-/// let payload = Bytes::from("26.1");
+/// let payload = "26.1";
 /// Publish::builder(topic, payload).build();
 /// ```
-pub fn publish(topic: &str, payload: Bytes) -> Publish {
+pub fn publish(topic: &str, payload: impl Into<Vec<u8>>) -> Publish {
     Publish::builder(topic, payload).build()
 }
 
@@ -99,14 +97,14 @@ enum State {
     // The state machine processed first half of a header and is waiting
     // for the remainder of the header.
     EndOfHeader {
-        partial_header: Bytes,
+        partial_header: Vec<u8>,
     },
 
     // The state machine processed the header and it knows the length
     // of the entire packet. Now it waits for the remaining bytes
     // to complete the packet.
     RestOfPacket {
-        header: Bytes,
+        header: Vec<u8>,
         // The number of bytes that are pending.
         bytes_remaining: u32,
     },
@@ -171,21 +169,21 @@ impl MqttBinding {
     }
 
     /// Retrieve an input buffer. The event loop must fill the buffer and pass it to `Self::try_decode()`.
-    pub fn get_read_buffer(&mut self) -> BytesMut {
+    pub fn get_read_buffer(&mut self) -> Vec<u8> {
         match self.state {
             State::StartOfHeader => {
                 trace!("Waiting for start of header.");
-                BytesMut::zeroed(2)
+                vec![0; 2]
             }
             State::EndOfHeader { .. } => {
                 trace!("Waiting for end of the header.");
-                BytesMut::zeroed(2)
+                vec![0; 2]
             }
             State::RestOfPacket {
                 bytes_remaining, ..
             } => {
                 trace!("Waiting for remainder of the packet.");
-                BytesMut::zeroed(bytes_remaining as usize)
+                vec![0; bytes_remaining as usize]
             }
         }
     }
@@ -194,7 +192,7 @@ impl MqttBinding {
     ///
     /// `Ok(None)` indicates no bytes are ready to be sent.
     /// `Err()` indicates that the connection must be closed.
-    pub fn poll_transmits(&mut self, now: Instant) -> Result<Option<Bytes>, ClientDisconnected> {
+    pub fn poll_transmits(&mut self, now: Instant) -> Result<Option<Vec<u8>>, ClientDisconnected> {
         if self.connection_status == ConnectionStatus::Disconnected {
             return Err(ClientDisconnected);
         }
@@ -228,7 +226,7 @@ impl MqttBinding {
     }
 
     /// Try parsing the bytes as a Packet.
-    pub fn try_decode(&mut self, buf: Bytes, _now: Instant) -> Option<Packet> {
+    pub fn try_decode(&mut self, mut buf: Vec<u8>, _now: Instant) -> Option<Packet> {
         let (state, packet) = match &self.state {
             State::StartOfHeader => {
                 // MQTT uses between 1 and 3 (including) bytes to encode the
@@ -272,10 +270,13 @@ impl MqttBinding {
                     None,
                 )
             }
-            State::EndOfHeader { partial_header } => {
-                let mut header = BytesMut::new();
-                header.put(partial_header.clone());
-                header.put(buf);
+            State::EndOfHeader { ref partial_header } => {
+                let header = {
+                    // TODO: Remove to_owned()
+                    let mut partial_header = partial_header.to_owned();
+                    partial_header.append(&mut buf);
+                    partial_header
+                };
 
                 let packet_length = match decode::packet_length(&header[1..]) {
                     Ok(packet_length) => packet_length,
@@ -288,7 +289,8 @@ impl MqttBinding {
                 let bytes_remaining = packet_length - header.len() as u32;
                 (
                     State::RestOfPacket {
-                        header: header.freeze(),
+                        // TODO: remove clone
+                        header: header.clone(),
                         bytes_remaining,
                     },
                     None,
@@ -296,34 +298,39 @@ impl MqttBinding {
             }
 
             State::RestOfPacket {
-                header: prefix,
+                header: ref prefix,
                 bytes_remaining: length,
             } => {
                 if buf.len() < *length as usize {
                     let remaining_length = length - buf.len() as u32;
-                    let mut partial_packet = BytesMut::new();
-                    partial_packet.put(prefix.clone());
-                    partial_packet.put(buf);
+                    let partial_header: Vec<u8> = {
+                        // TODO: remove to_owned()
+                        let mut prefix = prefix.to_owned();
+                        prefix.append(&mut buf);
+                        prefix
+                    };
 
                     self.state = State::RestOfPacket {
-                        header: partial_packet.freeze(),
+                        header: partial_header,
                         bytes_remaining: remaining_length,
                     };
                     return None;
                 }
 
-                let mut bytes = BytesMut::with_capacity(*length as usize + prefix.len());
-                bytes.put(prefix.clone());
-                bytes.put(buf);
+                let frame = {
+                    // TODO: remove to_owned()
+                    let mut prefix = prefix.to_owned();
+                    prefix.append(&mut buf);
+                    prefix
+                };
 
-                let packet = Packet::try_from(bytes.freeze()).unwrap();
+                let packet = Packet::try_from(frame).unwrap();
 
                 if packet.packet_type() == PacketType::ConnAck {
                     self.connection_status = ConnectionStatus::Connected;
                 }
                 self.statistics.record_inbound_packet(&packet);
 
-                // parse message;
                 (State::StartOfHeader, Some(packet))
             }
         };
@@ -408,6 +415,7 @@ impl<T> From<async_channel::SendError<T>> for ConnectionError {
 mod test {
     use super::*;
     use crate::ConnAck;
+    use bytes::Bytes;
     use std::io::{Cursor, Read};
 
     fn as_str(bytes: &[u8]) -> &str {
@@ -420,20 +428,21 @@ mod test {
         let mut offset = 0;
 
         loop {
-            let mut buffer = binding.get_read_buffer();
+            let buffer = binding.get_read_buffer();
             let size = buffer.len();
 
-            buffer.copy_from_slice(&bytes[offset..offset + size]);
-            offset += size;
-            if let Some(packet) = binding.try_decode(buffer.freeze(), Instant::now()) {
+            if let Some(packet) =
+                binding.try_decode(bytes[offset..offset + size].to_vec(), Instant::now())
+            {
                 return packet;
             }
+            offset += size;
         }
     }
 
     #[test]
     fn test_publish() {
-        let packet = publish("zigbee2mqtt/light/state", Bytes::from(r#"{"state":"on"}"#));
+        let packet = publish("zigbee2mqtt/light/state", r#"{"state":"on"}"#);
 
         let packet = decode_message(packet.into());
 
@@ -442,7 +451,7 @@ mod test {
         // assert_eq!(packet.topic(), "$SYS/broker/uptime");
         assert_eq!(as_str(packet.payload()), r#"{"state":"on"}"#);
 
-        let packet = publish("$SYS/broker/uptime", Bytes::from(r#"388641 seconds"#));
+        let packet = publish("$SYS/broker/uptime", r#"388641 seconds"#);
 
         let packet = decode_message(packet.into());
         assert_eq!(packet.packet_type(), PacketType::Publish);
@@ -498,15 +507,16 @@ mod test {
             let packet = loop {
                 iterations += 1;
                 let mut buffer = binding.get_read_buffer();
-                _ = input.read(&mut buffer).unwrap();
+                let _ = input.read(&mut buffer).unwrap();
 
-                if let Some(packet) = binding.try_decode(buffer.freeze(), Instant::now()) {
+                if let Some(packet) = binding.try_decode(buffer, Instant::now()) {
                     break packet;
                 }
             };
 
             assert!(iterations > 0);
             assert!(iterations < 4);
+
             assert_eq!(test.into_bytes(), packet.into_bytes());
         }
     }

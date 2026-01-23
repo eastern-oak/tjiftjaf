@@ -1,6 +1,5 @@
 //! Providing [`ConnAck`], a response from server to a `Connect`
 use crate::{decode::DecodingError, Frame, Packet};
-use bytes::Bytes;
 
 /// [Connack](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718033)
 #[derive(Clone, PartialEq, Eq)]
@@ -40,9 +39,9 @@ impl Frame for ConnAck {
     }
 }
 
-impl From<ConnAck> for Bytes {
+impl From<ConnAck> for Vec<u8> {
     fn from(value: ConnAck) -> Self {
-        Bytes::copy_from_slice(&value.inner)
+        value.inner.to_vec()
     }
 }
 
@@ -52,10 +51,10 @@ impl From<ConnAck> for Packet {
     }
 }
 
-impl TryFrom<Bytes> for ConnAck {
+impl TryFrom<Vec<u8>> for ConnAck {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         match value.len() {
             0..=3 => {
                 return Err(DecodingError::NotEnoughBytes {
@@ -90,7 +89,7 @@ impl TryFrom<Bytes> for ConnAck {
 
         Ok(Self {
             // Unwrap is safe since we checked for size above.
-            inner: value.as_ref().try_into().unwrap(),
+            inner: value.try_into().unwrap(),
         })
     }
 }
@@ -214,7 +213,6 @@ impl Default for ConnAckBuilder {
 #[cfg(test)]
 mod test {
     use crate::{packet::connack::ReturnCode, ConnAck};
-    use bytes::Bytes;
 
     #[test]
     fn test_building_connack() {
@@ -236,11 +234,11 @@ mod test {
     #[test]
     fn test_decode_connack() {
         // This input is too short.
-        let input = Bytes::copy_from_slice(&[32, 2, 0]);
+        let input = vec![32, 2, 0];
         assert!(ConnAck::try_from(input).is_err());
 
         // This input is too long.
-        let input = Bytes::copy_from_slice(&[32, 2, 0, 0, 0]);
+        let input = vec![32, 2, 0, 0, 0];
         assert!(ConnAck::try_from(input).is_err());
     }
 }

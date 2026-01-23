@@ -3,7 +3,6 @@ use crate::{
     decode, ConnAck, Connect, Disconnect, PingReq, PingResp, PubAck, PubComp, PubRec, PubRel,
     Publish, SubAck, Subscribe, UnsubAck, Unsubscribe,
 };
-use bytes::Bytes;
 use std::error::Error;
 use std::fmt::{self, Display};
 
@@ -91,7 +90,7 @@ impl Packet {
     }
 
     /// Serialize the packet into bytes.
-    pub fn into_bytes(self) -> Bytes {
+    pub fn into_bytes(self) -> Vec<u8> {
         match self {
             Self::Connect(packet) => packet.into_bytes(),
             Self::ConnAck(packet) => packet.into(),
@@ -173,10 +172,10 @@ impl std::fmt::Debug for Packet {
     }
 }
 
-impl TryFrom<Bytes> for Packet {
+impl TryFrom<Vec<u8>> for Packet {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         let packet_type: PacketType = value
             .first()
             .ok_or(DecodingError::NotEnoughBytes {

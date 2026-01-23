@@ -1,6 +1,5 @@
 //! Providing [`PingReq`]
 use crate::{decode::DecodingError, Frame, Packet};
-use bytes::Bytes;
 
 // A PINGREQ packet consists of only a header of two bytes.
 // The first byte encodes the packet type, PINGREQ in this case.
@@ -24,10 +23,10 @@ impl Frame for PingReq {
     }
 }
 
-impl TryFrom<Bytes> for PingReq {
+impl TryFrom<Vec<u8>> for PingReq {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         PingReq::try_from(value.as_ref())
     }
 }
@@ -55,9 +54,9 @@ impl TryFrom<&[u8]> for PingReq {
     }
 }
 
-impl From<PingReq> for Bytes {
-    fn from(_: PingReq) -> Bytes {
-        Bytes::copy_from_slice(&PINGREQ)
+impl From<PingReq> for Vec<u8> {
+    fn from(_: PingReq) -> Self {
+        PINGREQ.to_vec()
     }
 }
 
@@ -79,13 +78,12 @@ impl std::fmt::Debug for PingReq {
 mod test {
     use super::PingReq;
     use crate::Frame;
-    use bytes::Bytes;
 
     #[test]
     fn test_encode_and_decode() {
         // Verify conversion to and from &[u8].
         PingReq::try_from(PingReq.as_bytes()).unwrap();
-        PingReq::try_from(Bytes::from(PingReq)).unwrap();
+        PingReq::try_from(Vec::from(PingReq)).unwrap();
 
         // Verify that decoding from invalid bytes fails.
         assert!(PingReq::try_from(&[15 << 4, 0][..]).is_err());

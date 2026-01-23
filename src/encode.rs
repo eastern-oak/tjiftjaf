@@ -1,29 +1,28 @@
-use bytes::{BufMut, Bytes, BytesMut};
+pub fn utf8(value: String) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(value.len() + 2);
 
-pub fn utf8(value: String) -> Bytes {
-    let mut bytes = BytesMut::with_capacity(value.len() + 2);
-    // TODO: Check for maximum lenght of string.
-    bytes.put_u16(value.len() as u16);
-    bytes.put(value.as_bytes());
-
-    bytes.freeze()
+    // TODO: Check for maximum length of string.
+    bytes.extend_from_slice(&((value.len() as u16).to_be_bytes()));
+    bytes.append(&mut value.into_bytes());
+    bytes
 }
 
-pub fn bytes(value: &[u8]) -> Bytes {
-    let mut bytes = BytesMut::with_capacity(value.len() + 2);
-    // TODO: Check for maximum lenght of string.
-    bytes.put_u16(value.len() as u16);
-    bytes.put_slice(value);
-
-    bytes.freeze()
+// TODO: Consider taking `Vec<u8>` to make clear that
+// function clones value.
+pub fn bytes(value: &[u8]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(value.len() + 2);
+    // TODO: Check for maximum length of string.
+    bytes.extend_from_slice(&((value.len() as u16).to_be_bytes()));
+    bytes.extend_from_slice(value);
+    bytes
 }
 
-pub fn remaining_length(length: usize) -> Bytes {
+pub fn remaining_length(length: usize) -> Vec<u8> {
     // TODO: proper validation and error handling.
     assert!(length <= 268_435_455);
 
     let mut length = length;
-    let mut bytes = BytesMut::with_capacity(1);
+    let mut bytes = Vec::with_capacity(1);
 
     loop {
         let mut byte = (length % 128) as u8;
@@ -32,12 +31,12 @@ pub fn remaining_length(length: usize) -> Bytes {
         if length > 0 {
             byte |= 128;
         }
-        bytes.put_u8(byte);
+        bytes.push(byte);
 
         if length == 0 {
             break;
         }
     }
     assert!(bytes.len() <= 4);
-    bytes.freeze()
+    bytes
 }

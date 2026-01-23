@@ -48,7 +48,7 @@ fn main() {
         let payload = String::from_utf8_lossy(packet.payload());
         info!("{} - {:?}", packet.topic(), payload);
         if packet.topic() == "$SYS/broker/uptime" {
-            publish(&random_topic, format!("{n} packets received").into())
+            publish(&random_topic, format!("{n} packets received"))
                 .emit(&handle)
                 .unwrap();
         }

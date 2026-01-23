@@ -5,7 +5,6 @@ use crate::{
     packet::UnverifiedFrame,
     Frame, Packet, PacketType, QoS,
 };
-use bytes::{BufMut, Bytes, BytesMut};
 
 /// [SubAck](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718068) is emitted by a broker to confirm a [`crate::Subscribe`] request.
 ///
@@ -24,13 +23,12 @@ use bytes::{BufMut, Bytes, BytesMut};
 /// assert_eq!(frame.return_codes(), vec![ReturnCode::QoS(QoS::AtMostOnceDelivery), ReturnCode::Failure]);
 /// ```
 ///
-/// Alternatively, try decoding [`Bytes`] as `SubAck`.
+/// Alternatively, try decoding some bytes as `SubAck`.
 ///
 /// ```
 /// use tjiftjaf::{SubAck, QoS, packet::suback::ReturnCode};
-/// use bytes::Bytes;
 ///
-/// let frame = Bytes::copy_from_slice(&[144, 3, 55, 219, 0]);
+/// let frame = vec![144, 3, 55, 219, 0];
 /// let packet = SubAck::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 14299);
 /// assert_eq!(packet.return_codes(), vec![ReturnCode::QoS(QoS::AtMostOnceDelivery)]);
@@ -42,7 +40,7 @@ pub struct SubAck {
 
 impl SubAck {
     /// Serialize `SubAck`.
-    pub fn into_bytes(self) -> Bytes {
+    pub fn into_bytes(self) -> Vec<u8> {
         self.inner.inner
     }
 
@@ -86,16 +84,16 @@ impl Frame for SubAck {
     }
 }
 
-impl TryFrom<Bytes> for SubAck {
+impl TryFrom<Vec<u8>> for SubAck {
     type Error = DecodingError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         UnverifiedSubAck { inner: value }.verify()
     }
 }
 
-impl From<SubAck> for Bytes {
-    fn from(value: SubAck) -> Bytes {
+impl From<SubAck> for Vec<u8> {
+    fn from(value: SubAck) -> Vec<u8> {
         value.inner.inner
     }
 }
@@ -118,7 +116,7 @@ impl std::fmt::Debug for SubAck {
 
 #[derive(Clone, PartialEq, Eq)]
 struct UnverifiedSubAck {
-    pub inner: Bytes,
+    pub inner: Vec<u8>,
 }
 
 impl UnverifiedSubAck {
@@ -213,28 +211,23 @@ impl Builder {
     }
 
     pub fn build(self) -> SubAck {
-        let mut variable_header = BytesMut::with_capacity(2);
-        variable_header.put_u16(self.packet_identifier);
+        let mut variable_header = self.packet_identifier.to_be_bytes().to_vec();
 
-        let mut payload = BytesMut::with_capacity(self.return_codes.len());
+        let mut payload: Vec<u8> = Vec::with_capacity(self.return_codes.len());
         for code in self.return_codes {
-            payload.put_u8(code.into())
+            payload.push(code.into())
         }
 
-        let mut packet = BytesMut::new();
+        let mut packet: Vec<u8> = Vec::new();
         let packet_type: u8 = PacketType::SubAck.into();
-        packet.put_u8(packet_type << 4);
+        packet.push(packet_type << 4);
 
         let remaining_length = encode::remaining_length(variable_header.len() + payload.len());
-        packet.put(remaining_length);
-        packet.put(variable_header);
-        packet.put(payload);
+        packet.append(&mut remaining_length.to_vec());
+        packet.append(&mut variable_header);
+        packet.append(&mut payload);
 
-        UnverifiedSubAck {
-            inner: packet.freeze(),
-        }
-        .verify()
-        .unwrap()
+        UnverifiedSubAck { inner: packet }.verify().unwrap()
     }
 
     pub fn build_packet(self) -> Packet {

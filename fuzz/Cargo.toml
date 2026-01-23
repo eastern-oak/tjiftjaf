@@ -9,7 +9,6 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-bytes = "1.10.1"
 tjiftjaf = { path = "..", features = ["arbitrary"] }
 
 [[bin]]
