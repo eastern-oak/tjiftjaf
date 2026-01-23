@@ -110,8 +110,6 @@ where
                 self.binding.send(packet);
             }
 
-            // self.binding.dbg!();
-
             loop {
                 match self.binding.poll_transmits(Instant::now()) {
                     Ok(Some(bytes)) => {

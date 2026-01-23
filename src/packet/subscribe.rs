@@ -324,10 +324,6 @@ impl Builder {
     }
 
     pub fn build(self) -> Subscribe {
-        // TODO: Optimize
-        // let mut variable_header = BytesMut::with_capacity(2);
-        // variable_header.put_u16(self.packet_identifier);
-
         let mut variable_header: Vec<u8> = self.packet_identifier.to_be_bytes().to_vec();
 
         let mut payload = Vec::new();
