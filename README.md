@@ -60,13 +60,13 @@ You can plot a flamegraph of a benchmark. First build the benchmark into a binar
 ```bash
 $ cargo bench --no-run
   ...
-  Executable benches/bytez.rs (target/release/deps/bytez-1e806daa0e74ef62)
+  Executable benches/decode-encode.rs (target/release/deps/decode_encode-9f10de3c0a084302)
 ```
 
 Then, invoke the binary with `flamegraph`. This example runs only 1 benchmark that matches the string 'Publish':
 
 ```bash
-$ flamegraph -- target/release/deps/bytez-1e806daa0e74ef62 --bench Publish
+$ flamegraph -- target/release/deps/decode_encode-9f10de3c0a084302 --bench Publish
 ...
 Benchmarking decode/encode Publish: Complete (Analysis Disabled)
 ...
