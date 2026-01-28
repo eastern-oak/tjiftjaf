@@ -49,7 +49,7 @@ mod aio {
         subscribe(TOPIC).emit(&handle).await.unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
-        publish(TOPIC, b"test_subscribe_and_publish".to_vec())
+        publish(TOPIC, "test_subscribe_and_publish")
             .emit(&handle)
             .await
             .unwrap();
@@ -95,7 +95,7 @@ mod aio {
             stream.write_all(packet.as_bytes()).await.unwrap();
 
             let packet =
-                Publish::builder(TOPIC, b"test_subscribe_and_publish".to_vec()).build();
+                Publish::builder(TOPIC, "test_subscribe_and_publish").build();
 
             let split_at = packet.length() as usize - 5;
 
@@ -153,7 +153,7 @@ mod aio {
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
-        publish(TOPIC, b"test_subscribe_and_publish".to_vec())
+        publish(TOPIC, "test_subscribe_and_publish")
             .emit(&handle_a)
             .await
             .unwrap();
@@ -203,7 +203,7 @@ mod aio {
 
         publish(
             "test/client_and_server",
-            b"test_subscribe_and_publish".to_vec(),
+            "test_subscribe_and_publish",
         )
         .emit(&handle_2)
         .await
@@ -252,7 +252,7 @@ mod blocking {
         // https://github.com/eastern-oak/tjiftjaf/issues/71
         std::thread::sleep(Duration::from_secs(1));
 
-        publish(TOPIC, b"test_subscribe_and_publish".to_vec())
+        publish(TOPIC, "test_subscribe_and_publish")
             .emit(&handle_a)
             .unwrap();
 

@@ -63,7 +63,7 @@ async fn run(mut handle: ClientHandle) {
         if packet.topic() == "$SYS/broker/uptime" {
             publish(
                 &random_topic,
-                format!("{n} packets received").into_bytes(),
+                format!("{n} packets received"),
             )
             .emit(&handle)
             .await
