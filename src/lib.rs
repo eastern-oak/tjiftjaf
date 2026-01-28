@@ -415,7 +415,6 @@ impl<T> From<async_channel::SendError<T>> for ConnectionError {
 mod test {
     use super::*;
     use crate::ConnAck;
-    use bytes::Bytes;
     use std::io::{Cursor, Read};
 
     fn as_str(bytes: &[u8]) -> &str {
@@ -461,7 +460,7 @@ mod test {
 
         let packet = publish(
             "zigbee2mqtt/binary-switch",
-            Bytes::from(r#"{"action":"off","battery":100,"linkquality":3,"voltage":1400}"#),
+            r#"{"action":"off","battery":100,"linkquality":3,"voltage":1400}"#.as_bytes().to_vec(),
         );
         let packet = decode_message(packet.into());
         assert_eq!(packet.packet_type(), PacketType::Publish);
@@ -473,9 +472,7 @@ mod test {
 
         let packet = publish(
             "zigbee2mqtt/thermo-hygrometer",
-            Bytes::from(
-                r#"{"battery":100,"comfort_humidity_max":60,"comfort_humidity_min":40,"comfort_temperature_max":27,"comfort_temperature_min":19,"humidity":47.2,"linkquality":105,"temperature":24,"temperature_units":"fahrenheit","update":{"installed_version":4105,"latest_version":8960,"state":"available"}}"#,
-            ),
+            r#"{"battery":100,"comfort_humidity_max":60,"comfort_humidity_min":40,"comfort_temperature_max":27,"comfort_temperature_min":19,"humidity":47.2,"linkquality":105,"temperature":24,"temperature_units":"fahrenheit","update":{"installed_version":4105,"latest_version":8960,"state":"available"}}"#.as_bytes().to_vec(),
         );
 
         let packet = decode_message(packet.into());

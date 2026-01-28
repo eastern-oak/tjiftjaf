@@ -1,4 +1,3 @@
-use bytes::Bytes;
 /// Run with `cargo run --example client_with_tokio`
 use log::info;
 use std::env;
@@ -64,7 +63,7 @@ async fn run(mut handle: ClientHandle) {
         if packet.topic() == "$SYS/broker/uptime" {
             publish(
                 &random_topic,
-                Bytes::copy_from_slice(format!("{n} packets received").as_bytes()),
+                format!("{n} packets received").into_bytes(),
             )
             .emit(&handle)
             .await

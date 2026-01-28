@@ -5,7 +5,6 @@ mod aio {
     use crate::env::broker::Broker;
     use crate::env::wiretap::wiretapped_client;
     use async_net::{TcpListener, TcpStream};
-    use bytes::Bytes;
     use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
     use macro_rules_attribute::apply;
     use smol::Timer;
@@ -50,7 +49,7 @@ mod aio {
         subscribe(TOPIC).emit(&handle).await.unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
-        publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        publish(TOPIC, b"test_subscribe_and_publish".to_vec())
             .emit(&handle)
             .await
             .unwrap();
@@ -96,7 +95,7 @@ mod aio {
             stream.write_all(packet.as_bytes()).await.unwrap();
 
             let packet =
-                Publish::builder(TOPIC, Bytes::from_static(b"test_subscribe_and_publish")).build();
+                Publish::builder(TOPIC, b"test_subscribe_and_publish".to_vec()).build();
 
             let split_at = packet.length() as usize - 5;
 
@@ -154,7 +153,7 @@ mod aio {
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
-        publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        publish(TOPIC, b"test_subscribe_and_publish".to_vec())
             .emit(&handle_a)
             .await
             .unwrap();
@@ -204,7 +203,7 @@ mod aio {
 
         publish(
             "test/client_and_server",
-            Bytes::from_static(b"test_subscribe_and_publish"),
+            b"test_subscribe_and_publish".to_vec(),
         )
         .emit(&handle_2)
         .await
@@ -218,7 +217,6 @@ mod aio {
 
 #[cfg(feature = "blocking")]
 mod blocking {
-    use bytes::Bytes;
     use pretty_assertions::assert_eq;
     use std::time::Duration;
     use tjiftjaf::{
@@ -254,7 +252,7 @@ mod blocking {
         // https://github.com/eastern-oak/tjiftjaf/issues/71
         std::thread::sleep(Duration::from_secs(1));
 
-        publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        publish(TOPIC, b"test_subscribe_and_publish".to_vec())
             .emit(&handle_a)
             .unwrap();
 
