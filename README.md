@@ -43,12 +43,12 @@ cargo +nightly fuzz list
 
 ## Benchmarks
 
-The project uses [Criteron.rs](https://criterion-rs.github.io/book/) to benchmark encoding and decoding speed of packets.
-Run all bench marks using:
+The project uses [Criterion.rs](https://criterion-rs.github.io/book/) to benchmark encoding and decoding speed of packets.
+Run all benchmarks using:
 
 ```shell
 $ cargo bench
-````
+```
 
 To list all benchmarks run:
 
