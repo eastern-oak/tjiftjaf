@@ -27,6 +27,12 @@ async-net = { version = "2.0.0", default-features = false }
 smol = { version = "2.0.2", default-features = false }
 tokio = { version = "1.48.0", default-features = false, features = ["net", "macros", "rt"] }
 tokio-util = { version = "0.7.17", default-features = false, features = ["compat" ] }
+criterion = "0.5"
+
+[[bench]]
+name = "decode-encode"
+harness = false
+
 
 [features]
 default = ["async"]

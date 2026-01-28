@@ -303,6 +303,7 @@ impl UnverifiedConnect {
     fn verify_variable_header(&self) -> Result<(), DecodingError> {
         let header = self.try_variable_header()?;
         let (protocol_name, offset) = decode::field::utf8(header)?;
+        // TODO: replace assert_eq with DecodingError
         assert_eq!(protocol_name, "MQTT");
 
         let protocol_level = header[offset];
