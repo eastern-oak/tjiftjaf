@@ -27,4 +27,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.92.0
 
       - name: Run tests
-        run: ./scripts/test.sh
+        run: bash scripts/test.sh
