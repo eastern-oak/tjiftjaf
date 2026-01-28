@@ -1902,7 +1902,6 @@ dependencies = [
  "async-channel",
  "async-io",
  "async-net",
- "bytes",
  "criterion",
  "futures",
  "futures-lite",

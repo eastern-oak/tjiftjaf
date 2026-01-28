@@ -1,5 +1,4 @@
 use async_net::TcpStream;
-use bytes::Bytes;
 use futures_lite::FutureExt;
 use log::info;
 use std::env;
@@ -55,13 +54,10 @@ fn main() {
                     let payload = String::from_utf8_lossy(packet.payload());
                     info!("{} - {:?}", packet.topic(), payload);
                     if packet.topic() == "$SYS/broker/uptime" {
-                        publish(
-                            &random_topic,
-                            Bytes::copy_from_slice(format!("{n} packets received").as_bytes()),
-                        )
-                        .emit(&handle)
-                        .await
-                        .unwrap()
+                        publish(&random_topic, format!("{n} packets received"))
+                            .emit(&handle)
+                            .await
+                            .unwrap()
                     }
                 }
             })
