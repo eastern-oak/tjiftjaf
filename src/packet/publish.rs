@@ -344,7 +344,7 @@ impl crate::aio::Emit for Publish {
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
-    /// publish("sensor/temperature/1", r#"26.1"#)
+    /// publish("sensor/temperature/1", "26.1")
     ///     .emit(&handle)
     ///     .await
     ///     .unwrap();
@@ -368,7 +368,7 @@ impl crate::blocking::Emit for Publish {
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, _task) = client.spawn().unwrap();
     ///
-    /// publish("sensor/temperature/1", r#"26.1"#)
+    /// publish("sensor/temperature/1", "26.1")
     ///     .emit(&handle)
     ///     .unwrap();
     ///```

@@ -94,8 +94,7 @@ mod aio {
             let packet = ConnAck::builder().build();
             stream.write_all(packet.as_bytes()).await.unwrap();
 
-            let packet =
-                Publish::builder(TOPIC, "test_subscribe_and_publish").build();
+            let packet = Publish::builder(TOPIC, "test_subscribe_and_publish").build();
 
             let split_at = packet.length() as usize - 5;
 
@@ -201,13 +200,10 @@ mod aio {
             .await
             .unwrap();
 
-        publish(
-            "test/client_and_server",
-            "test_subscribe_and_publish",
-        )
-        .emit(&handle_2)
-        .await
-        .unwrap();
+        publish("test/client_and_server", "test_subscribe_and_publish")
+            .emit(&handle_2)
+            .await
+            .unwrap();
 
         let publication = handle_1.subscriptions().await.unwrap();
         assert_eq!(&publication.topic(), &"test/client_and_server");
