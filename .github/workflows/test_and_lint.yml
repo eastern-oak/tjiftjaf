@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        rust_version: [1.79, 1.93]
+        rust_version: [1.85, 1.93]
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@master
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        rust_version: [1.79, 1.93]
+        rust_version: [1.85, 1.93]
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@master
