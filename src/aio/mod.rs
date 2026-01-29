@@ -40,6 +40,8 @@
 //!   }).await;
 //! });
 //! ```
+use std::time::Instant;
+
 use crate::{
     Connect, ConnectionError, Disconnect, MqttBinding, Packet, PubAck, PubComp, PubRec, PubRel,
     Publish, QoS,
