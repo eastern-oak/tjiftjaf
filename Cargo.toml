@@ -2,7 +2,7 @@
 name = "tjiftjaf"
 version = "0.7.1"
 edition = "2021"
-rust-version = "1.85.0"
+rust-version = "1.88.0"
 license-file = "LICENSE" 
 description = "Library including an encoder and decoder for MQTT v3.1.1. It also includes a client."
 
@@ -17,16 +17,16 @@ futures = { version = "0.3.31", optional = true , default-features = false, feat
 smol = { version  = "2", optional = true}
 
 [dev-dependencies]
-simple_logger = "5.0.0"
+simple_logger = "5"
 macro_rules_attribute = "0.2.2"
 futures-lite = { version = "2", default-features = false, features = ["std", "race"] }
-pretty_assertions = { version = "1.4.1", default-features = false, features = ["std"] }
-rumqttd = { version = "0.19.0", default-features = false }
-smol-macros = "0.1.1"
-async-net = { version = "2.0.0", default-features = false }
-smol = { version = "2.0.2", default-features = false }
-tokio = { version = "1.48.0", default-features = false, features = ["net", "macros", "rt"] }
-tokio-util = { version = "0.7.17", default-features = false, features = ["compat" ] }
+pretty_assertions = { version = "1.4", default-features = false, features = ["std"] }
+rumqttd = { version = "0.19", default-features = false }
+smol-macros = "0.1"
+async-net = { version = "2", default-features = false }
+smol = { version = "2", default-features = false }
+tokio = { version = "1", default-features = false, features = ["net", "macros", "rt"] }
+tokio-util = { version = "0.7", default-features = false, features = ["compat" ] }
 criterion = "0.5"
 
 [[bench]]
