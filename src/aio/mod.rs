@@ -48,7 +48,6 @@ use async_channel::{self, Receiver, SendError, Sender};
 use async_io::Timer;
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, FutureExt};
 use log::{error, info, trace};
-use std::time::Instant;
 
 #[cfg(feature = "experimental")]
 pub mod server;
@@ -56,7 +55,7 @@ pub mod server;
 /// An asynchronous client to interact with a MQTT broker.
 ///
 /// See the [module documentation](crate::aio) for more information.
-pub struct Client<S: AsyncRead + AsyncWrite + Unpin> {
+pub struct Client<S> {
     // Socket for interacting with the MQTT broker.
     socket: S,
     binding: MqttBinding,
@@ -64,7 +63,7 @@ pub struct Client<S: AsyncRead + AsyncWrite + Unpin> {
 
 impl<S> Client<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: AsyncRead + AsyncWrite + Send,
 {
     pub fn new(connect: Connect, socket: S) -> Self {
         Self {
@@ -98,6 +97,8 @@ where
         sender: Sender<Packet>,
         receiver: Receiver<Packet>,
     ) -> Result<(), std::io::Error> {
+        let mut socket = core::pin::pin!(self.socket);
+
         // In this loop, check with the binding if any outbound
         // packets are waiting. We call them 'transmits'. Send all pending
         // transmits to the broker.
@@ -113,14 +114,14 @@ where
             loop {
                 match self.binding.poll_transmits(Instant::now()) {
                     Ok(Some(bytes)) => {
-                        self.socket.write_all(&bytes).await?;
+                        socket.write_all(&bytes).await?;
                         // If the socket implementation is buffered, `bytes` will not be transmitted unless
                         // the internal buffer is full or a call to flush is done.
-                        self.socket.flush().await?;
+                        socket.flush().await?;
                     }
                     Ok(None) => break,
                     Err(_) => {
-                        self.socket.close().await?;
+                        socket.close().await?;
                         info!("The client disconnected.");
                         return Ok(());
                     }
@@ -131,7 +132,7 @@ where
             let mut buffer = self.binding.get_read_buffer();
 
             futures::select! {
-                bytes_read = self.socket.read(&mut buffer).fuse() => {
+                bytes_read = socket.read(&mut buffer).fuse() => {
                     let bytes_read = bytes_read?;
 
                     if bytes_read == 0 {
