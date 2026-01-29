@@ -12,8 +12,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@1.92.0
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.93
           components: clippy,rustfmt
 
       - name: Run lint script
@@ -22,9 +23,14 @@ jobs:
   test:
     timeout-minutes: 5
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        rust_version: [1.88, 1.93]
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@1.92.0
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust_version }}
 
       - name: Run tests
         run: bash scripts/test.sh
