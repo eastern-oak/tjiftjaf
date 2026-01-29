@@ -1,10 +1,13 @@
 [package]
-name = "tjiftjaf"
-version = "0.8.0"
+authors = ["Auke Oosterhoff<auke@orangetux.nl>"]
+description = "Library implementing encoder and decoder for MQTT v3.1.1 packets. As well as a blocking and async client."
+documentation = "https://docs.rs/tjiftjaf"
 edition = "2021"
+license = "MPL-2.0"
+name = "tjiftjaf"
+repository = "https://github.com/eastern-oak/tjiftjaf"
 rust-version = "1.88.0"
-license-file = "LICENSE" 
-description = "Library including an encoder and decoder for MQTT v3.1.1. It also includes a client."
+version = "0.8.0"
 
 [dependencies]
 async-channel = { version = "2", optional = true, default-features = false, features = ["std"] }
