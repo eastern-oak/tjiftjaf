@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.8.0 - 2026-01-29
+
+[b182dbb](b182dbbca95c78bb5172c1994e3c62c8540bd869)...[a9b41c8](a9b41c84d6366882b7347a26729668eceb227772)
+
+### Breaking changes
+
+- GH-36 Remove dependency on `bytes` (#133) - ([f7b7ff8](f7b7ff8dfa44c113ba33fd8965698338de330610)) - GH-36 (https://github.com/eastern-oak/tjiftjaf/issues/36)
+
+### Changes
+
+- GH-131 Deps 'async-net' and 'smol' are optional (#132) - ([2aa0b7a](2aa0b7a725a82443ec36760447920f531d29baff)) - GH-131 (https://github.com/eastern-oak/tjiftjaf/issues/131)
+- GH-129 Replace `futures-lite::race()` with `futures::select!` (#130) - ([270de4b](270de4b5d9c33a1da2319ad39ddf84bc37b3462f)) - GH-129 (https://github.com/eastern-oak/tjiftjaf/issues/129)
+- GH-135 Add benchmarks (#134) - ([3d6ff6b](3d6ff6b6ed2b91ea656f3d642c3f5c7513f472cb)) - GH-135 (https://github.com/eastern-oak/tjiftjaf/issues/135)
+- GH-136 Move steps of CI job into a script. (#137) - ([a3b51bc](a3b51bc52ffc631c143b7cf8d66a11dc85dbd0a3)) - GH-136 (https://github.com/eastern-oak/tjiftjaf/issues/136)
+- GH-138 Remove bytes crate dev dependency, use string literals (#139) - ([bf0a84e](bf0a84e391d22ac481011d1890e081cbfae6cf3e)) - GH-138 (https://github.com/eastern-oak/tjiftjaf/issues/138)
+- GH-99 Relax trait bounds on `aio::Client` (#141) - ([dafabc8](dafabc81ebbab46e7abb258112ecc546741708c8)) - GH-99 (https://github.com/eastern-oak/tjiftjaf/issues/99)
+- GH-92 Add CI job to build fuzz targets (#143) - ([9e374ff](9e374ffff85c12808d288f497479d75d73cb44ea)) - GH-92 (https://github.com/eastern-oak/tjiftjaf/issues/92)
+- GH-98 Set MSRV to 1.88 (#144) - ([a9b41c8](a9b41c84d6366882b7347a26729668eceb227772)) - GH-98 (https://github.com/eastern-oak/tjiftjaf/issues/98)
+- GH-64 Make Will struct fields private, expose via getters (#142) - ([9baa0d126](9baa0d126e1a0f727b2c2664bf9b1f4a9c85743c)) - GH-64 (https://github.com/eastern-oak/tjiftjaf/issues/64)
+
+
 ## 0.7.1 - 2025-12-15
 
 [c73dae2](c73dae2365d93beef6a669f6bf7686bc08236b64)...[1bb4f66](1bb4f66c57839a33692156bc48250d7a5cef4539)
