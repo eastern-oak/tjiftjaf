@@ -15,8 +15,9 @@ jobs:
         rust_version: [1.79, 1.93]
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@${{ matrix.rust_version }}
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ matrix.rust_version }}
           components: clippy,rustfmt
 
       - name: Run lint script
@@ -30,7 +31,9 @@ jobs:
         rust_version: [1.79, 1.93]
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@${{ matrix.rust_version }}
+      - uses: dtolnay/rust-toolchain@$master
+        with:
+          toolchain: ${{ matrix.rust_version }}
 
       - name: Run tests
         run: bash scripts/test.sh
