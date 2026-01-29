@@ -5,7 +5,6 @@ mod aio {
     use crate::env::broker::Broker;
     use crate::env::wiretap::wiretapped_client;
     use async_net::{TcpListener, TcpStream};
-    use bytes::Bytes;
     use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
     use macro_rules_attribute::apply;
     use smol::Timer;
@@ -50,7 +49,7 @@ mod aio {
         subscribe(TOPIC).emit(&handle).await.unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
-        publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        publish(TOPIC, "test_subscribe_and_publish")
             .emit(&handle)
             .await
             .unwrap();
@@ -95,8 +94,7 @@ mod aio {
             let packet = ConnAck::builder().build();
             stream.write_all(packet.as_bytes()).await.unwrap();
 
-            let packet =
-                Publish::builder(TOPIC, Bytes::from_static(b"test_subscribe_and_publish")).build();
+            let packet = Publish::builder(TOPIC, "test_subscribe_and_publish").build();
 
             let split_at = packet.length() as usize - 5;
 
@@ -154,7 +152,7 @@ mod aio {
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
-        publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        publish(TOPIC, "test_subscribe_and_publish")
             .emit(&handle_a)
             .await
             .unwrap();
@@ -202,13 +200,10 @@ mod aio {
             .await
             .unwrap();
 
-        publish(
-            "test/client_and_server",
-            Bytes::from_static(b"test_subscribe_and_publish"),
-        )
-        .emit(&handle_2)
-        .await
-        .unwrap();
+        publish("test/client_and_server", "test_subscribe_and_publish")
+            .emit(&handle_2)
+            .await
+            .unwrap();
 
         let publication = handle_1.subscriptions().await.unwrap();
         assert_eq!(&publication.topic(), &"test/client_and_server");
@@ -218,7 +213,6 @@ mod aio {
 
 #[cfg(feature = "blocking")]
 mod blocking {
-    use bytes::Bytes;
     use pretty_assertions::assert_eq;
     use std::time::Duration;
     use tjiftjaf::{
@@ -254,7 +248,7 @@ mod blocking {
         // https://github.com/eastern-oak/tjiftjaf/issues/71
         std::thread::sleep(Duration::from_secs(1));
 
-        publish(TOPIC, Bytes::from_static(b"test_subscribe_and_publish"))
+        publish(TOPIC, "test_subscribe_and_publish")
             .emit(&handle_a)
             .unwrap();
 
