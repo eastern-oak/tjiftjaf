@@ -142,10 +142,10 @@ impl Connect {
     ///     .build();
     ///
     /// let will = packet.will().unwrap();
-    /// assert_eq!(will.topic, "topic");
-    /// assert_eq!(will.message, b"optimus died");
-    /// assert_eq!(will.qos, QoS::AtMostOnceDelivery);
-    /// assert_eq!(will.retain, true);
+    /// assert_eq!(will.topic(), "topic");
+    /// assert_eq!(will.message(), b"optimus died");
+    /// assert_eq!(will.qos(), QoS::AtMostOnceDelivery);
+    /// assert_eq!(will.retain(), true);
     /// ```
     pub fn will(&self) -> Option<Will<'_>> {
         self.inner.will().unwrap()
@@ -438,12 +438,34 @@ impl std::fmt::Debug for Flags {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Will<'a> {
-    pub topic: &'a str,
+    topic: &'a str,
     // TODO: change to bytes
-    pub message: &'a [u8],
+    message: &'a [u8],
 
-    pub retain: bool,
-    pub qos: QoS,
+    retain: bool,
+    qos: QoS,
+}
+
+impl<'a> Will<'a> {
+    /// Retrieve the will topic.
+    pub fn topic(&self) -> &str {
+        self.topic
+    }
+
+    /// Retrieve the will message.
+    pub fn message(&self) -> &[u8] {
+        self.message
+    }
+
+    /// Retrieve the retain flag.
+    pub fn retain(&self) -> bool {
+        self.retain
+    }
+
+    /// Retrieve the QoS level.
+    pub fn qos(&self) -> QoS {
+        self.qos
+    }
 }
 
 /// A marker to indicate that [`Builder`] does not include credentials.
@@ -583,10 +605,10 @@ impl<A, W> Builder<A, W> {
     ///     .build();
     ///
     /// let will = packet.will().unwrap();
-    /// assert_eq!(will.topic, "topic");
-    /// assert_eq!(will.message, b"optimus died");
-    /// assert_eq!(will.qos, QoS::AtMostOnceDelivery);
-    /// assert_eq!(will.retain, true);
+    /// assert_eq!(will.topic(), "topic");
+    /// assert_eq!(will.message(), b"optimus died");
+    /// assert_eq!(will.qos(), QoS::AtMostOnceDelivery);
+    /// assert_eq!(will.retain(), true);
     /// ```
     pub fn will(
         mut self,
@@ -730,10 +752,10 @@ impl<A, WithWill> Builder<A, WithWill> {
     ///     .build();
     ///
     /// let will = packet.will().unwrap();
-    /// assert_eq!(will.topic, "topic");
-    /// assert_eq!(will.message, b"optimus died");
-    /// assert_eq!(will.qos, QoS::ExactlyOnceDelivery);
-    /// assert_eq!(will.retain, false);
+    /// assert_eq!(will.topic(), "topic");
+    /// assert_eq!(will.message(), b"optimus died");
+    /// assert_eq!(will.qos(), QoS::ExactlyOnceDelivery);
+    /// assert_eq!(will.retain(), false);
     /// ```
     pub fn will_qos(mut self, qos: QoS) -> Self {
         self.flags.set_will_qos(qos);
@@ -755,10 +777,10 @@ impl<A, WithWill> Builder<A, WithWill> {
     ///     .build();
     ///
     /// let will = packet.will().unwrap();
-    /// assert_eq!(will.topic, "topic");
-    /// assert_eq!(will.message, b"optimus died");
-    /// assert_eq!(will.qos, QoS::AtMostOnceDelivery);
-    /// assert_eq!(will.retain, true);
+    /// assert_eq!(will.topic(), "topic");
+    /// assert_eq!(will.message(), b"optimus died");
+    /// assert_eq!(will.qos(), QoS::AtMostOnceDelivery);
+    /// assert_eq!(will.retain(), true);
     /// ```
     pub fn retain_will(mut self) -> Self {
         self.flags.set_will_retain();
