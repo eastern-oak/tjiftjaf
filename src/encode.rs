@@ -1,10 +1,29 @@
-pub fn utf8(value: String) -> Vec<u8> {
+fn verify_utf8(value: &str) -> Result<(), EncodingError> {
+    // 1.5.3 [..] you cannot use a string that would encode to more than 65_535 bytes.
+    if value.len() > 65_535 {
+        return Err(EncodingError::TooLong);
+    }
+
+    // [MQTT-1.5.3-2] A UTF-8 encoded string MUST NOT include an encoding of the null character U+0000.
+    if value.contains('\0') {
+        return Err(EncodingError::IllegalValue);
+    }
+
+    Ok(())
+}
+
+/// Encode a string as bytes.
+///
+/// The first 2 bytes encode the strings length, followed by
+/// the string.
+pub fn utf8(value: String) -> Result<Vec<u8>, EncodingError> {
+    verify_utf8(&value)?;
+
     let mut bytes = Vec::with_capacity(value.len() + 2);
 
-    // TODO: Check for maximum length of string.
     bytes.extend_from_slice(&((value.len() as u16).to_be_bytes()));
     bytes.append(&mut value.into_bytes());
-    bytes
+    Ok(bytes)
 }
 
 // TODO: Consider taking `Vec<u8>` to make clear that
@@ -39,4 +58,13 @@ pub fn remaining_length(length: usize) -> Vec<u8> {
     }
     assert!(bytes.len() <= 4);
     bytes
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum EncodingError {
+    // Value exceeds length
+    TooLong,
+
+    // Illegal value.
+    IllegalValue,
 }

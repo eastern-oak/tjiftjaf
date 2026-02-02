@@ -122,7 +122,11 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
         .await
         .expect("Failed to open TCP connection to broker on port {proxy_port}.");
 
-    let connect = Connect::builder().client_id("test").keep_alive(5).build();
+    let connect = Connect::builder()
+        .client_id("test")
+        .keep_alive(5)
+        .build()
+        .unwrap();
     (Client::new(connect, stream), history)
 }
 

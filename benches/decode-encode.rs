@@ -11,6 +11,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             .username("admin")
             .password("secret")
             .build()
+            .unwrap()
             .into();
 
         b.iter(|| {
@@ -34,6 +35,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         let packet: Packet = Subscribe::builder("sensors/temperature/1", QoS::AtMostOnceDelivery)
             .add_topic("sensors/humidity/2", QoS::AtMostOnceDelivery)
             .build()
+            .unwrap()
             .into();
 
         b.iter(|| {
@@ -58,6 +60,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("decode/encode Publish", |b| {
         let packet: Packet = Publish::builder("sensors/temperature/1", r#"{"measurement": 19.2}"#)
             .build()
+            .unwrap()
             .into();
 
         b.iter(|| {
@@ -81,6 +84,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         let packet: Packet = Unsubscribe::builder("sensors/temperature/1")
             .add_topic("sensors/humidity/1")
             .build()
+            .unwrap()
             .into();
 
         b.iter(|| {

@@ -2,7 +2,7 @@
 use crate::{
     decode::{self, DecodingError},
     encode,
-    packet::UnverifiedFrame,
+    packet::{BuilderError, UnverifiedFrame},
     packet_identifier, ConnectionError, Frame, Packet, PacketType,
 };
 
@@ -267,12 +267,12 @@ impl Builder {
         self
     }
 
-    pub fn build(self) -> Unsubscribe {
+    pub fn build(self) -> Result<Unsubscribe, BuilderError> {
         let mut variable_header = self.packet_identifier.to_be_bytes().to_vec();
 
         let mut payload = Vec::new();
         for topic in self.topics {
-            payload.append(&mut encode::utf8(topic).to_vec());
+            payload.append(&mut encode::utf8(topic)?.to_vec());
         }
 
         let mut packet = Vec::new();
@@ -284,11 +284,13 @@ impl Builder {
         packet.append(&mut variable_header);
         packet.append(&mut payload);
 
-        UnverifiedUnsubscribe { inner: packet }.verify().unwrap()
+        Ok(Unsubscribe {
+            inner: UnverifiedUnsubscribe { inner: packet },
+        })
     }
 
-    pub fn build_packet(self) -> Packet {
-        Packet::Unsubscribe(self.build())
+    pub fn build_packet(self) -> Result<Packet, BuilderError> {
+        Ok(Packet::Unsubscribe(self.build()?))
     }
 }
 
@@ -298,11 +300,13 @@ mod test {
 
     #[test]
     fn test_unsubscribe() {
-        let frame = Unsubscribe::builder("topic-1").build();
-        dbg!(frame.as_bytes());
+        let frame = Unsubscribe::builder("topic-1").build().unwrap();
         let _: Unsubscribe = frame.into_bytes().try_into().unwrap();
 
-        let frame = Unsubscribe::builder("topic-1").add_topic("topic-2").build();
+        let frame = Unsubscribe::builder("topic-1")
+            .add_topic("topic-2")
+            .build()
+            .unwrap();
         let _: Unsubscribe = frame.into_bytes().try_into().unwrap();
     }
 }

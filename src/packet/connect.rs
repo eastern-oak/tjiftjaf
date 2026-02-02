@@ -2,7 +2,9 @@
 use super::UnverifiedFrame;
 use crate::{
     decode::{self, DecodingError},
-    encode, Frame, Packet, PacketType, ProtocolLevel, QoS,
+    encode,
+    packet::BuilderError,
+    Frame, Packet, PacketType, ProtocolLevel, QoS,
 };
 use core::fmt;
 use std::marker::PhantomData;
@@ -659,14 +661,13 @@ impl<A, W> Builder<A, W> {
     }
 
     /// Build a `Connect`.
-    pub fn build(mut self) -> Connect {
+    pub fn build(mut self) -> Result<Connect, BuilderError> {
         let mut fixed_header = Vec::with_capacity(2);
         fixed_header.push((PacketType::Connect as u8) << 4);
 
         let mut variable_header = Vec::with_capacity(10);
 
-        variable_header.append(&mut encode::utf8("MQTT".into()));
-        // Version of the protocol.
+        variable_header.append(&mut encode::utf8("MQTT".into()).unwrap());
         variable_header.push(ProtocolLevel::_3_1_1 as u8);
 
         // [MQTT-3.1.3-7] If the Client supplies a zero-byte ClientId, the Client MUST also set CleanSession to 1.
@@ -680,9 +681,10 @@ impl<A, W> Builder<A, W> {
         // Keep Alive
         variable_header.append(&mut self.keep_alive.to_be_bytes().to_vec());
 
-        let mut payload = encode::utf8(self.client_id);
+        let mut payload = encode::utf8(self.client_id)?;
         if let Some(will_topic) = self.will_topic {
-            payload.append(&mut encode::utf8(will_topic));
+            // TODO: validate topic
+            payload.append(&mut encode::utf8(will_topic)?);
         }
 
         if let Some(will_message) = self.will_message {
@@ -690,7 +692,7 @@ impl<A, W> Builder<A, W> {
         }
 
         if let Some(username) = self.username {
-            payload.append(&mut encode::utf8(username));
+            payload.append(&mut encode::utf8(username)?);
 
             if let Some(password) = self.password {
                 payload.append(&mut encode::bytes(&password));
@@ -704,15 +706,15 @@ impl<A, W> Builder<A, W> {
         fixed_header.append(&mut variable_header);
         fixed_header.append(&mut payload);
 
-        UnverifiedConnect {
-            inner: fixed_header.to_vec()
-        }
-        .verify()
-        .unwrap_or_else(|e| panic!("`Builder` failed to build `Connect`. This is a bug. Please report it to https://github.com/eastern-oak/tjiftjaf/issues. The error is '{e}'."))
+        Ok(Connect {
+            inner: UnverifiedConnect {
+                inner: fixed_header.to_vec(),
+            },
+        })
     }
 
-    pub fn build_packet(self) -> Packet {
-        Packet::Connect(self.build())
+    pub fn build_packet(self) -> Result<Packet, BuilderError> {
+        Ok(Packet::Connect(self.build()?))
     }
 }
 
@@ -811,16 +813,17 @@ impl<'a> arbitrary::Arbitrary<'a> for Connect {
         };
 
         if bool::arbitrary(u)? {
-            return Ok(builder.build());
+            return Ok(builder.build().unwrap());
         }
 
+        // TODO: Generate valid username
         let mut builder = builder.username(String::arbitrary(u).unwrap());
         if bool::arbitrary(u)? {
             builder = builder.password(Vec::<u8>::arbitrary(u).unwrap());
         }
 
         if bool::arbitrary(u)? {
-            return Ok(builder.build());
+            return Ok(builder.build().unwrap());
         }
 
         let mut builder = builder.will(
@@ -834,7 +837,7 @@ impl<'a> arbitrary::Arbitrary<'a> for Connect {
         let choices = [QoS::AtMostOnceDelivery, QoS::AtLeastOnceDelivery];
         builder = builder.will_qos(*u.choose(&choices)?);
 
-        Ok(builder.build())
+        Ok(builder.build().unwrap())
     }
 }
 
@@ -844,12 +847,12 @@ mod test {
 
     #[test]
     fn test_connect() {
-        let packet = Connect::builder().build();
+        let packet = Connect::builder().build().unwrap();
 
         let connect = Connect::try_from(packet.into_bytes()).unwrap();
         assert!(connect.will().is_none());
 
-        let packet = Connect::builder().username("admin").build();
+        let packet = Connect::builder().username("admin").build().unwrap();
 
         let connect = Connect::try_from(packet.into_bytes()).unwrap();
         assert_eq!(connect.username(), Some("admin"));
@@ -865,7 +868,7 @@ mod test {
     /// wouldn't match the actual length.
     #[test]
     fn test_gh_61_fix_for_building_long_connect_packet() {
-        let packet = Connect::builder().will("topic", [0; 255]).build();
+        let packet = Connect::builder().will("topic", [0; 255]).build().unwrap();
         assert!(Connect::try_from(packet.into_bytes()).is_ok());
     }
 }

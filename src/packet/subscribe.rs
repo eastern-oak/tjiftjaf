@@ -2,7 +2,7 @@
 use crate::{
     decode::{self, DecodingError},
     encode,
-    packet::UnverifiedFrame,
+    packet::{BuilderError, UnverifiedFrame},
     packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
 };
 
@@ -323,12 +323,12 @@ impl Builder {
         self
     }
 
-    pub fn build(self) -> Subscribe {
+    pub fn build(self) -> Result<Subscribe, BuilderError> {
         let mut variable_header: Vec<u8> = self.packet_identifier.to_be_bytes().to_vec();
 
         let mut payload = Vec::new();
         for (topic, qos) in self.topics {
-            payload.append(&mut encode::utf8(topic).to_vec());
+            payload.append(&mut encode::utf8(topic)?.to_vec());
             payload.push(qos as u8);
         }
 
@@ -341,11 +341,13 @@ impl Builder {
         packet.append(&mut variable_header);
         packet.append(&mut payload);
 
-        UnverifiedSubscribe { inner: packet }.verify().unwrap()
+        Ok(Subscribe {
+            inner: UnverifiedSubscribe { inner: packet },
+        })
     }
 
-    pub fn build_packet(self) -> Packet {
-        Packet::Subscribe(self.build())
+    pub fn build_packet(self) -> Result<Packet, BuilderError> {
+        Ok(Packet::Subscribe(self.build()?))
     }
 }
 
@@ -355,12 +357,15 @@ mod test {
 
     #[test]
     fn test_subscribe() {
-        let frame = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery).build();
+        let frame = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
+            .build()
+            .unwrap();
         let _: Subscribe = frame.into_bytes().try_into().unwrap();
 
         let frame = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
             .add_topic("topic-2", QoS::AtLeastOnceDelivery)
-            .build();
+            .build()
+            .unwrap();
         let _: Subscribe = frame.into_bytes().try_into().unwrap();
     }
 
@@ -375,7 +380,7 @@ mod test {
             builder = builder.add_topic("", QoS::AtMostOnceDelivery);
         }
 
-        builder.build();
+        builder.build().unwrap();
     }
 
     // Issue #45 tracks a bug when the `Subscribe.topics()` panics
@@ -389,7 +394,7 @@ mod test {
             builder = builder.add_topic("", QoS::AtMostOnceDelivery);
         }
 
-        let packet = builder.build();
+        let packet = builder.build().unwrap();
         let topics = packet.topics();
         for _ in topics {}
     }

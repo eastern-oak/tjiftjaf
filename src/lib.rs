@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 #[doc(inline)]
 pub use crate::decode::DecodingError;
+use crate::packet::BuilderError;
 #[doc(inline)]
 pub use crate::packet::{
     connack::ConnAck, connect::Connect, disconnect::Disconnect, ping_req::PingReq,
@@ -36,7 +37,7 @@ pub fn packet_identifier() -> u16 {
     seconds as u16
 }
 
-pub fn connect(client_id: String, keep_alive_interval: u16) -> Packet {
+pub fn connect(client_id: String, keep_alive_interval: u16) -> Result<Packet, BuilderError> {
     Connect::builder()
         .client_id(client_id)
         .keep_alive(keep_alive_interval)
@@ -53,7 +54,7 @@ pub fn connect(client_id: String, keep_alive_interval: u16) -> Packet {
 /// let topic = "sensor/1/#";
 /// Subscribe::builder(topic, QoS::AtMostOnceDelivery).build();
 /// ```
-pub fn subscribe(topic: &str) -> Subscribe {
+pub fn subscribe(topic: &str) -> Result<Subscribe, BuilderError> {
     Subscribe::builder(topic, QoS::AtMostOnceDelivery).build()
 }
 
@@ -67,7 +68,7 @@ pub fn subscribe(topic: &str) -> Subscribe {
 /// let topic = "sensor/1/#";
 /// Unsubscribe::builder(topic).build();
 /// ```
-pub fn unsubscribe(topic: &str) -> Unsubscribe {
+pub fn unsubscribe(topic: &str) -> Result<Unsubscribe, BuilderError> {
     Unsubscribe::builder(topic).build()
 }
 
@@ -84,7 +85,7 @@ pub fn unsubscribe(topic: &str) -> Unsubscribe {
 /// let payload = "26.1";
 /// Publish::builder(topic, payload).build();
 /// ```
-pub fn publish(topic: &str, payload: impl Into<Vec<u8>>) -> Publish {
+pub fn publish(topic: &str, payload: impl Into<Vec<u8>>) -> Result<Publish, BuilderError> {
     Publish::builder(topic, payload).build()
 }
 
@@ -423,7 +424,7 @@ mod test {
 
     fn decode_message(packet: Packet) -> Packet {
         let bytes = packet.into_bytes();
-        let mut binding = MqttBinding::from_connect(Connect::builder().build());
+        let mut binding = MqttBinding::from_connect(Connect::builder().build().unwrap());
         let mut offset = 0;
 
         loop {
@@ -441,7 +442,7 @@ mod test {
 
     #[test]
     fn test_publish() {
-        let packet = publish("zigbee2mqtt/light/state", r#"{"state":"on"}"#);
+        let packet = publish("zigbee2mqtt/light/state", r#"{"state":"on"}"#).unwrap();
 
         let packet = decode_message(packet.into());
 
@@ -450,7 +451,7 @@ mod test {
         // assert_eq!(packet.topic(), "$SYS/broker/uptime");
         assert_eq!(as_str(packet.payload()), r#"{"state":"on"}"#);
 
-        let packet = publish("$SYS/broker/uptime", r#"388641 seconds"#);
+        let packet = publish("$SYS/broker/uptime", r#"388641 seconds"#).unwrap();
 
         let packet = decode_message(packet.into());
         assert_eq!(packet.packet_type(), PacketType::Publish);
@@ -461,7 +462,8 @@ mod test {
         let packet = publish(
             "zigbee2mqtt/binary-switch",
             r#"{"action":"off","battery":100,"linkquality":3,"voltage":1400}"#,
-        );
+        )
+        .unwrap();
         let packet = decode_message(packet.into());
         assert_eq!(packet.packet_type(), PacketType::Publish);
         // assert_eq!(packet.topic(), "zigbee2mqtt/binary-switch");
@@ -473,7 +475,7 @@ mod test {
         let packet = publish(
             "zigbee2mqtt/thermo-hygrometer",
             r#"{"battery":100,"comfort_humidity_max":60,"comfort_humidity_min":40,"comfort_temperature_max":27,"comfort_temperature_min":19,"humidity":47.2,"linkquality":105,"temperature":24,"temperature_units":"fahrenheit","update":{"installed_version":4105,"latest_version":8960,"state":"available"}}"#,
-        );
+        ).unwrap();
 
         let packet = decode_message(packet.into());
 
@@ -493,7 +495,7 @@ mod test {
     /// should correctly decode the `Bytes` back into the `Packet` we started with.
     #[test]
     fn test_mqtt_binding_decoding_packets() {
-        let mut binding = MqttBinding::from_connect(Connect::builder().build());
+        let mut binding = MqttBinding::from_connect(Connect::builder().build().unwrap());
 
         for test in valid_packets() {
             let mut input = Cursor::new(test.clone().into_bytes());
@@ -522,11 +524,12 @@ mod test {
     fn valid_packets() -> Vec<Packet> {
         vec![
             PingReq.into(),
-            connect("test".to_string(), 300),
+            connect("test".to_string(), 300).unwrap(),
             Connect::builder()
                 .username("admin")
                 .password("secret")
                 .build()
+                .unwrap()
                 .into(),
             ConnAck::builder().build().into(),
         ]
@@ -543,14 +546,14 @@ mod test {
     // is 30 years in the future instead of 0 seconds.
     #[test]
     fn gh_53_test_fix_for_keep_alive_interval_of_0() {
-        let connect = Connect::builder().keep_alive(5).build();
+        let connect = Connect::builder().keep_alive(5).build().unwrap();
 
         let mut binding = MqttBinding::from_connect(connect);
         let interval = binding.poll_timeout() - Instant::now();
         assert_eq!(interval.as_secs_f32().round(), 5.0);
 
         // Now, try again with a keep alive interval of 0 seconds.
-        let connect = Connect::builder().keep_alive(0).build();
+        let connect = Connect::builder().keep_alive(0).build().unwrap();
 
         let mut binding = MqttBinding::from_connect(connect);
         let interval = binding.poll_timeout() - Instant::now();

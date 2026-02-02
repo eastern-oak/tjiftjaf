@@ -24,7 +24,8 @@ async fn main() {
         .client_id("tjiftjaf")
         .username("ro")
         .password("readonly")
-        .build();
+        .build()
+        .unwrap();
     let client = Client::new(connect, stream);
 
     // Spawn the event loop that monitors the socket.
@@ -32,6 +33,7 @@ async fn main() {
     let (handle, task) = client.spawn();
 
     subscribe("$SYS/broker/uptime")
+        .unwrap()
         .emit(&handle)
         .await
         .expect("Failed to subscribe to topic.");
@@ -45,6 +47,7 @@ async fn main() {
 async fn run(mut handle: ClientHandle) {
     let random_topic = packet_identifier().to_string();
     subscribe(&random_topic)
+        .unwrap()
         .emit(&handle)
         .await
         .expect("Failed to subscribe to topic.");
@@ -62,6 +65,7 @@ async fn run(mut handle: ClientHandle) {
         info!("{} - {:?}", packet.topic(), payload);
         if packet.topic() == "$SYS/broker/uptime" {
             publish(&random_topic, format!("{n} packets received"))
+                .unwrap()
                 .emit(&handle)
                 .await
                 .unwrap()
