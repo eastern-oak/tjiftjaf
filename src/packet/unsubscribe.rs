@@ -16,7 +16,8 @@ use crate::{
 ///
 /// let subscribe = Unsubscribe::builder("topic-1")
 ///     .add_topic("topic-2")
-///     .build();
+///     .build()
+///     .unwrap();
 ///
 /// let mut topics = subscribe.topics();
 /// assert_eq!(topics.next(), Some("topic-1"));
@@ -63,7 +64,8 @@ impl Unsubscribe {
     ///
     /// let unsubscribe = Unsubscribe::builder("topic-1")
     ///     .add_topic("topic-2")
-    ///     .build();
+    ///     .build()
+    ///     .unwrap();
     /// let mut topics = unsubscribe.topics();
     /// assert_eq!(topics.next(), Some("topic-1"));
     /// assert_eq!(topics.next(), Some("topic-2"));

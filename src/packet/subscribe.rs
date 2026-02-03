@@ -16,7 +16,8 @@ use crate::{
 ///
 /// let subscribe = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
 ///     .add_topic("topic-2", QoS::AtMostOnceDelivery)
-///     .build();
+///     .build()
+///     .unwrap();
 /// let mut topics = subscribe.topics();
 /// assert_eq!(topics.next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
 /// assert_eq!(topics.next(), Some(("topic-2", QoS::AtMostOnceDelivery)));
@@ -62,7 +63,8 @@ impl Subscribe {
     ///
     /// let subscribe = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
     ///     .add_topic("topic-2", QoS::AtMostOnceDelivery)
-    ///     .build();
+    ///     .build()
+    ///     .unwrap();
     /// let mut topics = subscribe.topics();
     /// assert_eq!(topics.next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
     /// assert_eq!(topics.next(), Some(("topic-2", QoS::AtMostOnceDelivery)));
@@ -86,10 +88,10 @@ impl crate::aio::Emit for Subscribe {
     /// # use tjiftjaf::{subscribe, Connect, QoS, aio::{Emit, Client}, packet_identifier};
     /// # smol::block_on(async {
     /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
-    /// # let connect = Connect::builder().build();
+    /// # let connect = Connect::builder().build().unwrap();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
-    /// subscribe("sensor/temperature/1").emit(&handle).await.unwrap();
+    /// subscribe("sensor/temperature/1").unwrap().emit(&handle).await.unwrap();
     /// while let Ok(publish) = handle.subscriptions().await {
     ///    println!(
     ///       "On topic {} received {:?}",
