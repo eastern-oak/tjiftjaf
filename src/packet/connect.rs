@@ -2,7 +2,7 @@
 use super::UnverifiedFrame;
 use crate::{
     decode::{self, DecodingError},
-    encode,
+    encode::{self, Topic},
     packet::BuilderError,
     Frame, Packet, PacketType, ProtocolLevel, QoS,
 };
@@ -232,6 +232,7 @@ impl UnverifiedConnect {
         let (will_topic, _) = decode::field::variable_length_n(payload, 1)?;
         let will_topic = std::str::from_utf8(will_topic)
             .map_err(|_| DecodingError::InvalidValue("Payload is not valid UTF-8".into()))?;
+        let will_topic = Topic::new(will_topic)?;
         let (will_message, _) = decode::field::variable_length_n(payload, 2)?;
 
         Ok(Some(Will {
@@ -440,7 +441,7 @@ impl std::fmt::Debug for Flags {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Will<'a> {
-    topic: &'a str,
+    topic: Topic<'a>,
     // TODO: change to bytes
     message: &'a [u8],
 
@@ -450,7 +451,7 @@ pub struct Will<'a> {
 
 impl<'a> Will<'a> {
     /// Retrieve the will topic.
-    pub fn topic(&self) -> &str {
+    pub fn topic(&self) -> Topic<'_> {
         self.topic
     }
 
@@ -683,7 +684,7 @@ impl<A, W> Builder<A, W> {
 
         let mut payload = encode::utf8(self.client_id)?;
         if let Some(will_topic) = self.will_topic {
-            // TODO: validate topic
+            Topic::new(&will_topic)?;
             payload.append(&mut encode::utf8(will_topic)?);
         }
 
@@ -870,5 +871,18 @@ mod test {
     fn test_gh_61_fix_for_building_long_connect_packet() {
         let packet = Connect::builder().will("topic", [0; 255]).build().unwrap();
         assert!(Connect::try_from(packet.into_bytes()).is_ok());
+    }
+
+    #[test]
+    fn test_connect_with_illegal_will() {
+        assert!(Connect::builder().will("", "Optimus died").build().is_err());
+        assert!(Connect::builder()
+            .will("sensors/+", "Optimus died")
+            .build()
+            .is_err());
+        assert!(Connect::builder()
+            .will("#", "Optimus died")
+            .build()
+            .is_err());
     }
 }

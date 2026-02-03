@@ -1,5 +1,5 @@
 use super::decode::{packet_length, DecodingError, InvalidPacketTypeError};
-use crate::encode::EncodingError;
+use crate::encode::{EncodingError, ValueError};
 use crate::{
     decode, ConnAck, Connect, Disconnect, PingReq, PingResp, PubAck, PubComp, PubRec, PubRel,
     Publish, SubAck, Subscribe, UnsubAck, Unsubscribe,
@@ -496,6 +496,7 @@ pub trait UnverifiedFrame {
 pub enum BuilderError {
     TooLong,
     IllegalValue,
+    Other(String),
 }
 
 impl From<EncodingError> for BuilderError {
@@ -504,5 +505,11 @@ impl From<EncodingError> for BuilderError {
             EncodingError::TooLong => Self::TooLong,
             EncodingError::IllegalValue => Self::IllegalValue,
         }
+    }
+}
+
+impl From<ValueError> for BuilderError {
+    fn from(value: ValueError) -> Self {
+        Self::Other(value.to_string())
     }
 }

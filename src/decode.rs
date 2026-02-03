@@ -1,5 +1,6 @@
+use crate::encode::ValueError;
+
 // Decode fields
-//
 use super::PacketType;
 use std::fmt::Display;
 
@@ -55,6 +56,12 @@ impl Display for DecodingError {
             Self::Other => "Some other error",
         };
         write!(f, "{msg}")
+    }
+}
+
+impl From<ValueError> for DecodingError {
+    fn from(_: ValueError) -> Self {
+        DecodingError::Other
     }
 }
 

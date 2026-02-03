@@ -60,7 +60,7 @@ mod aio {
         let Packet::Publish(publish) = packet else {
             panic!();
         };
-        assert_eq!(publish.topic(), TOPIC);
+        assert_eq!(publish.topic().as_str(), TOPIC);
         assert_eq!(publish.payload(), b"test_subscribe_and_publish");
 
         // TODO GH-118: When uncommented, this line causes the test to become
@@ -125,7 +125,7 @@ mod aio {
 
         let publish = handle_a.subscriptions().await.unwrap();
 
-        assert_eq!(publish.topic(), TOPIC);
+        assert_eq!(publish.topic().as_str(), TOPIC);
         assert_eq!(publish.payload(), b"test_subscribe_and_publish");
     }
 
@@ -216,7 +216,7 @@ mod aio {
             .unwrap();
 
         let publication = handle_1.subscriptions().await.unwrap();
-        assert_eq!(&publication.topic(), &"test/client_and_server");
+        assert_eq!(&publication.topic().as_str(), &"test/client_and_server");
         assert_eq!(&publication.payload(), b"test_subscribe_and_publish");
     }
 }
@@ -269,7 +269,7 @@ mod blocking {
 
         let publish = handle_a.publication().unwrap();
 
-        assert_eq!(publish.topic(), TOPIC);
+        assert_eq!(publish.topic().as_str(), TOPIC);
         assert_eq!(publish.payload(), b"test_subscribe_and_publish");
 
         handle_a.disconnect().unwrap();

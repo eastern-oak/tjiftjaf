@@ -1,7 +1,7 @@
 //! Providing [`Publish`], used by both client and server to send a message on a topic.
 use crate::{
     decode::{self, DecodingError},
-    encode,
+    encode::{self, Topic},
     packet::{BuilderError, UnverifiedFrame},
     packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
 };
@@ -54,7 +54,7 @@ impl Publish {
     }
 
     /// Get the topic this message is published to.
-    pub fn topic(&self) -> &str {
+    pub fn topic(&self) -> Topic<'_> {
         self.inner.topic().unwrap()
     }
 
@@ -133,9 +133,11 @@ struct UnverifiedPublish {
 }
 
 impl UnverifiedPublish {
-    fn topic(&self) -> Result<&str, DecodingError> {
+    fn topic(&self) -> Result<Topic<'_>, DecodingError> {
         let var_header = self.try_variable_header()?;
+
         let (topic, _) = decode::field::utf8(var_header)?;
+        let topic = Topic::new(topic)?;
         Ok(topic)
     }
 
@@ -297,6 +299,9 @@ impl Builder {
         fixed_header.push((PacketType::Publish as u8) << 4 | flags);
 
         let mut variable_header = Vec::new();
+        // Verify that topic is valid.
+        _ = Topic::new(&self.topic)?;
+
         variable_header.append(&mut encode::utf8(self.topic)?.to_vec());
 
         // The Packet Identifier field is only present in PUBLISH Packets where the QoS level is 1 or 2. Section 2.3.1 provides more information about Packet Identifiers.
@@ -391,7 +396,7 @@ mod tests {
             .unwrap();
 
         println!("{:?}", packet.as_bytes());
-        assert_eq!(packet.topic(), "test/topic");
+        assert_eq!(packet.topic().as_ref(), "test/topic");
         assert_eq!(packet.payload(), b"Hello MQTT!");
         assert_eq!(packet.qos(), QoS::AtMostOnceDelivery);
         assert!(packet.retain());
@@ -425,5 +430,16 @@ mod tests {
         let decoded = Publish::try_from(bytes).unwrap();
 
         assert_eq!(original, decoded);
+    }
+
+    #[test]
+    fn test_publish_with_illegal_topic() {
+        assert!(Publish::builder("", "Hello MQTT!").build().is_err());
+        assert!(Publish::builder("/sensor/+", "Hello MQTT!")
+            .build()
+            .is_err());
+        assert!(Publish::builder("/sensor/#", "Hello MQTT!")
+            .build()
+            .is_err());
     }
 }

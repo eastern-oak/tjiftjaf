@@ -55,9 +55,9 @@ impl Server {
                 let mut disconnected_clients: Vec<String> = Vec::new();
                 let needle = publish.topic();
                 let subscriptions = self.subscriptions.iter().filter(|(_, (_, topics))| {
-                    topics
-                        .iter()
-                        .any(|subscription| does_topic_match_subscription(subscription, needle))
+                    topics.iter().any(|subscription| {
+                        does_topic_match_subscription(subscription, needle.as_str())
+                    })
                 });
 
                 for (client_id, (peer, _)) in subscriptions {
