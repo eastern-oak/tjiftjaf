@@ -18,7 +18,8 @@ use crate::{
 /// let packet = Publish::builder("test/topic", "Hello MQTT!")
 ///     .qos(QoS::AtMostOnceDelivery)
 ///     .retain(true)
-///     .build().unwrap();
+///     .build()
+///     .unwrap();
 ///
 /// assert_eq!(packet.topic(), "test/topic");
 /// assert_eq!(packet.payload(), b"Hello MQTT!");

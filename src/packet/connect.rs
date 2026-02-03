@@ -21,7 +21,8 @@ use std::marker::PhantomData;
 ///   .client_id("test")
 ///   .username("optimus")
 ///   .password("prime")
-///   .build().unwrap();
+///   .build()
+///   .unwrap();
 ///
 /// assert_eq!(packet.client_id(), "test");
 /// assert_eq!(packet.username(), Some("optimus"));
@@ -123,7 +124,8 @@ impl Connect {
     /// let packet = Connect::builder()
     ///     .username("optimus")
     ///     .password("prime")
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     /// assert_eq!(packet.password(), Some("prime".as_bytes()));
     /// ```
     pub fn password(&self) -> Option<&[u8]> {
@@ -141,7 +143,8 @@ impl Connect {
     /// let packet = Connect::builder()
     ///     .will("topic", "optimus died")
     ///     .retain_will()
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     ///
     /// let will = packet.will().unwrap();
     /// assert_eq!(will.topic(), "topic");
@@ -605,7 +608,8 @@ impl<A, W> Builder<A, W> {
     /// let packet = Connect::builder()
     ///     .will("topic", "optimus died")
     ///     .retain_will()
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     ///
     /// let will = packet.will().unwrap();
     /// assert_eq!(will.topic(), "topic");
@@ -646,13 +650,15 @@ impl<A, W> Builder<A, W> {
     ///
     /// let packet = Connect::builder()
     ///     .client_id("client-1")
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     /// assert_eq!(packet.flags().clean_session(), false);
     ///
     /// let packet = Connect::builder()
     ///     .client_id("client-1")
     ///     .clean_session()
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     ///
     /// assert_eq!(packet.flags().clean_session(), true);
     /// ```
@@ -731,7 +737,8 @@ impl<WithAuth, W> Builder<WithAuth, W> {
     /// let packet = Connect::builder()
     ///     .username("optimus")
     ///     .password("prime")
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     /// assert_eq!(packet.password(), Some("prime".as_bytes()));
     /// ```
     pub fn password(mut self, password: impl Into<Vec<u8>>) -> Self {
@@ -752,7 +759,8 @@ impl<A, WithWill> Builder<A, WithWill> {
     /// let packet = Connect::builder()
     ///     .will("topic", "optimus died")
     ///     .will_qos(QoS::ExactlyOnceDelivery)
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     ///
     /// let will = packet.will().unwrap();
     /// assert_eq!(will.topic(), "topic");
@@ -777,7 +785,8 @@ impl<A, WithWill> Builder<A, WithWill> {
     /// let packet = Connect::builder()
     ///     .will("topic", "optimus died")
     ///     .retain_will()
-    ///     .build().unwrap();
+    ///     .build()
+    ///     .unwrap();
     ///
     /// let will = packet.will().unwrap();
     /// assert_eq!(will.topic(), "topic");
