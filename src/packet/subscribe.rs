@@ -118,7 +118,7 @@ impl crate::blocking::Emit for Subscribe {
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, _task) = client.spawn().unwrap();
-    /// subscribe("sensor/temperature/1")
+    /// subscribe("sensor/temperature/1").unwrap()
     ///    .emit(&handle)
     ///    .unwrap();
     /// while let Ok(publish) = handle.publication() {

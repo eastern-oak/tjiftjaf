@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 ///   .client_id("test")
 ///   .username("optimus")
 ///   .password("prime")
-///   .build();
+///   .build().unwrap();
 ///
 /// assert_eq!(packet.client_id(), "test");
 /// assert_eq!(packet.username(), Some("optimus"));
@@ -59,7 +59,7 @@ impl Connect {
     /// ```
     /// use tjiftjaf::Connect;
     ///
-    /// let packet = Connect::builder().username("optimus").build();
+    /// let packet = Connect::builder().username("optimus").build().unwrap();
     /// assert_eq!(packet.flags().username(), true);
     /// assert_eq!(packet.flags().password(), false);
     /// ```
@@ -72,10 +72,10 @@ impl Connect {
     /// ```
     /// use tjiftjaf::Connect;
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     /// assert_eq!(packet.client_id(), "");
     ///
-    /// let packet = Connect::builder().client_id("host-23").build();
+    /// let packet = Connect::builder().client_id("host-23").build().unwrap();
     /// assert_eq!(packet.client_id(), "host-23");
     /// ```
     pub fn client_id(&self) -> &str {
@@ -87,10 +87,10 @@ impl Connect {
     /// ```
     /// use tjiftjaf::Connect;
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     /// assert_eq!(packet.keep_alive(), 0);
     ///
-    /// let packet = Connect::builder().keep_alive(60).build();
+    /// let packet = Connect::builder().keep_alive(60).build().unwrap();
     /// assert_eq!(packet.keep_alive(), 60);
     /// ```
     pub fn keep_alive(&self) -> u16 {
@@ -102,10 +102,10 @@ impl Connect {
     /// ```
     /// use tjiftjaf::Connect;
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     /// assert_eq!(packet.username(), None);
     ///
-    /// let packet = Connect::builder().username("optimus").build();
+    /// let packet = Connect::builder().username("optimus").build().unwrap();
     /// assert_eq!(packet.username(), Some("optimus"));
     /// ```
     pub fn username(&self) -> Option<&str> {
@@ -117,13 +117,13 @@ impl Connect {
     /// ```
     /// use tjiftjaf::Connect;
     ///
-    /// let packet = Connect::builder().username("optimus").build();
+    /// let packet = Connect::builder().username("optimus").build().unwrap();
     /// assert_eq!(packet.password(), None);
     ///
     /// let packet = Connect::builder()
     ///     .username("optimus")
     ///     .password("prime")
-    ///     .build();
+    ///     .build().unwrap();
     /// assert_eq!(packet.password(), Some("prime".as_bytes()));
     /// ```
     pub fn password(&self) -> Option<&[u8]> {
@@ -135,13 +135,13 @@ impl Connect {
     /// ```
     /// use tjiftjaf::{QoS, Connect};
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     /// assert_eq!(packet.will(), None);
     ///
     /// let packet = Connect::builder()
     ///     .will("topic", "optimus died")
     ///     .retain_will()
-    ///     .build();
+    ///     .build().unwrap();
     ///
     /// let will = packet.will().unwrap();
     /// assert_eq!(will.topic(), "topic");
@@ -496,7 +496,7 @@ pub struct WithWill;
 ///   .client_id("test")
 ///   .username("optimus")
 ///   .password("prime")
-///   .build();
+///   .build().unwrap();
 ///
 /// assert_eq!(packet.client_id(), "test");
 /// assert_eq!(packet.username(), Some("optimus"));
@@ -540,10 +540,10 @@ impl<A, W> Builder<A, W> {
     /// ```
     /// use tjiftjaf::Connect;
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     /// assert_eq!(packet.client_id(), "");
     ///
-    /// let packet = Connect::builder().client_id("host-23").build();
+    /// let packet = Connect::builder().client_id("host-23").build().unwrap();
     /// assert_eq!(packet.client_id(), "host-23");
     /// ```
     pub fn client_id(mut self, client_id: impl ToString) -> Self {
@@ -556,10 +556,10 @@ impl<A, W> Builder<A, W> {
     /// ```
     /// use tjiftjaf::Connect;
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     /// assert_eq!(packet.keep_alive(), 0);
     ///
-    /// let packet = Connect::builder().keep_alive(60).build();
+    /// let packet = Connect::builder().keep_alive(60).build().unwrap();
     /// assert_eq!(packet.keep_alive(), 60);
     /// ```
     pub fn keep_alive(mut self, interval: u16) -> Self {
@@ -572,10 +572,10 @@ impl<A, W> Builder<A, W> {
     /// ```
     /// use tjiftjaf::Connect;
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     /// assert_eq!(packet.username(), None);
     ///
-    /// let packet = Connect::builder().username("optimus").build();
+    /// let packet = Connect::builder().username("optimus").build().unwrap();
     /// assert_eq!(packet.username(), Some("optimus"));
     /// ```
     pub fn username(mut self, username: impl ToString) -> Builder<WithAuth, W> {
@@ -599,13 +599,13 @@ impl<A, W> Builder<A, W> {
     /// ```
     /// use tjiftjaf::{QoS, Connect};
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     /// assert_eq!(packet.will(), None);
     ///
     /// let packet = Connect::builder()
     ///     .will("topic", "optimus died")
     ///     .retain_will()
-    ///     .build();
+    ///     .build().unwrap();
     ///
     /// let will = packet.will().unwrap();
     /// assert_eq!(will.topic(), "topic");
@@ -638,7 +638,7 @@ impl<A, W> Builder<A, W> {
     /// ```
     /// use tjiftjaf::{QoS, Connect};
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     ///
     /// // Without client id, the clean session flag is always true.
     /// assert_eq!(packet.client_id(), "");
@@ -646,13 +646,13 @@ impl<A, W> Builder<A, W> {
     ///
     /// let packet = Connect::builder()
     ///     .client_id("client-1")
-    ///     .build();
+    ///     .build().unwrap();
     /// assert_eq!(packet.flags().clean_session(), false);
     ///
     /// let packet = Connect::builder()
     ///     .client_id("client-1")
     ///     .clean_session()
-    ///     .build();
+    ///     .build().unwrap();
     ///
     /// assert_eq!(packet.flags().clean_session(), true);
     /// ```
@@ -725,13 +725,13 @@ impl<WithAuth, W> Builder<WithAuth, W> {
     /// ```
     /// use tjiftjaf::Connect;
     ///
-    /// let packet = Connect::builder().username("optimus").build();
+    /// let packet = Connect::builder().username("optimus").build().unwrap();
     /// assert_eq!(packet.password(), None);
     ///
     /// let packet = Connect::builder()
     ///     .username("optimus")
     ///     .password("prime")
-    ///     .build();
+    ///     .build().unwrap();
     /// assert_eq!(packet.password(), Some("prime".as_bytes()));
     /// ```
     pub fn password(mut self, password: impl Into<Vec<u8>>) -> Self {
@@ -746,13 +746,13 @@ impl<A, WithWill> Builder<A, WithWill> {
     /// ```
     /// use tjiftjaf::{QoS, Connect};
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     /// assert_eq!(packet.will(), None);
     ///
     /// let packet = Connect::builder()
     ///     .will("topic", "optimus died")
     ///     .will_qos(QoS::ExactlyOnceDelivery)
-    ///     .build();
+    ///     .build().unwrap();
     ///
     /// let will = packet.will().unwrap();
     /// assert_eq!(will.topic(), "topic");
@@ -771,13 +771,13 @@ impl<A, WithWill> Builder<A, WithWill> {
     /// ```
     /// use tjiftjaf::{QoS, Connect};
     ///
-    /// let packet = Connect::builder().build();
+    /// let packet = Connect::builder().build().unwrap();
     /// assert_eq!(packet.will(), None);
     ///
     /// let packet = Connect::builder()
     ///     .will("topic", "optimus died")
     ///     .retain_will()
-    ///     .build();
+    ///     .build().unwrap();
     ///
     /// let will = packet.will().unwrap();
     /// assert_eq!(will.topic(), "topic");
