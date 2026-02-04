@@ -105,6 +105,8 @@ impl Client {
         // the buffer is full. Then, request the binding to decode the buffer.
         // This operation might yield a mqtt::Packet for further processing.
         loop {
+            // 0. Retrieve any instructions from the applications, if any,
+            // and forward them to the binding
             while let Ok(packet) = receiver.try_recv() {
                 self.binding.send(packet);
             }
