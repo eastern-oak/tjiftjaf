@@ -4,7 +4,7 @@ use tjiftjaf::{packet::subscribe::Builder, Frame, Subscribe};
 
 fuzz_target!(|data: Builder| {
     // Verify this call doesn't panic.
-    let subscribe_1 = data.build();
+    let subscribe_1 = data.build().unwrap();
     let bytes = subscribe_1.clone().into_bytes();
     let subscribe_2 = Subscribe::try_from(bytes.clone()).unwrap();
 
