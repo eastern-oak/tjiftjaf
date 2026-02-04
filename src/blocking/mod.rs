@@ -110,6 +110,8 @@ impl Client {
             }
 
             loop {
+                // 1. Retrieve a packet from the binding and
+                // send it over the connection to the other peer.
                 match self.binding.poll_transmits(Instant::now()) {
                     Ok(Some(bytes)) => {
                         self.socket.write_all(&bytes)?;
@@ -123,16 +125,25 @@ impl Client {
                 }
             }
 
+            // 2. Ask the binding when we should poll for packets it again.
             let timeout = self.binding.poll_timeout();
             poll.poll(&mut events, Some(timeout - Instant::now()))?;
 
+            // 3. Wait for one of 3 events:
+            //    a. A message is available on the channel. This channel
+            //       allows the application to send MQTT messages to the
+            //       server, e.g. to publish a message or subscribe to a topic.
+            //    b. The poll timeout has expired
+            //    c. Some data is ready to read from the socket
             for event in events.iter() {
+                // a. A message is available on a channel. Forward it to the binding.
                 if event.token() == PUBLISH {
                     while let Ok(packet) = receiver.try_recv() {
                         self.binding.send(packet);
                     }
                 }
 
+                // b. The poll timeout has expired. Return to the start of loop.
                 if event.token() != CLIENT {
                     continue;
                 }
@@ -141,6 +152,8 @@ impl Client {
                     continue;
                 }
 
+                // c. Read bytes from the socket and forward them to
+                //    to the binding.
                 loop {
                     let mut buffer = self.binding.get_read_buffer();
                     self.socket.read_exact(&mut buffer)?;
