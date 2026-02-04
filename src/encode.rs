@@ -21,8 +21,15 @@ impl<'a> Topic<'a> {
         Ok(Self(value))
     }
 
+    /// Return the inner string slice.
     pub fn as_str(&self) -> &str {
         self.0
+    }
+}
+
+impl<'a> PartialEq<&str> for Topic<'a> {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
     }
 }
 

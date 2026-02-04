@@ -1,4 +1,5 @@
 use crate::{
+    encode::Topic,
     packet::{self, connack::ReturnCode},
     ConnAck, Connect, DecodingError, Packet, PingResp, SubAck,
 };
@@ -55,9 +56,9 @@ impl Server {
                 let mut disconnected_clients: Vec<String> = Vec::new();
                 let needle = publish.topic();
                 let subscriptions = self.subscriptions.iter().filter(|(_, (_, topics))| {
-                    topics.iter().any(|subscription| {
-                        does_topic_match_subscription(subscription, needle.as_str())
-                    })
+                    topics
+                        .iter()
+                        .any(|subscription| does_topic_match_subscription(subscription, needle))
                 });
 
                 for (client_id, (peer, _)) in subscriptions {
@@ -345,17 +346,17 @@ enum Message {
 
 // Verify if a topic match a subscription. The subscription may
 // include wildcards like `#` and `+`.
-fn does_topic_match_subscription(subscription: &str, topic: &str) -> bool {
+fn does_topic_match_subscription(subscription: &str, topic: Topic<'_>) -> bool {
     // If no wild cards are used, check for exact match
     if !subscription.contains('#') && !subscription.contains('+') {
-        return subscription == topic;
+        return topic == subscription;
     }
 
     if let Some((prefix, _)) = subscription.split_once('#') {
-        return topic.starts_with(prefix);
+        return topic.as_str().starts_with(prefix);
     }
 
-    let mut topic_segments = topic.split('/');
+    let mut topic_segments = topic.as_str().split('/');
 
     for filter in subscription.split('/') {
         // The topic and a subscription using `+` must have the same
@@ -384,39 +385,41 @@ fn does_topic_match_subscription(subscription: &str, topic: &str) -> bool {
 
 #[cfg(test)]
 mod test {
+    use crate::encode::Topic;
+
     use super::does_topic_match_subscription;
 
     #[test]
     fn test_does_topic_match_subscription() {
         assert!(does_topic_match_subscription(
             "sensors/3/value",
-            "sensors/3/value"
+            Topic::new("sensors/3/value").unwrap()
         ));
 
         assert!(does_topic_match_subscription(
             "sensors/+/value",
-            "sensors/3/value"
+            Topic::new("sensors/3/value").unwrap()
         ));
 
         assert!(does_topic_match_subscription(
             "sensors/+/+",
-            "sensors/3/value"
+            Topic::new("sensors/3/value").unwrap()
         ));
 
         assert!(does_topic_match_subscription(
             "sensors/#",
-            "sensors/3/value"
+            Topic::new("sensors/3/value").unwrap()
         ));
 
         // These topics don't match
         assert!(!does_topic_match_subscription(
             "sensors/3/value",
-            "sensors/1/value"
+            Topic::new("sensors/1/value").unwrap()
         ));
 
         assert!(!does_topic_match_subscription(
             "sensors/+/value",
-            "sensors/1/name"
+            Topic::new("sensors/1/name").unwrap()
         ));
     }
 }
