@@ -4,7 +4,7 @@ use crate::verify_utf8;
 ///
 /// The first 2 bytes encode the strings length, followed by
 /// the string.
-pub fn utf8(value: String) -> Result<Vec<u8>, EncodingError> {
+pub(crate) fn utf8(value: String) -> Result<Vec<u8>, EncodingError> {
     verify_utf8(&value)?;
 
     let mut bytes = Vec::with_capacity(value.len() + 2);
@@ -16,7 +16,7 @@ pub fn utf8(value: String) -> Result<Vec<u8>, EncodingError> {
 
 // TODO: Consider taking `Vec<u8>` to make clear that
 // function clones value.
-pub fn bytes(value: &[u8]) -> Vec<u8> {
+pub(crate) fn bytes(value: &[u8]) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(value.len() + 2);
     // TODO: Check for maximum length of string.
     bytes.extend_from_slice(&((value.len() as u16).to_be_bytes()));
@@ -24,7 +24,7 @@ pub fn bytes(value: &[u8]) -> Vec<u8> {
     bytes
 }
 
-pub fn remaining_length(length: usize) -> Vec<u8> {
+pub(crate) fn remaining_length(length: usize) -> Vec<u8> {
     // TODO: proper validation and error handling.
     assert!(length <= 268_435_455);
 
