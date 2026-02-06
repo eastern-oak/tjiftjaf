@@ -18,10 +18,12 @@ use crate::{
 ///     .add_filter("topic-2", QoS::AtMostOnceDelivery)
 ///     .build()
 ///     .unwrap();
-/// let mut topics = subscribe.filters();
-/// assert_eq!(topics.next(), Some((Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery)));
-/// assert_eq!(topics.next(), Some((Filter::new("topic-2").unwrap(), QoS::AtMostOnceDelivery)));
-/// assert_eq!(topics.next(), None);
+/// assert_eq!(subscribe.filters(),
+///     vec![
+///         (Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery),
+///         (Filter::new("topic-2").unwrap(), QoS::AtMostOnceDelivery),
+///     ]
+/// );
 /// ```
 ///
 /// Alternatively, try decoding some bytes as `Subscribe`.
@@ -31,7 +33,7 @@ use crate::{
 /// let frame = vec![130, 12, 75, 66, 0, 7, 116, 111, 112, 105, 99, 45, 49, 0];
 /// let packet = Subscribe::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 19266);
-/// assert_eq!(packet.filters().next(), Some((Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery)));
+/// assert_eq!(packet.filters(), vec![(Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery)]);
 /// ```
 #[derive(Clone, PartialEq, Eq)]
 pub struct Subscribe {
@@ -65,16 +67,26 @@ impl Subscribe {
     ///     .add_filter("topic-2", QoS::AtMostOnceDelivery)
     ///     .build()
     ///     .unwrap();
-    /// let mut topics = subscribe.filters();
-    /// assert_eq!(topics.next(), Some((Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery)));
-    /// assert_eq!(topics.next(), Some((Filter::new("topic-2").unwrap(), QoS::AtMostOnceDelivery)));
-    /// assert_eq!(topics.next(), None);
+    /// assert_eq!(subscribe.filters(),
+    ///     vec![
+    ///         (Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery),
+    ///         (Filter::new("topic-2").unwrap(), QoS::AtMostOnceDelivery),
+    ///     ]
+    /// );
     /// ```
-    pub fn filters(&self) -> Filters<'_> {
-        Filters {
-            topics: self.payload(),
-            offset: 0,
+    pub fn filters(&self) -> Vec<(Filter<'_>, QoS)> {
+        let mut filters = Vec::new();
+        let mut payload = self.payload();
+
+        while !payload.is_empty() {
+            let (filter, offset) = decode::field::utf8(payload).expect("Failed to extract topic. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
+            let filter = Filter::new(filter).unwrap();
+            let qos = QoS::try_from(payload[offset]).expect("Failed to extract QoS. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
+            filters.push((filter, qos));
+
+            payload = &payload[offset + 1..];
         }
+        filters
     }
 }
 
@@ -179,29 +191,6 @@ impl std::fmt::Debug for Subscribe {
             .field("packet_identifier", &self.packet_identifier())
             .field("topics", &list)
             .finish()
-    }
-}
-
-#[derive(Debug)]
-pub struct Filters<'a> {
-    pub(crate) topics: &'a [u8],
-    pub(crate) offset: usize,
-}
-
-impl<'a> Iterator for Filters<'a> {
-    type Item = (Filter<'a>, QoS);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.offset >= self.topics.len() {
-            return None;
-        }
-
-        let (topic, offset) = decode::field::utf8(&self.topics[self.offset..]).expect("Failed to extract topic. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
-        let topic = Filter::new(topic).unwrap();
-        self.offset += offset;
-        let qos = QoS::try_from(self.topics[self.offset]).expect("Failed to extract QoS. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
-        self.offset += 1;
-        Some((topic, qos))
     }
 }
 

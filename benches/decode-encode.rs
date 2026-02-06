@@ -33,7 +33,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("decode/encode Subscribe", |b| {
         let packet: Packet = Subscribe::builder("sensors/temperature/1", QoS::AtMostOnceDelivery)
-            .add_topic("sensors/humidity/2", QoS::AtMostOnceDelivery)
+            .add_filter("sensors/humidity/2", QoS::AtMostOnceDelivery)
             .build()
             .unwrap()
             .into();

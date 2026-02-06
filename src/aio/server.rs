@@ -241,14 +241,14 @@ impl Client {
                             return Ok(());
                         }
                         Packet::Subscribe(subscribe) => {
-                            let mut topics = subscribe.filters();
-
+                            let filters = subscribe.filters();
+                            let mut filters = filters.iter();
                             // This should not panic, as subscribe must contain 1 topic.
-                            let (_, qos) = topics.next().unwrap();
+                            let (_, qos) = filters.next().unwrap();
 
-                            let mut builder = SubAck::builder(subscribe.packet_identifier(), qos);
-                            for (_, qos) in topics {
-                                builder = builder.add_return_code(qos);
+                            let mut builder = SubAck::builder(subscribe.packet_identifier(), *qos);
+                            for (_, qos) in filters {
+                                builder = builder.add_return_code(*qos);
                             }
                             funnel
                                 .send(Message::Packet(self.client_id().to_owned(), Packet::Subscribe(subscribe)))
