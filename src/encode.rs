@@ -50,7 +50,48 @@ impl std::fmt::Display for Topic<'_> {
 // Wildcard '#' is the last char of a filter.
 // Wildcard '#' is preceded by nothing or a '/'
 // Wildcard '+' must be preceded by nothing or a '/'
-// pub struct Filter(String);
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Filter<'a>(&'a str);
+
+impl<'a> Filter<'a> {
+    pub fn new(value: &'a str) -> Result<Self, ValueError> {
+        if value.is_empty() {
+            return Err(ValueError::new("Topic", "must have at least one byte"));
+        }
+
+        verify_utf8(value).unwrap();
+        for (index, pattern) in value.match_indices(['+', '#']) {
+            if pattern == "#" {
+                // The '#' can appear only once and it must be the last character of
+                // a filter.
+                if index + 1 != value.len() {
+                    panic!()
+                }
+
+                // If '#' is _not_ the only character in the filter, must be
+                // preceded by a '/'.
+                if index > 0 && value.chars().nth(index - 1).unwrap() != '/' {
+                    panic!()
+                }
+            }
+
+            if pattern == "+" {
+                // If '+' is _not_ the only character in the filter, must be
+                // preceded by a '/'.
+                if index > 0 && value.chars().nth(index - 1).unwrap() != '/' {
+                    panic!()
+                }
+            }
+        }
+
+        Ok(Filter(value))
+    }
+
+    /// Return the inner string slice.
+    pub fn as_str(&self) -> &str {
+        self.0
+    }
+}
 
 #[derive(Debug)]
 pub struct ValueError {

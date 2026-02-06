@@ -22,6 +22,8 @@ mod encode;
 pub mod packet;
 mod validate;
 
+pub use encode::{Filter, Topic};
+
 #[cfg(feature = "blocking")]
 pub mod blocking;
 

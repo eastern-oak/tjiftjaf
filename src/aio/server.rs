@@ -48,8 +48,8 @@ impl Server {
                     return Ok(());
                 };
 
-                for (topic, _) in subscribe.topics() {
-                    topics.push(topic.to_owned());
+                for (filter, _) in subscribe.filters() {
+                    topics.push(filter.as_str().to_owned());
                 }
             }
             Message::Packet(_, Packet::Publish(publish)) => {
@@ -241,7 +241,7 @@ impl Client {
                             return Ok(());
                         }
                         Packet::Subscribe(subscribe) => {
-                            let mut topics = subscribe.topics();
+                            let mut topics = subscribe.filters();
 
                             // This should not panic, as subscribe must contain 1 topic.
                             let (_, qos) = topics.next().unwrap();

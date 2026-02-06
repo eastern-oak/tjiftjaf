@@ -1,7 +1,7 @@
 //! Providing [`Subscribe`], used by client to express interest in one or more topics.
 use crate::{
     decode::{self, DecodingError},
-    encode,
+    encode::{self, Filter},
     packet::{BuilderError, UnverifiedFrame},
     packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
 };
@@ -12,26 +12,26 @@ use crate::{
 ///
 /// Use a [`Builder`] to construct `Subscribe`.
 /// ```
-/// use tjiftjaf::{Subscribe, QoS};
+/// use tjiftjaf::{Subscribe, QoS, Filter};
 ///
 /// let subscribe = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
-///     .add_topic("topic-2", QoS::AtMostOnceDelivery)
+///     .add_filter("topic-2", QoS::AtMostOnceDelivery)
 ///     .build()
 ///     .unwrap();
-/// let mut topics = subscribe.topics();
-/// assert_eq!(topics.next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
-/// assert_eq!(topics.next(), Some(("topic-2", QoS::AtMostOnceDelivery)));
+/// let mut topics = subscribe.filters();
+/// assert_eq!(topics.next(), Some((Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery)));
+/// assert_eq!(topics.next(), Some((Filter::new("topic-2").unwrap(), QoS::AtMostOnceDelivery)));
 /// assert_eq!(topics.next(), None);
 /// ```
 ///
 /// Alternatively, try decoding some bytes as `Subscribe`.
 /// ```
-/// use tjiftjaf::{Subscribe, QoS};
+/// use tjiftjaf::{Subscribe, QoS, Filter};
 ///
 /// let frame = vec![130, 12, 75, 66, 0, 7, 116, 111, 112, 105, 99, 45, 49, 0];
 /// let packet = Subscribe::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 19266);
-/// assert_eq!(packet.topics().next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
+/// assert_eq!(packet.filters().next(), Some((Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery)));
 /// ```
 #[derive(Clone, PartialEq, Eq)]
 pub struct Subscribe {
@@ -59,19 +59,19 @@ impl Subscribe {
     /// # Example
     ///
     /// ```
-    /// use tjiftjaf::{Subscribe, QoS};
+    /// use tjiftjaf::{Subscribe, QoS, Filter};
     ///
     /// let subscribe = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
-    ///     .add_topic("topic-2", QoS::AtMostOnceDelivery)
+    ///     .add_filter("topic-2", QoS::AtMostOnceDelivery)
     ///     .build()
     ///     .unwrap();
-    /// let mut topics = subscribe.topics();
-    /// assert_eq!(topics.next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
-    /// assert_eq!(topics.next(), Some(("topic-2", QoS::AtMostOnceDelivery)));
+    /// let mut topics = subscribe.filters();
+    /// assert_eq!(topics.next(), Some((Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery)));
+    /// assert_eq!(topics.next(), Some((Filter::new("topic-2").unwrap(), QoS::AtMostOnceDelivery)));
     /// assert_eq!(topics.next(), None);
     /// ```
-    pub fn topics(&self) -> Topics<'_> {
-        Topics {
+    pub fn filters(&self) -> Filters<'_> {
+        Filters {
             topics: self.payload(),
             offset: 0,
         }
@@ -170,7 +170,7 @@ impl std::fmt::Debug for Subscribe {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut list = vec![];
         // let topics = self.topics();
-        for (topic, _) in self.topics() {
+        for (topic, _) in self.filters() {
             list.push(topic);
         }
 
@@ -182,13 +182,14 @@ impl std::fmt::Debug for Subscribe {
     }
 }
 
-pub struct Topics<'a> {
-    topics: &'a [u8],
-    offset: usize,
+#[derive(Debug)]
+pub struct Filters<'a> {
+    pub(crate) topics: &'a [u8],
+    pub(crate) offset: usize,
 }
 
-impl<'a> Iterator for Topics<'a> {
-    type Item = (&'a str, QoS);
+impl<'a> Iterator for Filters<'a> {
+    type Item = (Filter<'a>, QoS);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.offset >= self.topics.len() {
@@ -196,6 +197,7 @@ impl<'a> Iterator for Topics<'a> {
         }
 
         let (topic, offset) = decode::field::utf8(&self.topics[self.offset..]).expect("Failed to extract topic. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
+        let topic = Filter::new(topic).unwrap();
         self.offset += offset;
         let qos = QoS::try_from(self.topics[self.offset]).expect("Failed to extract QoS. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
         self.offset += 1;
@@ -317,11 +319,11 @@ impl Builder {
             topics: vec![],
         };
 
-        this.add_topic(topic, qos)
+        this.add_filter(topic, qos)
     }
 
-    pub fn add_topic(mut self, topic: impl Into<String>, qos: QoS) -> Self {
-        self.topics.push((topic.into(), qos));
+    pub fn add_filter(mut self, filter: impl Into<String>, qos: QoS) -> Self {
+        self.topics.push((filter.into(), qos));
         self
     }
 
@@ -365,7 +367,7 @@ mod test {
         let _: Subscribe = frame.into_bytes().try_into().unwrap();
 
         let frame = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
-            .add_topic("topic-2", QoS::AtLeastOnceDelivery)
+            .add_filter("topic-2", QoS::AtLeastOnceDelivery)
             .build()
             .unwrap();
         let _: Subscribe = frame.into_bytes().try_into().unwrap();
@@ -379,7 +381,7 @@ mod test {
     fn gh_40_fix_panic_when_building_subscribe_with_a_lot_of_topics() {
         let mut builder = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery);
         for _ in 0..1145729 {
-            builder = builder.add_topic("", QoS::AtMostOnceDelivery);
+            builder = builder.add_filter("", QoS::AtMostOnceDelivery);
         }
 
         builder.build().unwrap();
@@ -393,11 +395,11 @@ mod test {
     fn gh_45_fix_panic_when_iterating_over_the_topics_of_large_subscribe() {
         let mut builder = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery);
         for _ in 0..1145729 {
-            builder = builder.add_topic("", QoS::AtMostOnceDelivery);
+            builder = builder.add_filter("#", QoS::AtMostOnceDelivery);
         }
 
         let packet = builder.build().unwrap();
-        let topics = packet.topics();
+        let topics = packet.filters();
         for _ in topics {}
     }
 }
