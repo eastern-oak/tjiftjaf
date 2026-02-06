@@ -1,9 +1,9 @@
 //! Providing [`Subscribe`], used by client to express interest in one or more topics.
 use crate::{
     decode::{self, DecodingError},
-    encode::{self, Filter},
+    encode,
     packet::{BuilderError, UnverifiedFrame},
-    packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
+    packet_identifier, ConnectionError, Filter, Frame, Packet, PacketType, QoS,
 };
 
 /// [Subscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718063) allows a client to express interest in one or more topics.

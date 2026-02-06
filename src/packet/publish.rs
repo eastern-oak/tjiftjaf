@@ -1,9 +1,9 @@
 //! Providing [`Publish`], used by both client and server to send a message on a topic.
 use crate::{
     decode::{self, DecodingError},
-    encode::{self, Topic},
+    encode,
     packet::{BuilderError, UnverifiedFrame},
-    packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
+    packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS, Topic,
 };
 
 /// [Publish](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718037) is used by both clients and servers

@@ -1,7 +1,6 @@
 use crate::{
-    encode::Topic,
     packet::{self, connack::ReturnCode},
-    ConnAck, Connect, DecodingError, Packet, PingResp, SubAck,
+    ConnAck, Connect, DecodingError, Packet, PingResp, SubAck, Topic,
 };
 use async_channel::{SendError, Sender};
 use async_net::{TcpListener, TcpStream};
@@ -385,9 +384,8 @@ fn does_topic_match_subscription(subscription: &str, topic: Topic<'_>) -> bool {
 
 #[cfg(test)]
 mod test {
-    use crate::encode::Topic;
-
     use super::does_topic_match_subscription;
+    use crate::Topic;
 
     #[test]
     fn test_does_topic_match_subscription() {

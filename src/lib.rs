@@ -1,7 +1,6 @@
 #![doc = include_str!("../README.md")]
 #[doc(inline)]
 pub use crate::decode::DecodingError;
-use crate::packet::BuilderError;
 #[doc(inline)]
 pub use crate::packet::{
     connack::ConnAck, connect::Connect, disconnect::Disconnect, ping_req::PingReq,
@@ -9,6 +8,7 @@ pub use crate::packet::{
     pubrel::PubRel, suback::SubAck, subscribe::Subscribe, unsuback::UnsubAck,
     unsubscribe::Unsubscribe, Frame, Packet, PacketType, ProtocolLevel, QoS,
 };
+use crate::{encode::EncodingError, packet::BuilderError};
 use log::{debug, error, trace};
 use std::{
     error::Error,
@@ -21,8 +21,6 @@ pub mod decode;
 mod encode;
 pub mod packet;
 mod validate;
-
-pub use encode::{Filter, Topic};
 
 #[cfg(feature = "blocking")]
 pub mod blocking;
@@ -412,6 +410,207 @@ impl<T> From<async_channel::SendError<T>> for ConnectionError {
     fn from(_: async_channel::SendError<T>) -> Self {
         ConnectionError
     }
+}
+/// A label that is attached to each published message.
+/// The server matches the label with against all subscription filters.
+///
+/// A `Topic` must be valid utf-8 and has a minimum length of 1 bytes.
+/// It cannot contain the wildcards '#' and '+'.
+///
+/// ```
+/// use tjiftjaf::Topic;
+///
+/// // Valid topics
+/// assert!(Topic::new("sensors/temperature/1").is_ok());
+/// assert!(Topic::new("sensor-1").is_ok());
+///
+/// // Invalid topics
+/// assert!(Topic::new("").is_err());
+/// assert!(Topic::new("sensors/+/1").is_err());
+/// assert!(Topic::new("sensors/#").is_err());
+/// ```
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Topic<'a>(&'a str);
+
+impl<'a> Topic<'a> {
+    pub fn new(value: &'a str) -> Result<Self, ValueError> {
+        if value.is_empty() {
+            return Err(ValueError::new("Topic", "must have at least one byte"));
+        }
+
+        verify_utf8(value).map_err(|error| ValueError::new("Topic", format!("{error:?}")))?;
+        if value.contains('#') || value.contains('+') {
+            return Err(ValueError::new(
+                "Topic",
+                "contains the wildcard '#' and/or a '+'",
+            ));
+        }
+
+        Ok(Self(value))
+    }
+
+    /// Return the inner string slice.
+    ///
+    /// ```
+    /// use tjiftjaf::Topic;
+    ///
+    /// assert_eq!(Topic::new("sensors/temperature/1").unwrap().as_str(), "sensors/temperature/1");
+    /// ```
+    pub fn as_str(&self) -> &str {
+        self.0
+    }
+}
+
+impl<'a> PartialEq<&str> for Topic<'a> {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl AsRef<str> for Topic<'_> {
+    fn as_ref(&self) -> &str {
+        self.0
+    }
+}
+
+impl std::fmt::Display for Topic<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+// Filter must be at least 1 char long.
+// Must be valid utf-8.
+// Wildcard '#' is the last char of a filter.
+// Wildcard '#' is preceded by nothing or a '/'
+// Wildcard '+' must be preceded by nothing or a '/'
+/// A label that is attached to each published message.
+/// The server matches the label with against all subscription filters.
+///
+/// A `Topic` must be valid utf-8 and has a minimum length of 1 bytes.
+/// It cannot contain the wildcards '#' and '+'.
+///
+/// ```
+/// use tjiftjaf::Filter;
+///
+/// // Valid topics
+/// assert!(Filter::new("sensors/temperature/1").is_ok());
+/// assert!(Filter::new("sensor-1").is_ok());
+/// assert!(Filter::new("sensors/+/1").is_ok());
+/// assert!(Filter::new("sensors/#").is_ok());
+///
+/// // Invalid filters
+/// assert!(Filter::new("").is_err());
+/// assert!(Filter::new("sport+").is_err());
+/// assert!(Filter::new("sport/tennis#").is_err());
+/// assert!(Filter::new("sport/tennis/#/ranking").is_err());
+///
+/// ```
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Filter<'a>(&'a str);
+
+impl<'a> Filter<'a> {
+    pub fn new(value: &'a str) -> Result<Self, ValueError> {
+        if value.is_empty() {
+            return Err(ValueError::new("Filter", "must have at least one byte"));
+        }
+
+        verify_utf8(value).map_err(|error| ValueError::new("Topic", format!("{error:?}")))?;
+        for (index, pattern) in value.match_indices(['+', '#']) {
+            if pattern == "#" {
+                // The '#' can appear only once and it must be the last character of
+                // a filter.
+                if index + 1 != value.len() {
+                    return Err(ValueError::new(
+                        "Filter",
+                        "Wildcard '#' doesn't appear as last character",
+                    ));
+                }
+
+                // If '#' is _not_ the only character in the filter, must be
+                // preceded by a '/'.
+                if index > 0 && value.chars().nth(index - 1).unwrap() != '/' {
+                    return Err(ValueError::new(
+                        "Filter",
+                        "Wildcard '#' is preceded by a character other than '/'. That is not allowed"
+                    ));
+                }
+            }
+
+            if pattern == "+" {
+                // If '+' is _not_ the only character in the filter, must be
+                // preceded by a '/'.
+                if index > 0 && value.chars().nth(index - 1).unwrap() != '/' {
+                    return Err(ValueError::new(
+                        "Filter",
+                        "Wildcard '+' is preceded by a character other than '/'. That is not allowed"
+                    ));
+                }
+            }
+        }
+
+        Ok(Filter(value))
+    }
+
+    /// Return the inner string slice.
+    pub fn as_str(&self) -> &str {
+        self.0
+    }
+}
+
+impl<'a> PartialEq<&str> for Filter<'a> {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl AsRef<str> for Filter<'_> {
+    fn as_ref(&self) -> &str {
+        self.0
+    }
+}
+
+impl std::fmt::Display for Filter<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug)]
+pub struct ValueError {
+    field: String,
+    problem: String,
+}
+
+impl ValueError {
+    pub fn new(field: impl Into<String>, problem: impl Into<String>) -> Self {
+        Self {
+            field: field.into(),
+            problem: problem.into(),
+        }
+    }
+}
+
+impl std::error::Error for ValueError {}
+
+impl std::fmt::Display for ValueError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} is not  valid: {}", self.field, self.problem)
+    }
+}
+
+fn verify_utf8(value: &str) -> Result<(), EncodingError> {
+    // 1.5.3 [..] you cannot use a string that would encode to more than 65_535 bytes.
+    if value.len() > 65_535 {
+        return Err(EncodingError::TooLong);
+    }
+
+    // [MQTT-1.5.3-2] A UTF-8 encoded string MUST NOT include an encoding of the null character U+0000.
+    if value.contains('\0') {
+        return Err(EncodingError::IllegalValue);
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

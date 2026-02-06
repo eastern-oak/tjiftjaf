@@ -2,9 +2,9 @@
 use super::UnverifiedFrame;
 use crate::{
     decode::{self, DecodingError},
-    encode::{self, Topic},
+    encode,
     packet::BuilderError,
-    Frame, Packet, PacketType, ProtocolLevel, QoS,
+    Frame, Packet, PacketType, ProtocolLevel, QoS, Topic,
 };
 use core::fmt;
 use std::marker::PhantomData;

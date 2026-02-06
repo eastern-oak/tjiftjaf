@@ -1,8 +1,8 @@
 use super::decode::{packet_length, DecodingError, InvalidPacketTypeError};
-use crate::encode::{EncodingError, ValueError};
+use crate::encode::EncodingError;
 use crate::{
     decode, ConnAck, Connect, Disconnect, PingReq, PingResp, PubAck, PubComp, PubRec, PubRel,
-    Publish, SubAck, Subscribe, UnsubAck, Unsubscribe,
+    Publish, SubAck, Subscribe, UnsubAck, Unsubscribe, ValueError,
 };
 use std::error::Error;
 use std::fmt::{self, Display};

@@ -3,7 +3,7 @@ use crate::{
     decode::{self, DecodingError},
     encode,
     packet::{BuilderError, UnverifiedFrame},
-    packet_identifier, ConnectionError, Frame, Packet, PacketType,
+    packet_identifier, ConnectionError, Filter, Frame, Packet, PacketType,
 };
 
 /// [Unsubscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718072) allows a client unsubscribe from one or more topics.
@@ -12,27 +12,29 @@ use crate::{
 ///
 /// Use a [`Builder`] to construct `Unsubscribe`.
 /// ```
-/// use tjiftjaf::{Unsubscribe, QoS};
+/// use tjiftjaf::{Unsubscribe, QoS, Filter};
 ///
-/// let subscribe = Unsubscribe::builder("topic-1")
-///     .add_topic("topic-2")
+/// let unsubscribe = Unsubscribe::builder("topic-1")
+///     .add_filter("topic-2")
 ///     .build()
 ///     .unwrap();
 ///
-/// let mut topics = subscribe.topics();
-/// assert_eq!(topics.next(), Some("topic-1"));
-/// assert_eq!(topics.next(), Some("topic-2"));
-/// assert_eq!(topics.next(), None);
+/// assert_eq!(
+///     unsubscribe.filters(),
+///     vec![
+///         Filter::new("topic-1").unwrap(),
+///         Filter::new("topic-2").unwrap(),
+/// ]);
 /// ```
 ///
 /// Alternatively, try decoding some bytes as `Unsubscribe`.
 /// ```
-/// use tjiftjaf::{Unsubscribe, QoS};
+/// use tjiftjaf::{Unsubscribe, QoS, Filter};
 ///
 /// let frame = vec![162, 11,103,235,  0,  7,116,111,112,105, 99, 45, 49];
 /// let packet = Unsubscribe::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 26603);
-/// assert_eq!(packet.topics().next(), Some("topic-1"));
+/// assert_eq!(packet.filters(), vec![Filter::new("topic-1").unwrap()]);
 /// ```
 #[derive(Clone, PartialEq, Eq)]
 pub struct Unsubscribe {
@@ -60,22 +62,32 @@ impl Unsubscribe {
     /// # Example
     ///
     /// ```
-    /// use tjiftjaf::Unsubscribe;
+    /// use tjiftjaf::{Filter, Unsubscribe};
     ///
     /// let unsubscribe = Unsubscribe::builder("topic-1")
-    ///     .add_topic("topic-2")
+    ///     .add_filter("topic-2")
     ///     .build()
     ///     .unwrap();
-    /// let mut topics = unsubscribe.topics();
-    /// assert_eq!(topics.next(), Some("topic-1"));
-    /// assert_eq!(topics.next(), Some("topic-2"));
-    /// assert_eq!(topics.next(), None);
+    ///
+    /// assert_eq!(
+    ///     unsubscribe.filters(),
+    ///     vec![
+    ///         Filter::new("topic-1").unwrap(),
+    ///         Filter::new("topic-2").unwrap(),
+    /// ]);
     /// ```
-    pub fn topics(&self) -> Topics<'_> {
-        Topics {
-            topics: self.payload(),
-            offset: 0,
+    pub fn filters(&self) -> Vec<Filter<'_>> {
+        let mut filters = Vec::new();
+        let mut payload = self.payload();
+
+        while !payload.is_empty() {
+            let (filter, offset) = decode::field::utf8(payload).expect("Failed to extract topic. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
+            let filter = Filter::new(filter).unwrap();
+            filters.push(filter);
+
+            payload = &payload[offset..];
         }
+        filters
     }
 }
 
@@ -144,29 +156,8 @@ impl std::fmt::Debug for Unsubscribe {
         f.debug_struct("UNSUBSCRIBE")
             .field("length", &self.length())
             .field("packet_identifier", &self.packet_identifier())
-            .field("topics", &self.topics())
+            .field("topics", &self.filters())
             .finish()
-    }
-}
-
-// TODO: implement debug manually to print topics
-#[derive(Debug)]
-pub struct Topics<'a> {
-    topics: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> Iterator for Topics<'a> {
-    type Item = &'a str;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.offset >= self.topics.len() {
-            return None;
-        }
-
-        let (topic, offset) = decode::field::utf8(&self.topics[self.offset..]).expect("Failed to extract topic. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
-        self.offset += offset;
-        Some(topic)
     }
 }
 
@@ -261,11 +252,11 @@ impl Builder {
             topics: vec![],
         };
 
-        this.add_topic(topic)
+        this.add_filter(topic)
     }
 
-    pub fn add_topic(mut self, topic: impl Into<String>) -> Self {
-        self.topics.push(topic.into());
+    pub fn add_filter(mut self, filter: impl Into<String>) -> Self {
+        self.topics.push(filter.into());
         self
     }
 
@@ -306,7 +297,7 @@ mod test {
         let _: Unsubscribe = frame.into_bytes().try_into().unwrap();
 
         let frame = Unsubscribe::builder("topic-1")
-            .add_topic("topic-2")
+            .add_filter("topic-2")
             .build()
             .unwrap();
         let _: Unsubscribe = frame.into_bytes().try_into().unwrap();

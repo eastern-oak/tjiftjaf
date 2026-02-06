@@ -1,4 +1,4 @@
-use crate::encode::ValueError;
+use crate::ValueError;
 
 // Decode fields
 use super::PacketType;

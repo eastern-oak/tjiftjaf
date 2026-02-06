@@ -82,7 +82,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("decode/encode Unsubscribe", |b| {
         let packet: Packet = Unsubscribe::builder("sensors/temperature/1")
-            .add_topic("sensors/humidity/1")
+            .add_filter("sensors/humidity/1")
             .build()
             .unwrap()
             .into();
