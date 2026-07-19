@@ -75,18 +75,9 @@ impl Subscribe {
     /// );
     /// ```
     pub fn filters(&self) -> Vec<(Filter<'_>, QoS)> {
-        let mut filters = Vec::new();
-        let mut payload = self.payload();
-
-        while !payload.is_empty() {
-            let (filter, offset) = decode::field::utf8(payload).expect("Failed to extract topic. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
-            let filter = Filter::new(filter).unwrap();
-            let qos = QoS::try_from(payload[offset]).expect("Failed to extract QoS. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
-            filters.push((filter, qos));
-
-            payload = &payload[offset + 1..];
-        }
-        filters
+        // One can not create an illegal `Subscribe` packet. Therefore,
+        // this `unwrap()` never panics.
+        self.inner.try_filters().unwrap()
     }
 }
 
@@ -222,29 +213,23 @@ impl UnverifiedSubscribe {
         Ok(())
     }
 
-    // TODO: figure out if returning `Topics` is better.
-    fn try_topics(&self) -> Result<Vec<(String, QoS)>, DecodingError> {
-        let payload = self.try_payload()?;
-        let mut offset = 0;
-        let mut topics = vec![];
+    fn try_filters(&self) -> Result<Vec<(Filter<'_>, QoS)>, DecodingError> {
+        let mut filters = Vec::new();
+        let mut payload = self.try_payload()?;
 
-        loop {
-            let (topic, length) = decode::field::utf8(&payload[offset..])?;
-            offset += length;
-            let qos = QoS::try_from(payload[offset]).map_err(|_| {
-                DecodingError::InvalidValue(format!(
-                    "{} is not a valid value for QoS",
-                    payload[offset]
-                ))
-            })?;
-            offset += 1;
-            topics.push((topic.to_string(), qos));
+        while !payload.is_empty() {
+            let (filter, offset) = decode::field::utf8(payload)?;
+            let filter = Filter::new(filter)?;
+            let qos = QoS::try_from(payload[offset]).unwrap();
+            filters.push((filter, qos));
 
-            if offset >= payload.len() {
-                break;
-            }
+            payload = &payload[offset + 1..];
         }
-        Ok(topics)
+        // [MQTT-3.8.3-3] The payload of a SUBSCRIBE packet MUST contain  at least one Topic Filter / QoS pair.
+        if filters.is_empty() {
+            return Err(DecodingError::Other);
+        }
+        Ok(filters)
     }
 
     fn verify_variable_header(&self) -> Result<(), DecodingError> {
@@ -253,7 +238,7 @@ impl UnverifiedSubscribe {
     }
 
     fn verify_payload(&self) -> Result<(), DecodingError> {
-        self.try_topics()?;
+        self.try_filters()?;
 
         // TODO: check that payload is not empty
         Ok(())
@@ -284,7 +269,7 @@ impl UnverifiedFrame for UnverifiedSubscribe {
 pub struct Builder {
     packet_identifier: u16,
     #[cfg_attr(feature = "arbitrary", arbitrary(with = arbitrary_topics))]
-    topics: Vec<(String, QoS)>,
+    filters: Vec<(String, QoS)>,
 }
 
 #[cfg(feature = "arbitrary")]
@@ -305,14 +290,14 @@ impl Builder {
     pub fn new(topic: impl Into<String>, qos: QoS) -> Self {
         let this = Self {
             packet_identifier: packet_identifier(),
-            topics: vec![],
+            filters: vec![],
         };
 
         this.add_filter(topic, qos)
     }
 
     pub fn add_filter(mut self, filter: impl Into<String>, qos: QoS) -> Self {
-        self.topics.push((filter.into(), qos));
+        self.filters.push((filter.into(), qos));
         self
     }
 
@@ -320,8 +305,9 @@ impl Builder {
         let mut variable_header: Vec<u8> = self.packet_identifier.to_be_bytes().to_vec();
 
         let mut payload = Vec::new();
-        for (topic, qos) in self.topics {
-            payload.append(&mut encode::utf8(topic)?.to_vec());
+        for (filter, qos) in self.filters {
+            Filter::new(&filter)?;
+            payload.append(&mut encode::utf8(filter)?.to_vec());
             payload.push(qos as u8);
         }
 
@@ -334,6 +320,11 @@ impl Builder {
         packet.append(&mut variable_header);
         packet.append(&mut payload);
 
+        assert!(UnverifiedSubscribe {
+            inner: packet.clone()
+        }
+        .verify()
+        .is_ok());
         Ok(Subscribe {
             inner: UnverifiedSubscribe { inner: packet },
         })
@@ -369,8 +360,8 @@ mod test {
     #[test]
     fn gh_40_fix_panic_when_building_subscribe_with_a_lot_of_topics() {
         let mut builder = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery);
-        for _ in 0..1145729 {
-            builder = builder.add_filter("", QoS::AtMostOnceDelivery);
+        for n in 0..1145729 {
+            builder = builder.add_filter(format!("topic-{n}"), QoS::AtMostOnceDelivery);
         }
 
         builder.build().unwrap();
@@ -383,8 +374,8 @@ mod test {
     #[test]
     fn gh_45_fix_panic_when_iterating_over_the_topics_of_large_subscribe() {
         let mut builder = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery);
-        for _ in 0..1145729 {
-            builder = builder.add_filter("#", QoS::AtMostOnceDelivery);
+        for n in 0..1145729 {
+            builder = builder.add_filter(format!("topic-{n}"), QoS::AtMostOnceDelivery);
         }
 
         let packet = builder.build().unwrap();

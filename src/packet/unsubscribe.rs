@@ -77,17 +77,9 @@ impl Unsubscribe {
     /// ]);
     /// ```
     pub fn filters(&self) -> Vec<Filter<'_>> {
-        let mut filters = Vec::new();
-        let mut payload = self.payload();
-
-        while !payload.is_empty() {
-            let (filter, offset) = decode::field::utf8(payload).expect("Failed to extract topic. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
-            let filter = Filter::new(filter).unwrap();
-            filters.push(filter);
-
-            payload = &payload[offset..];
-        }
-        filters
+        // This should not panic, as it's _not_ possible to create
+        // an invalid `Unsubscribe`.
+        self.inner.try_filters().unwrap()
     }
 }
 
@@ -189,22 +181,24 @@ impl UnverifiedUnsubscribe {
         Ok(())
     }
 
-    // TODO: figure out if returning `Topics` is better.
-    fn try_topics(&self) -> Result<Vec<String>, DecodingError> {
-        let payload = self.try_payload()?;
-        let mut offset = 0;
-        let mut topics = vec![];
+    fn try_filters(&self) -> Result<Vec<Filter<'_>>, DecodingError> {
+        let mut filters = Vec::new();
+        let mut payload = self.try_payload()?;
 
-        loop {
-            let (topic, length) = decode::field::utf8(&payload[offset..])?;
-            offset += length;
-            topics.push(topic.to_string());
+        while !payload.is_empty() {
+            let (filter, offset) = decode::field::utf8(payload)?;
+            let filter = Filter::new(filter)?;
+            filters.push(filter);
 
-            if offset >= payload.len() {
-                break;
-            }
+            payload = &payload[offset..];
         }
-        Ok(topics)
+
+        // [MQTT-3.10.3-2] The payload of an UNSUBSCRIBE packet MUST contain at least one Topic filter.
+        if filters.is_empty() {
+            return Err(DecodingError::Other);
+        }
+
+        Ok(filters)
     }
 
     fn verify_variable_header(&self) -> Result<(), DecodingError> {
@@ -213,9 +207,7 @@ impl UnverifiedUnsubscribe {
     }
 
     fn verify_payload(&self) -> Result<(), DecodingError> {
-        self.try_topics()?;
-
-        // TODO: check that payload is not empty
+        self.try_filters()?;
         Ok(())
     }
 
