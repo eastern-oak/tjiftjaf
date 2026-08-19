@@ -197,7 +197,6 @@ impl UnverifiedSubscribe {
     }
 
     fn verify_header(&self) -> Result<(), DecodingError> {
-        dbg!(self.try_flags()?);
         if self.try_flags()? != 0b0010 {
             return Err(DecodingError::HeaderContainsInvalidFlags);
         }

@@ -67,7 +67,7 @@ impl TryFrom<Vec<u8>> for ConnAck {
         };
 
         if value[0] != 32 {
-            if (value[0] & 0x0F) != 0 {
+            if (value[0] & 0x0F) != 0b0000 {
                 return Err(DecodingError::HeaderContainsInvalidFlags);
             }
             return Err(DecodingError::InvalidPacketType(value[0]));

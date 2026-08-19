@@ -47,7 +47,7 @@ impl TryFrom<&[u8]> for Disconnect {
             return Err(DecodingError::TooManyBytes);
         }
 
-        if (value[0] & 0x0F) != 0 {
+        if (value[0] & 0x0F) != 0b0000 {
             return Err(DecodingError::HeaderContainsInvalidFlags);
         }
 
