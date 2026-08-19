@@ -197,6 +197,9 @@ impl UnverifiedSubscribe {
     }
 
     fn verify_header(&self) -> Result<(), DecodingError> {
+        if self.try_flags()? != 0b0010 {
+            return Err(DecodingError::HeaderContainsInvalidFlags);
+        }
         let header = self.try_header()?;
         let packet_type = decode::packet_type(header)?;
         if packet_type != crate::PacketType::Subscribe {
@@ -313,7 +316,9 @@ impl Builder {
 
         let mut packet = Vec::new();
         let packet_type: u8 = PacketType::Subscribe.into();
-        packet.push((packet_type << 4) + 2);
+
+        // Set the second flag, that is required as per specification.
+        packet.push((packet_type << 4) | 0b0010);
 
         let remaining_length = encode::remaining_length(variable_header.len() + payload.len());
         packet.append(&mut remaining_length.to_vec());
@@ -381,5 +386,25 @@ mod test {
         let packet = builder.build().unwrap();
         let topics = packet.filters();
         for _ in topics {}
+    }
+    /// #105 tracks a bug the parser didn't verify a message's flags.
+    /// As result, the parser would happily parse a message with incorrect
+    /// flags. This test verifies that the parser now fails.
+    #[test]
+    fn test_gh_105_fix_parsing_incorrect_flags() {
+        let mut packet = Subscribe::builder("sensor/1", QoS::AtMostOnceDelivery)
+            .build()
+            .unwrap()
+            .as_bytes()
+            .to_vec();
+        assert!(Subscribe::try_from(packet.clone()).is_ok());
+
+        // The flags are configured in the first byte of the message.
+        // This line changes the flags to an illegal value.
+        packet[0] |= 0b0001;
+        assert_eq!(
+            Subscribe::try_from(packet).unwrap_err(),
+            DecodingError::HeaderContainsInvalidFlags
+        );
     }
 }

@@ -147,19 +147,19 @@ impl UnverifiedPublish {
     }
 
     fn qos(&self) -> Result<QoS, DecodingError> {
-        let header = self.try_header()?;
-        let flags = header[0] >> 1 & 0b11;
-        QoS::try_from(flags).map_err(|_| DecodingError::InvalidValue("Invalid QoS value".into()))
+        let flags = self.try_flags()?;
+        let qos = flags >> 1 & 0b11;
+        QoS::try_from(qos).map_err(|_| DecodingError::InvalidValue("Invalid QoS value".into()))
     }
 
     fn retain(&self) -> Result<bool, DecodingError> {
-        let header = self.try_header()?;
-        Ok(header[0] & 0b0001 == 0b0001)
+        let flags = self.try_flags()?;
+        Ok(flags & 0b0001 == 0b0001)
     }
 
     fn duplicate(&self) -> Result<bool, DecodingError> {
-        let header = self.try_header()?;
-        Ok(header[0] & 0b1000 == 0b1000)
+        let flags = self.try_flags()?;
+        Ok(flags & 0b1000 == 0b1000)
     }
 
     fn packet_identifier(&self) -> Result<Option<u16>, DecodingError> {

@@ -8,7 +8,7 @@ use crate::{decode::DecodingError, Frame, PacketType};
 /// * a byte that contains the remaining length, it's always 2.
 /// * 2 bytes to encode the packet identifier.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Ack([u8; 4]);
+pub(crate) struct Ack(pub(crate) [u8; 4]);
 
 impl Ack {
     pub fn new(packet_type: PacketType, packet_identifier: u16) -> Self {

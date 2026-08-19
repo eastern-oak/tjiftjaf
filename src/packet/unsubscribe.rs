@@ -165,6 +165,9 @@ impl UnverifiedUnsubscribe {
     }
 
     fn verify_header(&self) -> Result<(), DecodingError> {
+        if self.try_flags()? != 0b0010 {
+            return Err(DecodingError::HeaderContainsInvalidFlags);
+        }
         let header = self.try_header()?;
         let packet_type = decode::packet_type(header)?;
         if packet_type != crate::PacketType::Unsubscribe {
@@ -293,5 +296,25 @@ mod test {
             .build()
             .unwrap();
         let _: Unsubscribe = frame.into_bytes().try_into().unwrap();
+    }
+
+    /// #105 tracks a bug the parser didn't verify a message's flags.
+    /// As result, the parser would happily parse a message with incorrect
+    /// flags. This test verifies that the parser now fails.
+    #[test]
+    fn test_gh_105_fix_reject_incorrect_flags() {
+        let mut packet = Unsubscribe::builder("topic-1")
+            .build()
+            .unwrap()
+            .into_bytes();
+        assert!(Unsubscribe::try_from(packet.clone()).is_ok());
+
+        // The flags are configured in the first byte of the message.
+        // This line changes the flags to an illegal value.
+        packet[0] |= 0b0001;
+        assert_eq!(
+            Unsubscribe::try_from(packet).unwrap_err(),
+            DecodingError::HeaderContainsInvalidFlags
+        );
     }
 }

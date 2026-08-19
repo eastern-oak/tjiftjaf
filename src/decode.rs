@@ -7,7 +7,7 @@ use std::fmt::Display;
 #[derive(Debug)]
 pub struct InvalidPacketTypeError(pub u8);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DecodingError {
     /// The bytes are not enough to decode the packet.
     NotEnoughBytes {

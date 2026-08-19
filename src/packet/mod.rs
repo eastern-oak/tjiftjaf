@@ -441,6 +441,20 @@ pub trait UnverifiedFrame {
         self.as_bytes().len()
     }
 
+    fn try_flags(&self) -> Result<u8, DecodingError> {
+        let byte = self
+            .as_bytes()
+            .first()
+            .ok_or(DecodingError::NotEnoughBytes {
+                minimum: 1,
+                actual: 0,
+            })?;
+
+        // The low 4 bits of the first byte contain the flags specific
+        // for the packet type
+        Ok(byte & 0x0F)
+    }
+
     /// Return a slice containing the fixed header.
     fn try_header(&self) -> Result<&[u8], DecodingError> {
         let inner = self.as_bytes();
