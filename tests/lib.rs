@@ -28,7 +28,8 @@ mod aio {
         let connect = Connect::builder()
             .client_id(stream.local_addr().unwrap().port())
             .keep_alive(5)
-            .build();
+            .build()
+            .unwrap();
         Client::new(connect, stream)
     }
 
@@ -46,10 +47,11 @@ mod aio {
         // After connecting, the broker returns a CONNACK packet.
         let _ = history.find(PacketType::ConnAck).await;
 
-        subscribe(TOPIC).emit(&handle).await.unwrap();
+        subscribe(TOPIC).unwrap().emit(&handle).await.unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
         publish(TOPIC, "test_subscribe_and_publish")
+            .unwrap()
             .emit(&handle)
             .await
             .unwrap();
@@ -94,7 +96,9 @@ mod aio {
             let packet = ConnAck::builder().build();
             stream.write_all(packet.as_bytes()).await.unwrap();
 
-            let packet = Publish::builder(TOPIC, "test_subscribe_and_publish").build();
+            let packet = Publish::builder(TOPIC, "test_subscribe_and_publish")
+                .build()
+                .unwrap();
 
             let split_at = packet.length() as usize - 5;
 
@@ -147,12 +151,14 @@ mod aio {
 
         Subscribe::builder(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
             .build()
+            .unwrap()
             .emit(&handle_a)
             .await
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
         publish(TOPIC, "test_subscribe_and_publish")
+            .unwrap()
             .emit(&handle_a)
             .await
             .unwrap();
@@ -163,6 +169,7 @@ mod aio {
         // Now subscribe with QoS of 2.
         Subscribe::builder(TOPIC, tjiftjaf::QoS::ExactlyOnceDelivery)
             .build()
+            .unwrap()
             .emit(&handle_a)
             .await
             .unwrap();
@@ -171,6 +178,7 @@ mod aio {
         Publish::builder(TOPIC, "yolo")
             .qos(tjiftjaf::QoS::ExactlyOnceDelivery)
             .build()
+            .unwrap()
             .emit(&handle_a)
             .await
             .unwrap();
@@ -196,11 +204,13 @@ mod aio {
 
         Subscribe::builder("test/#", tjiftjaf::QoS::AtLeastOnceDelivery)
             .build()
+            .unwrap()
             .emit(&handle_1)
             .await
             .unwrap();
 
         publish("test/client_and_server", "test_subscribe_and_publish")
+            .unwrap()
             .emit(&handle_2)
             .await
             .unwrap();
@@ -226,7 +236,11 @@ mod blocking {
         let stream = std::net::TcpStream::connect(format!("127.0.0.1:{}", port))
             .expect("Failed to open TCP connection to broker.");
 
-        let connect = Connect::builder().client_id("test").keep_alive(5).build();
+        let connect = Connect::builder()
+            .client_id("test")
+            .keep_alive(5)
+            .build()
+            .unwrap();
         blocking::Client::new(connect, stream)
     }
 
@@ -240,7 +254,7 @@ mod blocking {
         let broker = Broker::new();
         let (mut handle_a, task) = create_blocking_client(broker.port).spawn().unwrap();
 
-        subscribe(TOPIC).emit(&handle_a).unwrap();
+        subscribe(TOPIC).unwrap().emit(&handle_a).unwrap();
 
         // Until GH-71 is implemented, we need to introduce an artificial
         // sleep.
@@ -249,6 +263,7 @@ mod blocking {
         std::thread::sleep(Duration::from_secs(1));
 
         publish(TOPIC, "test_subscribe_and_publish")
+            .unwrap()
             .emit(&handle_a)
             .unwrap();
 

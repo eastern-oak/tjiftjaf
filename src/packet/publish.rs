@@ -2,8 +2,8 @@
 use crate::{
     decode::{self, DecodingError},
     encode,
-    packet::UnverifiedFrame,
-    packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
+    packet::{BuilderError, UnverifiedFrame},
+    packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS, Topic,
 };
 
 /// [Publish](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718037) is used by both clients and servers
@@ -18,7 +18,8 @@ use crate::{
 /// let packet = Publish::builder("test/topic", "Hello MQTT!")
 ///     .qos(QoS::AtMostOnceDelivery)
 ///     .retain(true)
-///     .build();
+///     .build()
+///     .unwrap();
 ///
 /// assert_eq!(packet.topic(), "test/topic");
 /// assert_eq!(packet.payload(), b"Hello MQTT!");
@@ -54,7 +55,7 @@ impl Publish {
     }
 
     /// Get the topic this message is published to.
-    pub fn topic(&self) -> &str {
+    pub fn topic(&self) -> Topic<'_> {
         self.inner.topic().unwrap()
     }
 
@@ -133,9 +134,11 @@ struct UnverifiedPublish {
 }
 
 impl UnverifiedPublish {
-    fn topic(&self) -> Result<&str, DecodingError> {
+    fn topic(&self) -> Result<Topic<'_>, DecodingError> {
         let var_header = self.try_variable_header()?;
+
         let (topic, _) = decode::field::utf8(var_header)?;
+        let topic = Topic::new(topic)?;
         Ok(topic)
     }
 
@@ -275,7 +278,7 @@ impl Builder {
     }
 
     /// Build the `Publish` packet.
-    pub fn build(mut self) -> Publish {
+    pub fn build(mut self) -> Result<Publish, BuilderError> {
         // The 4 least significant bits configure
         // * Retain
         // * QoS
@@ -297,7 +300,10 @@ impl Builder {
         fixed_header.push((PacketType::Publish as u8) << 4 | flags);
 
         let mut variable_header = Vec::new();
-        variable_header.append(&mut encode::utf8(self.topic).to_vec());
+        // Verify that topic is valid.
+        _ = Topic::new(&self.topic)?;
+
+        variable_header.append(&mut encode::utf8(self.topic)?.to_vec());
 
         // The Packet Identifier field is only present in PUBLISH Packets where the QoS level is 1 or 2. Section 2.3.1 provides more information about Packet Identifiers.
         if self.qos != QoS::AtMostOnceDelivery {
@@ -318,16 +324,16 @@ impl Builder {
         fixed_header.append(&mut variable_header);
         fixed_header.append(&mut payload);
 
-        UnverifiedPublish {
-            inner: fixed_header,
-        }
-        .verify()
-        .unwrap()
+        Ok(Publish {
+            inner: UnverifiedPublish {
+                inner: fixed_header,
+            },
+        })
     }
 
     /// Build a `Packet::Publish`.
-    pub fn build_packet(self) -> Packet {
-        Packet::Publish(self.build())
+    pub fn build_packet(self) -> Result<Packet, BuilderError> {
+        Ok(Packet::Publish(self.build()?))
     }
 }
 
@@ -341,10 +347,10 @@ impl crate::aio::Emit for Publish {
     /// # use tjiftjaf::{publish, Connect, QoS, aio::{Client, Emit}, packet_identifier};
     /// # smol::block_on(async {
     /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
-    /// # let connect = Connect::builder().build();
+    /// # let connect = Connect::builder().build().unwrap();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
-    /// publish("sensor/temperature/1", "26.1")
+    /// publish("sensor/temperature/1", "26.1").unwrap()
     ///     .emit(&handle)
     ///     .await
     ///     .unwrap();
@@ -387,10 +393,11 @@ mod tests {
         let packet = Publish::builder("test/topic", "Hello MQTT!")
             .qos(QoS::AtMostOnceDelivery)
             .retain(true)
-            .build();
+            .build()
+            .unwrap();
 
         println!("{:?}", packet.as_bytes());
-        assert_eq!(packet.topic(), "test/topic");
+        assert_eq!(packet.topic().as_ref(), "test/topic");
         assert_eq!(packet.payload(), b"Hello MQTT!");
         assert_eq!(packet.qos(), QoS::AtMostOnceDelivery);
         assert!(packet.retain());
@@ -403,7 +410,8 @@ mod tests {
         let packet = Publish::builder("test/topic", "Hello MQTT!")
             .qos(QoS::AtLeastOnceDelivery)
             .packet_identifier(1234)
-            .build();
+            .build()
+            .unwrap();
 
         assert_eq!(packet.qos(), QoS::AtLeastOnceDelivery);
         assert_eq!(packet.packet_identifier(), Some(1234));
@@ -416,11 +424,23 @@ mod tests {
             .packet_identifier(1234)
             .retain(true)
             .duplicate(true)
-            .build();
+            .build()
+            .unwrap();
 
         let bytes = original.clone().into_bytes();
         let decoded = Publish::try_from(bytes).unwrap();
 
         assert_eq!(original, decoded);
+    }
+
+    #[test]
+    fn test_publish_with_illegal_topic() {
+        assert!(Publish::builder("", "Hello MQTT!").build().is_err());
+        assert!(Publish::builder("/sensor/+", "Hello MQTT!")
+            .build()
+            .is_err());
+        assert!(Publish::builder("/sensor/#", "Hello MQTT!")
+            .build()
+            .is_err());
     }
 }

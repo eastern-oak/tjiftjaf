@@ -2,8 +2,8 @@
 use crate::{
     decode::{self, DecodingError},
     encode,
-    packet::UnverifiedFrame,
-    packet_identifier, ConnectionError, Frame, Packet, PacketType, QoS,
+    packet::{BuilderError, UnverifiedFrame},
+    packet_identifier, ConnectionError, Filter, Frame, Packet, PacketType, QoS,
 };
 
 /// [Subscribe](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718063) allows a client to express interest in one or more topics.
@@ -12,25 +12,28 @@ use crate::{
 ///
 /// Use a [`Builder`] to construct `Subscribe`.
 /// ```
-/// use tjiftjaf::{Subscribe, QoS};
+/// use tjiftjaf::{Subscribe, QoS, Filter};
 ///
 /// let subscribe = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
-///     .add_topic("topic-2", QoS::AtMostOnceDelivery)
-///     .build();
-/// let mut topics = subscribe.topics();
-/// assert_eq!(topics.next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
-/// assert_eq!(topics.next(), Some(("topic-2", QoS::AtMostOnceDelivery)));
-/// assert_eq!(topics.next(), None);
+///     .add_filter("topic-2", QoS::AtMostOnceDelivery)
+///     .build()
+///     .unwrap();
+/// assert_eq!(subscribe.filters(),
+///     vec![
+///         (Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery),
+///         (Filter::new("topic-2").unwrap(), QoS::AtMostOnceDelivery),
+///     ]
+/// );
 /// ```
 ///
 /// Alternatively, try decoding some bytes as `Subscribe`.
 /// ```
-/// use tjiftjaf::{Subscribe, QoS};
+/// use tjiftjaf::{Subscribe, QoS, Filter};
 ///
 /// let frame = vec![130, 12, 75, 66, 0, 7, 116, 111, 112, 105, 99, 45, 49, 0];
 /// let packet = Subscribe::try_from(frame).unwrap();
 /// assert_eq!(packet.packet_identifier(), 19266);
-/// assert_eq!(packet.topics().next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
+/// assert_eq!(packet.filters(), vec![(Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery)]);
 /// ```
 #[derive(Clone, PartialEq, Eq)]
 pub struct Subscribe {
@@ -58,21 +61,23 @@ impl Subscribe {
     /// # Example
     ///
     /// ```
-    /// use tjiftjaf::{Subscribe, QoS};
+    /// use tjiftjaf::{Subscribe, QoS, Filter};
     ///
     /// let subscribe = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
-    ///     .add_topic("topic-2", QoS::AtMostOnceDelivery)
-    ///     .build();
-    /// let mut topics = subscribe.topics();
-    /// assert_eq!(topics.next(), Some(("topic-1", QoS::AtMostOnceDelivery)));
-    /// assert_eq!(topics.next(), Some(("topic-2", QoS::AtMostOnceDelivery)));
-    /// assert_eq!(topics.next(), None);
+    ///     .add_filter("topic-2", QoS::AtMostOnceDelivery)
+    ///     .build()
+    ///     .unwrap();
+    /// assert_eq!(subscribe.filters(),
+    ///     vec![
+    ///         (Filter::new("topic-1").unwrap(), QoS::AtMostOnceDelivery),
+    ///         (Filter::new("topic-2").unwrap(), QoS::AtMostOnceDelivery),
+    ///     ]
+    /// );
     /// ```
-    pub fn topics(&self) -> Topics<'_> {
-        Topics {
-            topics: self.payload(),
-            offset: 0,
-        }
+    pub fn filters(&self) -> Vec<(Filter<'_>, QoS)> {
+        // One can not create an illegal `Subscribe` packet. Therefore,
+        // this `unwrap()` never panics.
+        self.inner.try_filters().unwrap()
     }
 }
 
@@ -86,10 +91,10 @@ impl crate::aio::Emit for Subscribe {
     /// # use tjiftjaf::{subscribe, Connect, QoS, aio::{Emit, Client}, packet_identifier};
     /// # smol::block_on(async {
     /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
-    /// # let connect = Connect::builder().build();
+    /// # let connect = Connect::builder().build().unwrap();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
-    /// subscribe("sensor/temperature/1").emit(&handle).await.unwrap();
+    /// subscribe("sensor/temperature/1").unwrap().emit(&handle).await.unwrap();
     /// while let Ok(publish) = handle.subscriptions().await {
     ///    println!(
     ///       "On topic {} received {:?}",
@@ -116,7 +121,7 @@ impl crate::blocking::Emit for Subscribe {
     /// # let connect = Connect::builder().build();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, _task) = client.spawn().unwrap();
-    /// subscribe("sensor/temperature/1")
+    /// subscribe("sensor/temperature/1").unwrap()
     ///    .emit(&handle)
     ///    .unwrap();
     /// while let Ok(publish) = handle.publication() {
@@ -168,7 +173,7 @@ impl std::fmt::Debug for Subscribe {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut list = vec![];
         // let topics = self.topics();
-        for (topic, _) in self.topics() {
+        for (topic, _) in self.filters() {
             list.push(topic);
         }
 
@@ -177,27 +182,6 @@ impl std::fmt::Debug for Subscribe {
             .field("packet_identifier", &self.packet_identifier())
             .field("topics", &list)
             .finish()
-    }
-}
-
-pub struct Topics<'a> {
-    topics: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> Iterator for Topics<'a> {
-    type Item = (&'a str, QoS);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.offset >= self.topics.len() {
-            return None;
-        }
-
-        let (topic, offset) = decode::field::utf8(&self.topics[self.offset..]).expect("Failed to extract topic. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
-        self.offset += offset;
-        let qos = QoS::try_from(self.topics[self.offset]).expect("Failed to extract QoS. This should never happen, because `Topics` can only be created from a valid payload. Please report a bug.");
-        self.offset += 1;
-        Some((topic, qos))
     }
 }
 
@@ -229,29 +213,23 @@ impl UnverifiedSubscribe {
         Ok(())
     }
 
-    // TODO: figure out if returning `Topics` is better.
-    fn try_topics(&self) -> Result<Vec<(String, QoS)>, DecodingError> {
-        let payload = self.try_payload()?;
-        let mut offset = 0;
-        let mut topics = vec![];
+    fn try_filters(&self) -> Result<Vec<(Filter<'_>, QoS)>, DecodingError> {
+        let mut filters = Vec::new();
+        let mut payload = self.try_payload()?;
 
-        loop {
-            let (topic, length) = decode::field::utf8(&payload[offset..])?;
-            offset += length;
-            let qos = QoS::try_from(payload[offset]).map_err(|_| {
-                DecodingError::InvalidValue(format!(
-                    "{} is not a valid value for QoS",
-                    payload[offset]
-                ))
-            })?;
-            offset += 1;
-            topics.push((topic.to_string(), qos));
+        while !payload.is_empty() {
+            let (filter, offset) = decode::field::utf8(payload)?;
+            let filter = Filter::new(filter)?;
+            let qos = QoS::try_from(payload[offset]).unwrap();
+            filters.push((filter, qos));
 
-            if offset >= payload.len() {
-                break;
-            }
+            payload = &payload[offset + 1..];
         }
-        Ok(topics)
+        // [MQTT-3.8.3-3] The payload of a SUBSCRIBE packet MUST contain  at least one Topic Filter / QoS pair.
+        if filters.is_empty() {
+            return Err(DecodingError::Other);
+        }
+        Ok(filters)
     }
 
     fn verify_variable_header(&self) -> Result<(), DecodingError> {
@@ -260,7 +238,7 @@ impl UnverifiedSubscribe {
     }
 
     fn verify_payload(&self) -> Result<(), DecodingError> {
-        self.try_topics()?;
+        self.try_filters()?;
 
         // TODO: check that payload is not empty
         Ok(())
@@ -291,7 +269,7 @@ impl UnverifiedFrame for UnverifiedSubscribe {
 pub struct Builder {
     packet_identifier: u16,
     #[cfg_attr(feature = "arbitrary", arbitrary(with = arbitrary_topics))]
-    topics: Vec<(String, QoS)>,
+    filters: Vec<(String, QoS)>,
 }
 
 #[cfg(feature = "arbitrary")]
@@ -312,23 +290,24 @@ impl Builder {
     pub fn new(topic: impl Into<String>, qos: QoS) -> Self {
         let this = Self {
             packet_identifier: packet_identifier(),
-            topics: vec![],
+            filters: vec![],
         };
 
-        this.add_topic(topic, qos)
+        this.add_filter(topic, qos)
     }
 
-    pub fn add_topic(mut self, topic: impl Into<String>, qos: QoS) -> Self {
-        self.topics.push((topic.into(), qos));
+    pub fn add_filter(mut self, filter: impl Into<String>, qos: QoS) -> Self {
+        self.filters.push((filter.into(), qos));
         self
     }
 
-    pub fn build(self) -> Subscribe {
+    pub fn build(self) -> Result<Subscribe, BuilderError> {
         let mut variable_header: Vec<u8> = self.packet_identifier.to_be_bytes().to_vec();
 
         let mut payload = Vec::new();
-        for (topic, qos) in self.topics {
-            payload.append(&mut encode::utf8(topic).to_vec());
+        for (filter, qos) in self.filters {
+            Filter::new(&filter)?;
+            payload.append(&mut encode::utf8(filter)?.to_vec());
             payload.push(qos as u8);
         }
 
@@ -341,11 +320,18 @@ impl Builder {
         packet.append(&mut variable_header);
         packet.append(&mut payload);
 
-        UnverifiedSubscribe { inner: packet }.verify().unwrap()
+        assert!(UnverifiedSubscribe {
+            inner: packet.clone()
+        }
+        .verify()
+        .is_ok());
+        Ok(Subscribe {
+            inner: UnverifiedSubscribe { inner: packet },
+        })
     }
 
-    pub fn build_packet(self) -> Packet {
-        Packet::Subscribe(self.build())
+    pub fn build_packet(self) -> Result<Packet, BuilderError> {
+        Ok(Packet::Subscribe(self.build()?))
     }
 }
 
@@ -355,12 +341,15 @@ mod test {
 
     #[test]
     fn test_subscribe() {
-        let frame = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery).build();
+        let frame = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
+            .build()
+            .unwrap();
         let _: Subscribe = frame.into_bytes().try_into().unwrap();
 
         let frame = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery)
-            .add_topic("topic-2", QoS::AtLeastOnceDelivery)
-            .build();
+            .add_filter("topic-2", QoS::AtLeastOnceDelivery)
+            .build()
+            .unwrap();
         let _: Subscribe = frame.into_bytes().try_into().unwrap();
     }
 
@@ -371,11 +360,11 @@ mod test {
     #[test]
     fn gh_40_fix_panic_when_building_subscribe_with_a_lot_of_topics() {
         let mut builder = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery);
-        for _ in 0..1145729 {
-            builder = builder.add_topic("", QoS::AtMostOnceDelivery);
+        for n in 0..1145729 {
+            builder = builder.add_filter(format!("topic-{n}"), QoS::AtMostOnceDelivery);
         }
 
-        builder.build();
+        builder.build().unwrap();
     }
 
     // Issue #45 tracks a bug when the `Subscribe.topics()` panics
@@ -385,12 +374,12 @@ mod test {
     #[test]
     fn gh_45_fix_panic_when_iterating_over_the_topics_of_large_subscribe() {
         let mut builder = Subscribe::builder("topic-1", QoS::AtMostOnceDelivery);
-        for _ in 0..1145729 {
-            builder = builder.add_topic("", QoS::AtMostOnceDelivery);
+        for n in 0..1145729 {
+            builder = builder.add_filter(format!("topic-{n}"), QoS::AtMostOnceDelivery);
         }
 
-        let packet = builder.build();
-        let topics = packet.topics();
+        let packet = builder.build().unwrap();
+        let topics = packet.filters();
         for _ in topics {}
     }
 }

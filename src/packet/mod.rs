@@ -1,7 +1,8 @@
 use super::decode::{packet_length, DecodingError, InvalidPacketTypeError};
+use crate::encode::EncodingError;
 use crate::{
     decode, ConnAck, Connect, Disconnect, PingReq, PingResp, PubAck, PubComp, PubRec, PubRel,
-    Publish, SubAck, Subscribe, UnsubAck, Unsubscribe,
+    Publish, SubAck, Subscribe, UnsubAck, Unsubscribe, ValueError,
 };
 use std::error::Error;
 use std::fmt::{self, Display};
@@ -488,5 +489,27 @@ pub trait UnverifiedFrame {
 
         // TODO: Make lookup infallible.
         Ok(&self.as_bytes()[offset..offset + size])
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum BuilderError {
+    TooLong,
+    IllegalValue,
+    Other(String),
+}
+
+impl From<EncodingError> for BuilderError {
+    fn from(value: EncodingError) -> Self {
+        match value {
+            EncodingError::TooLong => Self::TooLong,
+            EncodingError::IllegalValue => Self::IllegalValue,
+        }
+    }
+}
+
+impl From<ValueError> for BuilderError {
+    fn from(value: ValueError) -> Self {
+        Self::Other(value.to_string())
     }
 }

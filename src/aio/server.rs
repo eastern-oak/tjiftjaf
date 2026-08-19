@@ -1,6 +1,6 @@
 use crate::{
     packet::{self, connack::ReturnCode},
-    ConnAck, Connect, DecodingError, Packet, PingResp, SubAck,
+    ConnAck, Connect, DecodingError, Packet, PingResp, SubAck, Topic,
 };
 use async_channel::{SendError, Sender};
 use async_net::{TcpListener, TcpStream};
@@ -47,8 +47,8 @@ impl Server {
                     return Ok(());
                 };
 
-                for (topic, _) in subscribe.topics() {
-                    topics.push(topic.to_owned());
+                for (filter, _) in subscribe.filters() {
+                    topics.push(filter.as_str().to_owned());
                 }
             }
             Message::Packet(_, Packet::Publish(publish)) => {
@@ -240,14 +240,14 @@ impl Client {
                             return Ok(());
                         }
                         Packet::Subscribe(subscribe) => {
-                            let mut topics = subscribe.topics();
-
+                            let filters = subscribe.filters();
+                            let mut filters = filters.iter();
                             // This should not panic, as subscribe must contain 1 topic.
-                            let (_, qos) = topics.next().unwrap();
+                            let (_, qos) = filters.next().unwrap();
 
-                            let mut builder = SubAck::builder(subscribe.packet_identifier(), qos);
-                            for (_, qos) in topics {
-                                builder = builder.add_return_code(qos);
+                            let mut builder = SubAck::builder(subscribe.packet_identifier(), *qos);
+                            for (_, qos) in filters {
+                                builder = builder.add_return_code(*qos);
                             }
                             funnel
                                 .send(Message::Packet(self.client_id().to_owned(), Packet::Subscribe(subscribe)))
@@ -345,17 +345,17 @@ enum Message {
 
 // Verify if a topic match a subscription. The subscription may
 // include wildcards like `#` and `+`.
-fn does_topic_match_subscription(subscription: &str, topic: &str) -> bool {
+fn does_topic_match_subscription(subscription: &str, topic: Topic<'_>) -> bool {
     // If no wild cards are used, check for exact match
     if !subscription.contains('#') && !subscription.contains('+') {
-        return subscription == topic;
+        return topic == subscription;
     }
 
     if let Some((prefix, _)) = subscription.split_once('#') {
-        return topic.starts_with(prefix);
+        return topic.as_str().starts_with(prefix);
     }
 
-    let mut topic_segments = topic.split('/');
+    let mut topic_segments = topic.as_str().split('/');
 
     for filter in subscription.split('/') {
         // The topic and a subscription using `+` must have the same
@@ -385,38 +385,39 @@ fn does_topic_match_subscription(subscription: &str, topic: &str) -> bool {
 #[cfg(test)]
 mod test {
     use super::does_topic_match_subscription;
+    use crate::Topic;
 
     #[test]
     fn test_does_topic_match_subscription() {
         assert!(does_topic_match_subscription(
             "sensors/3/value",
-            "sensors/3/value"
+            Topic::new("sensors/3/value").unwrap()
         ));
 
         assert!(does_topic_match_subscription(
             "sensors/+/value",
-            "sensors/3/value"
+            Topic::new("sensors/3/value").unwrap()
         ));
 
         assert!(does_topic_match_subscription(
             "sensors/+/+",
-            "sensors/3/value"
+            Topic::new("sensors/3/value").unwrap()
         ));
 
         assert!(does_topic_match_subscription(
             "sensors/#",
-            "sensors/3/value"
+            Topic::new("sensors/3/value").unwrap()
         ));
 
         // These topics don't match
         assert!(!does_topic_match_subscription(
             "sensors/3/value",
-            "sensors/1/value"
+            Topic::new("sensors/1/value").unwrap()
         ));
 
         assert!(!does_topic_match_subscription(
             "sensors/+/value",
-            "sensors/1/name"
+            Topic::new("sensors/1/name").unwrap()
         ));
     }
 }

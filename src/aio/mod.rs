@@ -19,7 +19,7 @@
 //!   let stream = TcpStream::connect("localhost:1883").await.unwrap();
 //!   let connect = Connect::builder()
 //!     .client_id("tjiftjaf")
-//!     .build();
+//!     .build().unwrap();
 //!
 //!   let client = Client::new(connect, stream);
 //!
@@ -28,10 +28,10 @@
 //!
 //!   task.race(async {
 //!     // Use the handle to subscribe to topics...
-//!     subscribe("$SYS/broker/uptime").emit(&handle).await.unwrap();
+//!     subscribe("$SYS/broker/uptime").unwrap().emit(&handle).await.unwrap();
 //!
 //!     // ...to publish messages...
-//!     publish("some-topic", r"payload").emit(&handle).await.unwrap();
+//!     publish("some-topic", r"payload").unwrap().emit(&handle).await.unwrap();
 //!
 //!     // ...or to wait for publications on topics you subscribed to.
 //!     let publication = handle.subscriptions().await.unwrap();
@@ -224,10 +224,10 @@ impl ClientHandle {
     /// # use tjiftjaf::{subscribe, Connect, QoS, aio::{Emit, Client}, packet_identifier};
     /// # smol::block_on(async {
     /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
-    /// # let connect = Connect::builder().build();
+    /// # let connect = Connect::builder().build().unwrap();
     /// # let client = Client::new(connect, stream);
     /// # let (mut handle, task) = client.spawn();
-    /// subscribe("sensor/temperature/1").emit(&handle).await.unwrap();
+    /// subscribe("sensor/temperature/1").unwrap().emit(&handle).await.unwrap();
     /// while let Ok(publish) = handle.subscriptions().await {
     ///    println!(
     ///       "On topic {} received {:?}",

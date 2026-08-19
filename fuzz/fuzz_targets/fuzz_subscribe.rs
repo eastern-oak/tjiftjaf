@@ -4,7 +4,7 @@ use tjiftjaf::{packet::subscribe::Builder, Frame, Subscribe};
 
 fuzz_target!(|data: Builder| {
     // Verify this call doesn't panic.
-    let subscribe_1 = data.build();
+    let subscribe_1 = data.build().unwrap();
     let bytes = subscribe_1.clone().into_bytes();
     let subscribe_2 = Subscribe::try_from(bytes.clone()).unwrap();
 
@@ -15,6 +15,5 @@ fuzz_target!(|data: Builder| {
     // All these calls expect a correct packet. If packet is incorrect,
     // the calls cause panic.
     subscribe_1.packet_identifier();
-    let topics = subscribe_1.topics();
-    for _ in topics {}
+    subscribe_1.filters();
 });
