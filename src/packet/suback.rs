@@ -126,6 +126,9 @@ impl UnverifiedSubAck {
     }
 
     fn verify_header(&self) -> Result<(), DecodingError> {
+        if self.try_flags()? != 0b0000 {
+            return Err(DecodingError::HeaderContainsInvalidFlags);
+        }
         let header = self.try_header()?;
         let packet_type = decode::packet_type(header)?;
         if packet_type != crate::PacketType::SubAck {
@@ -297,5 +300,24 @@ mod test {
             .add_return_code(QoS::AtLeastOnceDelivery)
             .build();
         let _: SubAck = frame.into_bytes().try_into().unwrap();
+    }
+
+    /// #105 tracks a bug the parser didn't verify a message's flags.
+    /// As result, the parser would happily parse a message with incorrect
+    /// flags. This test verifies that the parser now fails.
+    #[test]
+    fn test_gh_105_fix_parsing_incorrect_flags() {
+        let mut packet = SubAck::builder(15, QoS::AtMostOnceDelivery)
+            .build()
+            .into_bytes();
+        assert!(SubAck::try_from(packet.clone()).is_ok());
+
+        // The flags are configured in the first byte of the message.
+        // This line changes the flags to an illegal value.
+        packet[0] |= 0b0010;
+        assert_eq!(
+            SubAck::try_from(packet).unwrap_err(),
+            DecodingError::HeaderContainsInvalidFlags
+        );
     }
 }

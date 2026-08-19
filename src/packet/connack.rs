@@ -67,6 +67,9 @@ impl TryFrom<Vec<u8>> for ConnAck {
         };
 
         if value[0] != 32 {
+            if (value[0] & 0x0F) != 0 {
+                return Err(DecodingError::HeaderContainsInvalidFlags);
+            }
             return Err(DecodingError::InvalidPacketType(value[0]));
         };
 
@@ -212,7 +215,7 @@ impl Default for ConnAckBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::{packet::connack::ReturnCode, ConnAck};
+    use crate::{packet::connack::ReturnCode, ConnAck, DecodingError, Frame};
 
     #[test]
     fn test_building_connack() {
@@ -240,5 +243,22 @@ mod test {
         // This input is too long.
         let input = vec![32, 2, 0, 0, 0];
         assert!(ConnAck::try_from(input).is_err());
+    }
+
+    /// #105 tracks a bug the parser didn't verify a message's flags.
+    /// As result, the parser would happily parse a message with incorrect
+    /// flags. This test verifies that the parser now fails.
+    #[test]
+    fn test_gh_105_fix_parsing_incorrect_flags() {
+        let mut packet = ConnAck::builder().build().as_bytes().to_vec();
+        assert!(ConnAck::try_from(packet.clone()).is_ok());
+
+        // The flags are configured in the first byte of the message.
+        // This line changes the flags to an illegal value.
+        packet[0] |= 0b0010;
+        assert_eq!(
+            ConnAck::try_from(packet).unwrap_err(),
+            DecodingError::HeaderContainsInvalidFlags
+        );
     }
 }

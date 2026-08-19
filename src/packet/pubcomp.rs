@@ -39,11 +39,14 @@ impl TryFrom<&[u8]> for PubComp {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let ack = Ack::try_from(value)?;
-        if ack.packet_type() == PacketType::PubComp {
-            Ok(PubComp(ack))
-        } else {
-            Err(DecodingError::InvalidPacketType(ack.packet_type() as u8))
+        if ack.packet_type() != PacketType::PubComp {
+            return Err(DecodingError::InvalidPacketType(ack.packet_type() as u8));
         }
+
+        if (value[0] & 0x0F) != 0b0000 {
+            return Err(DecodingError::HeaderContainsInvalidFlags);
+        }
+        Ok(Self(ack))
     }
 }
 
@@ -70,6 +73,8 @@ impl std::fmt::Debug for PubComp {
 
 #[cfg(test)]
 mod test {
+    use crate::{DecodingError, Frame};
+
     use super::PubComp;
 
     #[test]
@@ -80,5 +85,21 @@ mod test {
         PubComp::try_from(puback).unwrap();
 
         assert_eq!(puback.packet_identifier(), 1568);
+    }
+    /// #105 tracks a bug the parser didn't verify a message's flags.
+    /// As result, the parser would happily parse a message with incorrect
+    /// flags. This test verifies that the parser now fails.
+    #[test]
+    fn test_gh_105_fix_parsing_incorrect_flags() {
+        let mut packet = PubComp::new(15).as_bytes().to_vec();
+        assert!(PubComp::try_from(packet.clone()).is_ok());
+
+        // The flags are configured in the first byte of the message.
+        // This line changes the flags to an illegal value.
+        packet[0] |= 0b0010;
+        assert_eq!(
+            PubComp::try_from(packet).unwrap_err(),
+            DecodingError::HeaderContainsInvalidFlags
+        );
     }
 }
