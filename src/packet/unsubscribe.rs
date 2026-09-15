@@ -107,13 +107,11 @@ impl crate::blocking::Emit for Unsubscribe {
     /// Unsubscribe from a topic.
     ///
     /// ```no_run
-    /// # use std::net::TcpStream;
     /// # use tjiftjaf::{unsubscribe, Connect, blocking::{Client, Emit}};
-    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
-    /// # let connect = Connect::builder().build();
-    /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, _task) = client.spawn().unwrap();
+    /// # let connect = Connect::builder().build().unwrap();
+    /// # let (mut client, mut handle) = Client::new(connect).unwrap();
     /// unsubscribe("sensor/temperature/1")
+    ///    .unwrap()
     ///    .emit(&handle)
     ///    .unwrap();
     /// ```
