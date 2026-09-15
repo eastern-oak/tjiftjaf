@@ -1,8 +1,15 @@
 //! A blocking MQTT [`Client`].
 //!
-//! After creating the `Client`, [`Client::spawn()`] runs the
-//! client in a new thread. That method returns a [`ClientHandle`]
-//! allowing an application to [subscribe](crate::Subscribe::emit()) to topics, [publish](crate::Publish::emit()) messages and [retrieve
+//! After creating the `Client`, [`Client::run()`] starts the
+//! client. One can interact with it using [`ClientHandle`].
+//!
+//! `run()` blocks the calling thread until the connection breaks, so it's
+//! typically driven from its own [`std::thread`]. If the connection breaks,
+//! `run()` returns and the caller can reconnect by calling `run()` again
+//! with a new socket; the `Client` keeps its internal state (e.g. pending
+//! subscriptions) across reconnects.
+//!
+//! The `ClientHandle` allows an application to [subscribe](crate::Subscribe::emit()) to topics, [publish](crate::Publish::emit()) messages and [retrieve
 //! publications](ClientHandle::publication()).
 //!
 //! Below you find a small snippet. Also, take a look at [examples/blocking_client.rs](https://github.com/eastern-oak/tjiftjaf/blob/master/examples/blocking_client.rs)
@@ -10,17 +17,20 @@
 //!
 //! ```no_run
 //! use std::net::TcpStream;
+//! use std::thread;
 //! use tjiftjaf::{publish, subscribe, Connect, blocking::{Client, Emit}, packet_identifier};
 //!
 //! let stream = TcpStream::connect("localhost:1883").unwrap();
 //! let connect = Connect::builder()
 //!   .client_id("tjiftjaf")
-//!   .build();
+//!   .build()
+//!   .unwrap();
 //!
-//! let client = Client::new(connect, stream);
+//! let (mut client, mut handle) = Client::new(connect).unwrap();
 //!
-//! // Spawn the client in a new thread and obtain a handle to it.
-//! let (mut handle, _task) = client.spawn().unwrap();
+//! // Run the client on its own thread. `run()` returns when the connection
+//! // breaks, so the thread can reconnect by calling it again.
+//! let task = thread::spawn(move || client.run(stream));
 //!
 //! // Use the handle to subscribe to topics...
 //! subscribe("$SYS/broker/uptime")
@@ -43,7 +53,6 @@ use mio::{Events, Interest, Poll, Token, Waker};
 use std::{
     io::{Read, Write},
     net::{Shutdown, TcpStream},
-    thread::{self, JoinHandle},
     time::Instant,
 };
 
@@ -54,23 +63,16 @@ const PUBLISH: Token = Token(1);
 ///
 /// See the [module documentation](crate::blocking) for more information.
 pub struct Client {
-    socket: mio::net::TcpStream,
+    poll: Poll,
     binding: MqttBinding,
+
+    inbox: Receiver<Packet>,
+    sender: Sender<Packet>,
 }
 
 impl Client {
-    /// Create a new `Client`.
-    pub fn new(connect: Connect, socket: TcpStream) -> Self {
-        Self {
-            socket: mio::net::TcpStream::from_std(socket),
-            binding: MqttBinding::from_connect(connect),
-        }
-    }
-
-    /// Start a new thread and move the `Client` to it.
-    pub fn spawn(
-        self,
-    ) -> Result<(ClientHandle, JoinHandle<Result<(), std::io::Error>>), std::io::Error> {
+    /// Create a new `Client` and a [`ClientHandle`] to interact with it.
+    pub fn new(connect: Connect) -> Result<(Self, ClientHandle), std::io::Error> {
         let poll = Poll::new()?;
         let waker = Waker::new(poll.registry(), PUBLISH)?;
 
@@ -79,44 +81,62 @@ impl Client {
         let (to_tx, to_rx) = async_channel::bounded(100);
         // For communication _from_ the handler.
         let (from_tx, from_rx) = async_channel::bounded(100);
-        let handle = ClientHandle::new(from_tx, to_rx, waker);
+        let handle = ClientHandle::new(to_tx, from_rx, waker);
 
-        Ok((
-            handle,
-            thread::spawn(move || self.run(poll, to_tx, from_rx)),
-        ))
+        let this = Self {
+            poll,
+            inbox: to_rx,
+            sender: from_tx,
+            binding: MqttBinding::from_connect(connect),
+        };
+
+        Ok((this, handle))
     }
 
-    fn run(
-        mut self,
-        mut poll: Poll,
-        sender: Sender<Packet>,
-        receiver: Receiver<Packet>,
-    ) -> Result<(), std::io::Error> {
+    /// Run the client on the given socket. Blocks the calling thread until
+    /// the connection breaks, then returns.
+    ///
+    /// After it returns, the `Client` can be reconnected by calling `run()`
+    /// again with a new socket.
+    pub fn run(&mut self, socket: TcpStream) -> Result<(), std::io::Error> {
+        let mut socket = mio::net::TcpStream::from_std(socket);
         let mut events = Events::with_capacity(128);
-        poll.registry()
-            .register(&mut self.socket, CLIENT, Interest::READABLE)?;
+        self.poll
+            .registry()
+            .register(&mut socket, CLIENT, Interest::READABLE)?;
 
-        // In this loop, check with the binding if any outbound
-        // packets are waiting. We call them 'transmits'. Send all pending
-        // transmits to the broker.
-        //
-        // When done, request a read buffer, read bytes from the broker until
-        // the buffer is full. Then, request the binding to decode the buffer.
-        // This operation might yield a mqtt::Packet for further processing.
+        let result = self.run_with_socket(&mut socket, &mut events);
+
+        let _ = self.poll.registry().deregister(&mut socket);
+
+        result
+    }
+
+    // In this loop, check with the binding if any outbound
+    // packets are waiting. We call them 'transmits'. Send all pending
+    // transmits to the broker.
+    //
+    // When done, request a read buffer, read bytes from the broker until
+    // the buffer is full. Then, request the binding to decode the buffer.
+    // This operation might yield a mqtt::Packet for further processing.
+    fn run_with_socket(
+        &mut self,
+        socket: &mut mio::net::TcpStream,
+        events: &mut Events,
+    ) -> Result<(), std::io::Error> {
         loop {
-            while let Ok(packet) = receiver.try_recv() {
+            while let Ok(packet) = self.inbox.try_recv() {
                 self.binding.send(packet);
             }
 
             loop {
                 match self.binding.poll_transmits(Instant::now()) {
                     Ok(Some(bytes)) => {
-                        self.socket.write_all(&bytes)?;
+                        socket.write_all(&bytes)?;
                     }
                     Ok(None) => break,
                     Err(_) => {
-                        self.socket.shutdown(Shutdown::Both)?;
+                        socket.shutdown(Shutdown::Both)?;
                         info!("The client disconnected.");
                         return Ok(());
                     }
@@ -124,11 +144,11 @@ impl Client {
             }
 
             let timeout = self.binding.poll_timeout();
-            poll.poll(&mut events, Some(timeout - Instant::now()))?;
+            self.poll.poll(events, Some(timeout - Instant::now()))?;
 
             for event in events.iter() {
                 if event.token() == PUBLISH {
-                    while let Ok(packet) = receiver.try_recv() {
+                    while let Ok(packet) = self.inbox.try_recv() {
                         self.binding.send(packet);
                     }
                 }
@@ -143,7 +163,7 @@ impl Client {
 
                 loop {
                     let mut buffer = self.binding.get_read_buffer();
-                    self.socket.read_exact(&mut buffer)?;
+                    socket.read_exact(&mut buffer)?;
 
                     // TODO: If packet is invalid, try_decode() never returns a `Some`,
                     // And thus the `loop` never breaks.
@@ -151,7 +171,7 @@ impl Client {
                     // to indicate that more bytes are expected and event loop should continue.
                     // Any other error indicates an issue and event loop must break the loop
                     if let Some(packet) = self.binding.try_decode(buffer, Instant::now()) {
-                        sender
+                        self.sender
                             .send_blocking(packet)
                             .map_err(std::io::Error::other)?;
                         break;
@@ -197,9 +217,9 @@ impl ClientHandle {
     /// # use std::net::TcpStream;
     /// # use tjiftjaf::{subscribe, Connect, blocking::{Client, Emit}, packet_identifier};
     /// # let stream = TcpStream::connect("localhost:1883").unwrap();
-    /// # let connect = Connect::builder().build();
-    /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, _task) = client.spawn().unwrap();
+    /// # let connect = Connect::builder().build().unwrap();
+    /// # let (mut client, mut handle) = Client::new(connect).unwrap();
+    /// # let _task = std::thread::spawn(move || client.run(stream));
     /// subscribe("sensor/temperature/1")
     ///     .emit(&handle)
     ///     .unwrap();

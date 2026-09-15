@@ -368,9 +368,9 @@ impl crate::blocking::Emit for Publish {
     /// # use std::net::TcpStream;
     /// # use tjiftjaf::{publish, Connect, blocking::{Client, Emit}, packet_identifier};
     /// # let stream = TcpStream::connect("localhost:1883").unwrap();
-    /// # let connect = Connect::builder().build();
-    /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, _task) = client.spawn().unwrap();
+    /// # let connect = Connect::builder().build().unwrap();
+    /// # let (mut client, mut handle) = Client::new(connect).unwrap();
+    /// # let _task = std::thread::spawn(move || client.run(stream));
     ///
     /// publish("sensor/temperature/1", "26.1")
     ///     .emit(&handle)
