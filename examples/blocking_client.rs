@@ -2,6 +2,7 @@
 use log::info;
 use std::env;
 use std::net::TcpStream;
+use std::thread;
 use tjiftjaf::{
     blocking::{Client, Emit},
     packet_identifier, publish, subscribe, Connect,
@@ -21,11 +22,11 @@ fn main() {
         .password("readonly")
         .build()
         .unwrap();
-    let client = Client::new(connect, stream);
+    let (mut client, mut handle) = Client::new(connect).unwrap();
 
-    // Spawn the event loop that monitors the socket.
+    // Run the event loop that monitors the socket on its own thread.
     // `handle` allows for sending and receiving MQTT packets.
-    let (mut handle, _task) = client.spawn().unwrap();
+    let _task = thread::spawn(move || client.run(stream));
 
     subscribe("$SYS/broker/uptime")
         .unwrap()
