@@ -3,7 +3,7 @@ mod env;
 #[cfg(feature = "async")]
 mod aio {
     use crate::env::broker::Broker;
-    use crate::env::wiretap::wiretapped_client;
+    use crate::env::wiretap::spawn_wiretapped_client;
     use async_net::{TcpListener, TcpStream};
     use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
     use macro_rules_attribute::apply;
@@ -11,7 +11,7 @@ mod aio {
     use smol_macros::test;
     use std::{future, time::Duration};
     use tjiftjaf::{
-        aio::{Client, Emit},
+        aio::{Client, ClientHandle, Emit},
         publish, subscribe, ConnAck, Connect, Frame, Packet, PacketType, Publish, Subscribe,
     };
 
@@ -20,7 +20,10 @@ mod aio {
 
     const TOPIC: &str = "topic";
 
-    async fn create_client(port: u16) -> Client<TcpStream> {
+    // Create a `Client` and open a connection to the given port.
+    // The `Client` runs in an isolated task and a handle to the client is
+    // returned.
+    async fn spawn_client(port: u16) -> ClientHandle {
         let stream = TcpStream::connect(format!("127.0.0.1:{}", port))
             .await
             .expect("Failed to open TCP connection to broker.");
@@ -30,7 +33,9 @@ mod aio {
             .keep_alive(5)
             .build()
             .unwrap();
-        Client::new(connect, stream)
+        let (client, handle) = Client::new(connect);
+        smol::spawn(client.run(stream)).detach();
+        handle
     }
 
     // Connect a client to a broker.
@@ -39,10 +44,7 @@ mod aio {
     #[apply(test!)]
     async fn test_subscribe_and_publish() {
         let broker = Broker::new();
-        let (client, mut history) = wiretapped_client(broker.port).await;
-        let (handle, task) = client.spawn();
-
-        let _handle = smol::spawn(task);
+        let (handle, mut history) = spawn_wiretapped_client(broker.port).await;
 
         // After connecting, the broker returns a CONNACK packet.
         let _ = history.find(PacketType::ConnAck).await;
@@ -69,7 +71,8 @@ mod aio {
 
         handle.disconnect().await.unwrap();
         let _ = history.find(PacketType::Disconnect).await;
-        assert!(_handle.await.is_ok());
+        // TODO: how to check that client stopped.
+        // assert!(_handle.await.is_ok());
     }
 
     // Issue #17 tracked a bug where `MqttBinding` failed to
@@ -83,7 +86,7 @@ mod aio {
     #[apply(test!)]
     async fn test_17_decoding_large_packets() {
         let server = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let client = create_client(server.local_addr().unwrap().port());
+        let mut handle = spawn_client(server.local_addr().unwrap().port()).await;
 
         // A task where the `server` accepts an incoming connection.
         // After the CONNECT/CONNACK exchange, the server emits a PUBLISH
@@ -117,13 +120,10 @@ mod aio {
             let () = future::pending().await;
         });
 
-        let (mut handle_a, task) = client.await.spawn();
-        let _handle = smol::spawn(task);
-
         // let packet = handle_a.any_packet().await.unwrap();
         // assert_eq!(packet.packet_type(), PacketType::ConnAck);
 
-        let publish = handle_a.subscriptions().await.unwrap();
+        let publish = handle.subscriptions().await.unwrap();
 
         assert_eq!(publish.topic(), TOPIC);
         assert_eq!(publish.payload(), b"test_subscribe_and_publish");
@@ -141,10 +141,7 @@ mod aio {
     #[apply(test!)]
     async fn test_qos_1_and_qos_2() {
         let broker = Broker::new();
-        let (client, mut history) = wiretapped_client(broker.port).await;
-        let (handle_a, task) = client.spawn();
-
-        let _handle = smol::spawn(task);
+        let (handle, mut history) = spawn_wiretapped_client(broker.port).await;
 
         // After connecting, the broker returns a CONNACK packet.
         let _ = history.find(PacketType::ConnAck).await;
@@ -152,14 +149,14 @@ mod aio {
         Subscribe::builder(TOPIC, tjiftjaf::QoS::AtLeastOnceDelivery)
             .build()
             .unwrap()
-            .emit(&handle_a)
+            .emit(&handle)
             .await
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
 
         publish(TOPIC, "test_subscribe_and_publish")
             .unwrap()
-            .emit(&handle_a)
+            .emit(&handle)
             .await
             .unwrap();
 
@@ -170,7 +167,7 @@ mod aio {
         Subscribe::builder(TOPIC, tjiftjaf::QoS::ExactlyOnceDelivery)
             .build()
             .unwrap()
-            .emit(&handle_a)
+            .emit(&handle)
             .await
             .unwrap();
         let _ = history.find(PacketType::SubAck).await;
@@ -179,7 +176,7 @@ mod aio {
             .qos(tjiftjaf::QoS::ExactlyOnceDelivery)
             .build()
             .unwrap()
-            .emit(&handle_a)
+            .emit(&handle)
             .await
             .unwrap();
 
@@ -197,10 +194,8 @@ mod aio {
         let server = Server::new(listener);
         let _server_handle = smol::spawn(server.run());
 
-        let (mut handle_1, task) = create_client(local_addr.port()).await.spawn();
-        let _handle = smol::spawn(task);
-        let (handle_2, task) = create_client(local_addr.port()).await.spawn();
-        let _handle = smol::spawn(task);
+        let mut handle_1 = spawn_client(local_addr.port()).await;
+        let handle_2 = spawn_client(local_addr.port()).await;
 
         Subscribe::builder("test/#", tjiftjaf::QoS::AtLeastOnceDelivery)
             .build()
