@@ -16,7 +16,6 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
-mod client;
 pub mod decode;
 mod encode;
 pub mod packet;

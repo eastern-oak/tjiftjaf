@@ -4,11 +4,15 @@ use async_net::{TcpListener, TcpStream};
 use futures::FutureExt;
 use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
 use smol::spawn;
-use tjiftjaf::{aio::Client, decode::DecodingError, packet, Connect, Packet, PacketType};
+use tjiftjaf::{
+    aio::{Client, ClientHandle},
+    decode::DecodingError,
+    packet, Connect, Packet, PacketType,
+};
 
 /// Start a proxy and connect `Client` through that proxy to the broker.
 /// The interaction between `Client` and broker is recorded in a `Transcription`.
-pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) {
+pub async fn spawn_wiretapped_client(port: u16) -> (ClientHandle, Transcription) {
     // Bind the proxy to a random available port.
     let addr = "127.0.0.1:0";
 
@@ -127,7 +131,9 @@ pub async fn wiretapped_client(port: u16) -> (Client<TcpStream>, Transcription) 
         .keep_alive(5)
         .build()
         .unwrap();
-    (Client::new(connect, stream), history)
+    let (client, handle) = Client::new(connect);
+    smol::spawn(client.run(stream)).detach();
+    (handle, history)
 }
 
 /// A collection of all `Packet`s that are sent to the MQTT broker.
