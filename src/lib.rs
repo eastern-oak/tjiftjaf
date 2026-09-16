@@ -16,13 +16,12 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
+#[cfg(feature = "blocking")]
+pub mod blocking;
 pub mod decode;
 mod encode;
 pub mod packet;
 mod validate;
-
-#[cfg(feature = "blocking")]
-pub mod blocking;
 
 #[cfg(feature = "async")]
 pub mod aio;

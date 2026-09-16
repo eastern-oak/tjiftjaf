@@ -34,11 +34,13 @@
 //!
 //! // Use the handle to subscribe to topics...
 //! subscribe("$SYS/broker/uptime")
+//!    .unwrap()
 //!    .emit(&handle)
 //!    .unwrap();
 //!
 //! // ...to publish messages...
-//! publish("some-topic", r"payload".into())
+//! publish("some-topic", r"payload")
+//!    .unwrap()
 //!    .emit(&handle)
 //!    .unwrap();
 //!
@@ -214,13 +216,11 @@ impl ClientHandle {
     /// Wait for the next [`Publish`] messages emitted by the broker.
     ///
     /// ```no_run
-    /// # use std::net::TcpStream;
     /// # use tjiftjaf::{subscribe, Connect, blocking::{Client, Emit}, packet_identifier};
-    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
     /// # let connect = Connect::builder().build().unwrap();
     /// # let (mut client, mut handle) = Client::new(connect).unwrap();
-    /// # let _task = std::thread::spawn(move || client.run(stream));
     /// subscribe("sensor/temperature/1")
+    ///     .unwrap()
     ///     .emit(&handle)
     ///     .unwrap();
     /// while let Ok(publish) = handle.publication() {

@@ -342,8 +342,6 @@ impl crate::aio::Emit for Publish {
     /// Publish `payload` to the given `topic`.
     ///
     /// ```no_run
-    /// # use async_net::TcpStream;
-    /// # use futures_lite::FutureExt;
     /// # use tjiftjaf::{publish, Connect, QoS, aio::{Client, Emit}, packet_identifier};
     /// # smol::block_on(async {
     /// # let connect = Connect::builder().build().unwrap();
@@ -365,14 +363,11 @@ impl crate::blocking::Emit for Publish {
     /// Publish `payload` to the given `topic`.
     ///
     /// ```no_run
-    /// # use std::net::TcpStream;
     /// # use tjiftjaf::{publish, Connect, blocking::{Client, Emit}, packet_identifier};
-    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
     /// # let connect = Connect::builder().build().unwrap();
     /// # let (mut client, mut handle) = Client::new(connect).unwrap();
-    /// # let _task = std::thread::spawn(move || client.run(stream));
     ///
-    /// publish("sensor/temperature/1", "26.1")
+    /// publish("sensor/temperature/1", "26.1").unwrap()
     ///     .emit(&handle)
     ///     .unwrap();
     ///```
