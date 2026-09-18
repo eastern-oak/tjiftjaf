@@ -224,6 +224,22 @@ impl MqttBinding {
         Ok(None)
     }
 
+    /// The connection to the other peer has been lost. If it happened while sending some bytes,
+    /// the bytes can be passed and they'll be retransmitted upon reconnecting.
+    pub fn connection_lost(&mut self, buf: Option<Vec<u8>>) {
+        self.connection_status = ConnectionStatus::NotConnected;
+        let Some(buf) = buf else { return };
+
+        match Packet::try_from(buf) {
+            Ok(packet) => self.transmits.insert(0, packet),
+            // This should never happen, since `buf` is created from a valid `Packet`.
+            // If it happens, we've a bug in the encoder of decoder of `Packet.`
+            Err(error) => {
+                error!("Failed to decode bytes of a retransmitted packet: {error:?}");
+            }
+        }
+    }
+
     /// Try parsing the bytes as a Packet.
     pub fn try_decode(&mut self, mut buf: Vec<u8>, _now: Instant) -> Option<Packet> {
         let (state, packet) = match &self.state {
@@ -323,6 +339,7 @@ impl MqttBinding {
                     prefix
                 };
 
+                // TODO: remove unwrap()
                 let packet = Packet::try_from(frame).unwrap();
 
                 if packet.packet_type() == PacketType::ConnAck {

@@ -25,7 +25,7 @@ fn main() {
             .build()
             .unwrap();
 
-        let (client, mut handle) = Client::new(connect);
+        let (mut client, mut handle) = Client::new(connect);
 
         subscribe("$SYS/broker/uptime")
             .unwrap()

@@ -20,7 +20,7 @@
 //!     .client_id("tjiftjaf")
 //!     .build().unwrap();
 //!
-//!   let (client, mut handle) = Client::new(connect);
+//!   let (mut client, mut handle) = Client::new(connect);
 //!   let task = client.run(stream);
 //!
 //!   task.race(async {
@@ -83,7 +83,7 @@ impl Client {
         (this, handle)
     }
 
-    pub async fn run<S>(mut self, socket: S) -> Result<(), std::io::Error>
+    pub async fn run<S>(&mut self, socket: S) -> Result<(), std::io::Error>
     where
         S: AsyncRead + AsyncWrite,
     {
@@ -104,13 +104,26 @@ impl Client {
             loop {
                 match self.binding.poll_transmits(Instant::now()) {
                     Ok(Some(bytes)) => {
-                        socket.write_all(&bytes).await?;
-                        // If the socket implementation is buffered, `bytes` will not be transmitted unless
-                        // the internal buffer is full or a call to flush is done.
-                        socket.flush().await?;
+                        match socket.write_all(&bytes).await {
+                            Ok(_) => {
+                                // If the socket implementation is buffered, `bytes` will not be transmitted unless
+                                // the internal buffer is full or a call to flush is done.
+                                socket.flush().await?;
+                            }
+                            Err(error) => {
+                                // The packet couldn't be send over the wire.
+                                // It is fed back to the `MqttBinding`. After reconnecting,
+                                // the packet is resend using the new connection.
+                                //
+                                // Without retransmitting the packet, it would be lost.
+                                self.binding.connection_lost(Some(bytes));
+                                return Err(error);
+                            }
+                        }
                     }
                     Ok(None) => break,
                     Err(_) => {
+                        self.binding.connection_lost(None);
                         socket.close().await?;
                         info!("The client disconnected.");
                         return Ok(());
@@ -123,9 +136,10 @@ impl Client {
 
             futures::select! {
                 bytes_read = socket.read(&mut buffer).fuse() => {
-                    let bytes_read = bytes_read?;
+                    let bytes_read = bytes_read.inspect_err(|_| self.binding.connection_lost(None))?;
 
                     if bytes_read == 0 {
+                        self.binding.connection_lost(None);
                         error!("Packet empty, reconnecting!");
                         return Err(std::io::Error::other("Packet is empty"));
                     }
@@ -167,6 +181,7 @@ impl Client {
                         }
 
                         if self.sender.send(packet).await.is_err() {
+                            self.binding.connection_lost(None);
                             // TODO: Change error type. std::io::Error is not really fitting here.
                             return Err(std::io::Error::other("Failed to send message to handler"));
                         }
@@ -179,6 +194,7 @@ impl Client {
                     match packet {
                         Ok(packet) => self.binding.send(packet),
                         Err(_) => {
+                            self.binding.connection_lost(None);
                             return Err(std::io::Error::other("Failed to read message from channel"));
                         }
                     }

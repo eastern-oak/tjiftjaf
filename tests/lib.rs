@@ -3,13 +3,21 @@ mod env;
 #[cfg(feature = "async")]
 mod aio {
     use crate::env::broker::Broker;
-    use crate::env::wiretap::spawn_wiretapped_client;
+    use crate::env::wiretap::{spawn_wiretapped_client, Line, Transcription};
+    use async_channel::Sender;
     use async_net::{TcpListener, TcpStream};
-    use futures_lite::{AsyncReadExt, AsyncWriteExt, StreamExt};
+    use futures_lite::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, StreamExt};
+    use log::debug;
     use macro_rules_attribute::apply;
     use smol::Timer;
     use smol_macros::test;
-    use std::{future, time::Duration};
+    use std::{
+        collections::VecDeque,
+        future,
+        io::{self, ErrorKind},
+        task::Poll,
+        time::Duration,
+    };
     use tjiftjaf::{
         aio::{Client, ClientHandle, Emit},
         publish, subscribe, ConnAck, Connect, Frame, Packet, PacketType, Publish, Subscribe,
@@ -33,9 +41,119 @@ mod aio {
             .keep_alive(5)
             .build()
             .unwrap();
-        let (client, handle) = Client::new(connect);
-        smol::spawn(client.run(stream)).detach();
+        let (mut client, handle) = Client::new(connect);
+        smol::spawn(async move { client.run(stream).await }).detach();
         handle
+    }
+
+    /// An implementation of `AsyncRead` and `AsyncWrite` that deliberetly fails
+    /// after a certain number of reads or writes. It is used to verify
+    #[derive(Debug, Clone)]
+    struct FlakyConnection {
+        // These packets are to generate response for `FlakyConnection.poll_read()`.
+        // Since single packet are usually not read in a single `poll_read()` operation, `partial_read` includes
+        // the portion of packet that hasn't been read yet.
+        reads: VecDeque<Packet>,
+        partial_read: Option<Vec<u8>>,
+
+        // `FlakyConnection.poll_write()` returns an error after a number of calls.
+        // `writes` keeps track of how many times `poll_write()` is called. Whereas `max_writes`
+        // holds the maximum number of calls to `poll_write()` are allowed before returning an error.
+        writes: usize,
+        max_writes: usize,
+
+        history: Sender<Line>,
+    }
+
+    impl FlakyConnection {
+        pub fn new(reads: Vec<impl Into<Packet>>, max_writes: usize) -> (Self, Transcription) {
+            let history = Transcription::new();
+
+            let this = Self {
+                reads: reads.into_iter().map(|read| read.into()).collect(),
+                partial_read: None,
+                writes: 0,
+                max_writes,
+                history: history.handler(),
+            };
+            (this, history)
+        }
+    }
+
+    impl AsyncRead for FlakyConnection {
+        /// Return one item from self.reads.
+        /// If self.reads is empty, return an error
+        fn poll_read(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+            buf: &mut [u8],
+        ) -> Poll<std::io::Result<usize>> {
+            let self_mut = unsafe { self.get_unchecked_mut() };
+
+            let read = match self_mut.partial_read.take() {
+                Some(read) => read,
+                None => {
+                    let Some(read) = self_mut.reads.pop_front() else {
+                        debug!("FlakyConnection.poll_read() failed");
+                        return Poll::Ready(Err(io::Error::from(ErrorKind::PermissionDenied)));
+                    };
+                    debug!("FlakyConnection.poll_read() {:?}", read);
+                    read.into_bytes()
+                }
+            };
+
+            let n = buf.len().min(read.len());
+
+            debug!("FlakyConnection.poll_read() {:?}", &read[..n]);
+            buf[..n].copy_from_slice(&read[..n]);
+            if read[n..].len() > 0 {
+                self_mut.partial_read = Some(read[n..].to_vec());
+            }
+            Poll::Ready(Ok(n))
+        }
+    }
+
+    impl AsyncWrite for FlakyConnection {
+        fn poll_write(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+            buf: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            if self.writes >= self.max_writes {
+                debug!("FlakyConnection.poll_write() failed");
+                return Poll::Ready(Err(io::Error::from(ErrorKind::AddrInUse)));
+            }
+            debug!("FlakyConnection.poll_write() {:?}", &buf[..]);
+
+            let self_mut = unsafe { self.get_unchecked_mut() };
+
+            let packet = Packet::try_from(buf.to_vec()).unwrap_or_else(|error| {
+                panic!("FlakyConnection failed to parse a written packet: {error:?}")
+            });
+            self_mut
+                .history
+                .try_send(Line::Client(packet))
+                .unwrap_or_else(|e| {
+                    panic!("Failed to record the client's payload in the transcription: {e:?}")
+                });
+            self_mut.writes += 1;
+
+            Poll::Ready(Ok(buf.len()))
+        }
+
+        fn poll_flush(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_close(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
     }
 
     // Connect a client to a broker.
@@ -213,6 +331,35 @@ mod aio {
         let publication = handle_1.subscriptions().await.unwrap();
         assert_eq!(&publication.topic(), &"test/client_and_server");
         assert_eq!(&publication.payload(), b"test_subscribe_and_publish");
+    }
+
+    /// Verify that outbound packets are _not_ lost when the connection
+    /// breaks while sending a packet.
+    #[apply(test!)]
+    async fn test_retransmitting_packet_when_connection_is_breaks() {
+        let connack = ConnAck::builder().build();
+
+        let (stream, mut history) = FlakyConnection::new(vec![connack.clone()], 1);
+        let (mut client, handle) = Client::new(Connect::builder().build().unwrap());
+        subscribe("sensors/1").unwrap().emit(&handle).await.unwrap();
+
+        assert!(client.run(stream).await.is_err());
+
+        // The CONNECT packet was sent successfully before the connection died,
+        // butthe SUBSCRIBE packet never made it onto the wire.
+        let _ = history.find(PacketType::Connect).await;
+        assert!(history
+            .try_find_with(|packet| packet.packet_type() == PacketType::Subscribe)
+            .await
+            .is_err());
+
+        let (stream, mut history) = FlakyConnection::new(vec![connack], 2);
+        assert!(client.run(stream).await.is_err());
+
+        // After reconnecting, the client must resend the CONNECT packet as well as
+        // retransmit the SUBSCRIBE packet that was lost earlier.
+        let _ = history.find(PacketType::Connect).await;
+        let _ = history.find(PacketType::Subscribe).await;
     }
 }
 
