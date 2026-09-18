@@ -27,7 +27,7 @@ async fn main() {
         .build()
         .unwrap();
 
-    let (client, handle) = Client::new(connect);
+    let (mut client, handle) = Client::new(connect);
 
     subscribe("$SYS/broker/uptime")
         .unwrap()

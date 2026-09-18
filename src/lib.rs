@@ -224,6 +224,22 @@ impl MqttBinding {
         Ok(None)
     }
 
+    /// Insert the given packet in the front of the transmit queue.
+    /// The next call to `poll_transmit()` yields this packet.
+    ///
+    /// This method is useful when a client failed to sent a packet
+    /// due to a broken connection.
+    pub fn retransmit(&mut self, buf: Vec<u8>) -> Result<(), DecodingError> {
+        let packet = Packet::try_from(buf)?;
+        self.transmits.insert(0, packet);
+        Ok(())
+    }
+
+    /// The connection to the other peer has been lost.
+    pub fn connection_lost(&mut self) {
+        self.connection_status = ConnectionStatus::NotConnected;
+    }
+
     /// Try parsing the bytes as a Packet.
     pub fn try_decode(&mut self, mut buf: Vec<u8>, _now: Instant) -> Option<Packet> {
         let (state, packet) = match &self.state {
@@ -323,6 +339,7 @@ impl MqttBinding {
                     prefix
                 };
 
+                // TODO: remove unwrap()
                 let packet = Packet::try_from(frame).unwrap();
 
                 if packet.packet_type() == PacketType::ConnAck {
