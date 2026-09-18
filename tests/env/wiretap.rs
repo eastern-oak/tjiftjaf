@@ -131,8 +131,8 @@ pub async fn spawn_wiretapped_client(port: u16) -> (ClientHandle, Transcription)
         .keep_alive(5)
         .build()
         .unwrap();
-    let (client, handle) = Client::new(connect);
-    smol::spawn(client.run(stream)).detach();
+    let (mut client, handle) = Client::new(connect);
+    smol::spawn(async move { client.run(stream).await }).detach();
     (handle, history)
 }
 
