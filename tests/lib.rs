@@ -365,20 +365,30 @@ mod aio {
 
 #[cfg(feature = "blocking")]
 mod blocking {
+    use async_channel::Sender;
+    use macro_rules_attribute::apply;
     use pretty_assertions::assert_eq;
-    use std::time::Duration;
+    use smol_macros::test;
+    use std::{
+        io::{Read, Write},
+        net::{Shutdown, TcpStream},
+        os::unix::net::UnixStream,
+        thread,
+        time::Duration,
+    };
     use tjiftjaf::{
         blocking::{self, Emit},
-        publish, subscribe, Connect,
+        packet, publish, subscribe, ConnAck, Connect, Frame, Packet, PacketType,
     };
 
+    use crate::env::wiretap::{Line, Transcription};
     const TOPIC: &str = "topic";
 
     // Create a `Client` and open a connection to the given port.
     // The `Client` runs in an isolated thread and a handle to the client is
     // returned.
     fn spawn_blocking_client(port: u16) -> blocking::ClientHandle {
-        let stream = std::net::TcpStream::connect(format!("127.0.0.1:{}", port))
+        let stream = TcpStream::connect(format!("127.0.0.1:{}", port))
             .expect("Failed to open TCP connection to broker.");
 
         let connect = Connect::builder()
@@ -387,7 +397,7 @@ mod blocking {
             .build()
             .unwrap();
         let (mut client, handle) = blocking::Client::new(connect).unwrap();
-        std::thread::spawn(move || client.run(stream));
+        thread::spawn(move || client.run_from_std(stream));
         handle
     }
 
@@ -422,5 +432,107 @@ mod blocking {
         handle_a.disconnect().unwrap();
         // TODO: how to check that client stopped.
         // assert!(task.join().is_ok());
+    }
+
+    /// A fake broker that allows us to break the connection to the client
+    /// deterministically.
+    struct FlakyBroker {
+        // The broker tracks how many packet is has received from the client.
+        // The broker break the connnection if that number reaches `max_writes`.
+        writes: usize,
+        max_writes: usize,
+
+        history: Sender<Line>,
+    }
+
+    impl FlakyBroker {
+        pub fn new(max_writes: usize) -> (Self, Transcription) {
+            let history = Transcription::new();
+
+            let this = Self {
+                writes: 0,
+                max_writes,
+                history: history.handler(),
+            };
+            (this, history)
+        }
+
+        /// Start the broker and return a stream. The stream must
+        /// be used by the `blocking::Client`. to interact with the broker.
+        fn serve_and_connect(mut self) -> mio::net::UnixStream {
+            let (client_end, mut broker_end) =
+                UnixStream::pair().expect("Failed to create a UnixStream pair.");
+
+            thread::spawn(move || loop {
+                let packet = read_packet(&mut broker_end);
+
+                if let Packet::Connect(_) = &packet {
+                    let connack = ConnAck::builder().build();
+                    broker_end.write_all(connack.as_bytes()).unwrap();
+                }
+
+                self.writes += 1;
+                self.history.send_blocking(Line::Client(packet)).unwrap();
+
+                if self.writes >= self.max_writes {
+                    let _ = broker_end.shutdown(Shutdown::Both);
+                    break;
+                }
+            });
+
+            mio::net::UnixStream::from_std(client_end)
+        }
+    }
+
+    // Read exactly one `Packet` from `stream`, blocking until it has fully
+    // arrived (it may be split over multiple frames).
+    fn read_packet(stream: &mut UnixStream) -> Packet {
+        let mut buf = Vec::new();
+        loop {
+            let required = packet::min_bytes_required(&buf) as usize;
+            if required == 0 {
+                break;
+            }
+
+            let mut chunk = vec![0; required];
+            stream
+                .read_exact(&mut chunk)
+                .expect("FakeBroker failed to read a packet from the client.");
+            buf.extend_from_slice(&chunk);
+        }
+
+        Packet::try_from(buf).expect("FakeBroker failed to parse a packet sent by the client.")
+    }
+
+    /// Verify that outbound packets are _not_ lost when the connection
+    /// breaks
+    #[apply(test!)]
+    async fn test_retransmitting_packet_when_connection_breaks() {
+        simple_logger::init_with_level(log::Level::Debug).unwrap();
+        let (broker, mut history) = FlakyBroker::new(1);
+
+        let (mut client, handle) =
+            blocking::Client::new(Connect::builder().build().unwrap()).unwrap();
+        let socket = broker.serve_and_connect();
+        subscribe("sensors/1").unwrap().emit(&handle).unwrap();
+
+        assert!(client.run(socket).is_err());
+
+        // The CONNECT packet was sent successfully before the connection died,
+        // but the SUBSCRIBE packet never made it onto the wire.
+        let _ = history.find(PacketType::Connect).await;
+        assert!(history
+            .try_find_with(|packet| packet.packet_type() == PacketType::Subscribe)
+            .await
+            .is_err());
+
+        let (broker, mut history) = FlakyBroker::new(2);
+        let socket = broker.serve_and_connect();
+        assert!(client.run(socket).is_err());
+
+        // After reconnecting, the client must resend the CONNECT packet as well as
+        // retransmit the SUBSCRIBE packet that was lost earlier.
+        let _ = history.find(PacketType::Connect).await;
+        let _ = history.find(PacketType::Subscribe).await;
     }
 }

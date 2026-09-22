@@ -26,7 +26,7 @@ fn main() {
 
     // Run the event loop that monitors the socket on its own thread.
     // `handle` allows for sending and receiving MQTT packets.
-    let _task = thread::spawn(move || client.run(stream));
+    let _task = thread::spawn(move || client.run_from_std(stream));
 
     subscribe("$SYS/broker/uptime")
         .unwrap()

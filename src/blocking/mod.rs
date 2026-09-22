@@ -7,7 +7,9 @@
 //! typically driven from its own [`std::thread`]. If the connection breaks,
 //! `run()` returns and the caller can reconnect by calling `run()` again
 //! with a new socket; the `Client` keeps its internal state (e.g. pending
-//! subscriptions) across reconnects.
+//! subscriptions) across reconnects. `run()` accepts anything `mio` can
+//! register for readiness notifications; for a plain
+//! [`std::net::TcpStream`], use [`Client::run_from_std()`](Client::run_from_std) instead.
 //!
 //! The `ClientHandle` allows an application to [subscribe](crate::Subscribe::emit()) to topics, [publish](crate::Publish::emit()) messages and [retrieve
 //! publications](ClientHandle::publication()).
@@ -28,9 +30,9 @@
 //!
 //! let (mut client, mut handle) = Client::new(connect).unwrap();
 //!
-//! // Run the client on its own thread. `run()` returns when the connection
-//! // breaks, so the thread can reconnect by calling it again.
-//! let task = thread::spawn(move || client.run(stream));
+//! // Run the client on its own thread. `run_from_std()` returns when the
+//! // connection breaks, so the thread can reconnect by calling it again.
+//! let task = thread::spawn(move || client.run_from_std(stream));
 //!
 //! // Use the handle to subscribe to topics...
 //! subscribe("$SYS/broker/uptime")
@@ -51,10 +53,10 @@
 use crate::{Connect, ConnectionError, Disconnect, MqttBinding, Packet, Publish};
 use async_channel::{Receiver, Sender};
 use log::info;
-use mio::{Events, Interest, Poll, Token, Waker};
+use mio::{event::Source, Events, Interest, Poll, Token, Waker};
 use std::{
     io::{Read, Write},
-    net::{Shutdown, TcpStream},
+    net::TcpStream,
     time::Instant,
 };
 
@@ -95,13 +97,31 @@ impl Client {
         Ok((this, handle))
     }
 
+    /// Run the client using a plain [`std::net::TcpStream`]. A convenience
+    /// wrapper around [`Client::run()`] for the common case, since
+    /// `std::net::TcpStream` itself doesn't implement [`mio::event::Source`].
+    ///
+    /// Blocks the calling thread until the connection breaks, then returns.
+    /// After it returns, the `Client` can be reconnected by calling
+    /// `run_from_std()` (or `run()`) again with a new socket.
+    pub fn run_from_std(&mut self, socket: TcpStream) -> Result<(), std::io::Error> {
+        self.run(mio::net::TcpStream::from_std(socket))
+    }
+
     /// Run the client on the given socket. Blocks the calling thread until
     /// the connection breaks, then returns.
     ///
+    /// `socket` can be any type `mio` can register for readiness
+    /// notifications - e.g. [`mio::net::TcpStream`] or
+    /// [`mio::net::UnixStream`]. For a plain [`std::net::TcpStream`], use
+    /// [`Client::run_from_std()`] instead.
+    ///
     /// After it returns, the `Client` can be reconnected by calling `run()`
     /// again with a new socket.
-    pub fn run(&mut self, socket: TcpStream) -> Result<(), std::io::Error> {
-        let mut socket = mio::net::TcpStream::from_std(socket);
+    pub fn run<S>(&mut self, mut socket: S) -> Result<(), std::io::Error>
+    where
+        S: Read + Write + Source,
+    {
         let mut events = Events::with_capacity(128);
         self.poll
             .registry()
@@ -121,11 +141,14 @@ impl Client {
     // When done, request a read buffer, read bytes from the broker until
     // the buffer is full. Then, request the binding to decode the buffer.
     // This operation might yield a mqtt::Packet for further processing.
-    fn run_with_socket(
+    fn run_with_socket<S>(
         &mut self,
-        socket: &mut mio::net::TcpStream,
+        socket: &mut S,
         events: &mut Events,
-    ) -> Result<(), std::io::Error> {
+    ) -> Result<(), std::io::Error>
+    where
+        S: Read + Write,
+    {
         loop {
             while let Ok(packet) = self.inbox.try_recv() {
                 self.binding.send(packet);
@@ -134,11 +157,19 @@ impl Client {
             loop {
                 match self.binding.poll_transmits(Instant::now()) {
                     Ok(Some(bytes)) => {
-                        socket.write_all(&bytes)?;
+                        if let Err(error) = socket.write_all(&bytes) {
+                            // The packet couldn't be send over the wire.
+                            // It is fed back to the `MqttBinding`. After reconnecting,
+                            // the packet is resend using the new connection.
+                            //
+                            // Without retransmitting the packet, it would be lost.
+                            self.binding.connection_lost(Some(bytes));
+                            return Err(error);
+                        }
                     }
                     Ok(None) => break,
                     Err(_) => {
-                        socket.shutdown(Shutdown::Both)?;
+                        self.binding.connection_lost(None);
                         info!("The client disconnected.");
                         return Ok(());
                     }
@@ -146,7 +177,10 @@ impl Client {
             }
 
             let timeout = self.binding.poll_timeout();
-            self.poll.poll(events, Some(timeout - Instant::now()))?;
+            if let Err(error) = self.poll.poll(events, Some(timeout - Instant::now())) {
+                self.binding.connection_lost(None);
+                return Err(error);
+            }
 
             for event in events.iter() {
                 if event.token() == PUBLISH {
@@ -165,7 +199,10 @@ impl Client {
 
                 loop {
                     let mut buffer = self.binding.get_read_buffer();
-                    socket.read_exact(&mut buffer)?;
+                    if let Err(error) = socket.read_exact(&mut buffer) {
+                        self.binding.connection_lost(None);
+                        return Err(error);
+                    }
 
                     // TODO: If packet is invalid, try_decode() never returns a `Some`,
                     // And thus the `loop` never breaks.
@@ -173,9 +210,10 @@ impl Client {
                     // to indicate that more bytes are expected and event loop should continue.
                     // Any other error indicates an issue and event loop must break the loop
                     if let Some(packet) = self.binding.try_decode(buffer, Instant::now()) {
-                        self.sender
-                            .send_blocking(packet)
-                            .map_err(std::io::Error::other)?;
+                        if let Err(error) = self.sender.send_blocking(packet) {
+                            self.binding.connection_lost(None);
+                            return Err(std::io::Error::other(error));
+                        }
                         break;
                     };
                 }
