@@ -1,8 +1,7 @@
 //! An asynchronous MQTT [`Client`].
 //!
-//! After creating the `Client`, [`Client::spawn()`] runs the
-//! client in a new future. That method returns a [`ClientHandle`] and a future.
-//! The application is responsible for `await`ing the future and running the client.
+//! After creating the `Client`, [`Client::run()`] starts the
+//! client. One can interact with it using [`ClientHandle`].
 //!
 //! The `ClientHandle` can be used to [subscribe](crate::subscribe()) to topics, [publish](crate::publish()) messages and [retrieve
 //! publications](ClientHandle::subscriptions()).
@@ -21,10 +20,8 @@
 //!     .client_id("tjiftjaf")
 //!     .build().unwrap();
 //!
-//!   let client = Client::new(connect, stream);
-//!
-//!   // Move the client in a future and obtain a handle to it.
-//!   let (mut handle, task) = client.spawn();
+//!   let (mut client, mut handle) = Client::new(connect);
+//!   let task = client.run(stream);
 //!
 //!   task.race(async {
 //!     // Use the handle to subscribe to topics...
@@ -57,30 +54,15 @@ pub mod server;
 /// An asynchronous client to interact with a MQTT broker.
 ///
 /// See the [module documentation](crate::aio) for more information.
-pub struct Client<S> {
-    // Socket for interacting with the MQTT broker.
-    socket: S,
+pub struct Client {
     binding: MqttBinding,
+
+    inbox: Receiver<Packet>,
+    sender: Sender<Packet>,
 }
 
-impl<S> Client<S>
-where
-    S: AsyncRead + AsyncWrite + Send,
-{
-    pub fn new(connect: Connect, socket: S) -> Self {
-        Self {
-            socket,
-            binding: MqttBinding::from_connect(connect),
-        }
-    }
-
-    /// Spawn an event loop that operates on the socket.
-    pub fn spawn(
-        self,
-    ) -> (
-        ClientHandle,
-        impl std::future::Future<Output = Result<(), std::io::Error>>,
-    ) {
+impl Client {
+    pub fn new(connect: Connect) -> (Self, ClientHandle) {
         // TODO: GH-83 decide on capacity of channel.
         // For communication _to_ the handler.
         let (to_tx, to_rx) = async_channel::bounded(100);
@@ -91,15 +73,21 @@ where
             sender: from_tx,
             receiver: to_rx,
         };
-        (handle, self.run(to_tx, from_rx))
+
+        let this = Self {
+            inbox: from_rx,
+            sender: to_tx,
+            binding: MqttBinding::from_connect(connect),
+        };
+
+        (this, handle)
     }
 
-    async fn run(
-        mut self,
-        sender: Sender<Packet>,
-        receiver: Receiver<Packet>,
-    ) -> Result<(), std::io::Error> {
-        let mut socket = core::pin::pin!(self.socket);
+    pub async fn run<S>(&mut self, socket: S) -> Result<(), std::io::Error>
+    where
+        S: AsyncRead + AsyncWrite,
+    {
+        let mut socket = core::pin::pin!(socket);
 
         // In this loop, check with the binding if any outbound
         // packets are waiting. We call them 'transmits'. Send all pending
@@ -109,20 +97,33 @@ where
         // the buffer is full. Then, request the binding to decode the buffer.
         // This operation might yield a mqtt::Packet for further processing.
         loop {
-            while let Ok(packet) = receiver.try_recv() {
+            while let Ok(packet) = self.inbox.try_recv() {
                 self.binding.send(packet);
             }
 
             loop {
                 match self.binding.poll_transmits(Instant::now()) {
                     Ok(Some(bytes)) => {
-                        socket.write_all(&bytes).await?;
-                        // If the socket implementation is buffered, `bytes` will not be transmitted unless
-                        // the internal buffer is full or a call to flush is done.
-                        socket.flush().await?;
+                        match socket.write_all(&bytes).await {
+                            Ok(_) => {
+                                // If the socket implementation is buffered, `bytes` will not be transmitted unless
+                                // the internal buffer is full or a call to flush is done.
+                                socket.flush().await?;
+                            }
+                            Err(error) => {
+                                // The packet couldn't be send over the wire.
+                                // It is fed back to the `MqttBinding`. After reconnecting,
+                                // the packet is resend using the new connection.
+                                //
+                                // Without retransmitting the packet, it would be lost.
+                                self.binding.connection_lost(Some(bytes));
+                                return Err(error);
+                            }
+                        }
                     }
                     Ok(None) => break,
                     Err(_) => {
+                        self.binding.connection_lost(None);
                         socket.close().await?;
                         info!("The client disconnected.");
                         return Ok(());
@@ -135,9 +136,10 @@ where
 
             futures::select! {
                 bytes_read = socket.read(&mut buffer).fuse() => {
-                    let bytes_read = bytes_read?;
+                    let bytes_read = bytes_read.inspect_err(|_| self.binding.connection_lost(None))?;
 
                     if bytes_read == 0 {
+                        self.binding.connection_lost(None);
                         error!("Packet empty, reconnecting!");
                         return Err(std::io::Error::other("Packet is empty"));
                     }
@@ -178,7 +180,8 @@ where
                                 .send(PubComp::new(packet.packet_identifier()).into());
                         }
 
-                        if sender.send(packet).await.is_err() {
+                        if self.sender.send(packet).await.is_err() {
+                            self.binding.connection_lost(None);
                             // TODO: Change error type. std::io::Error is not really fitting here.
                             return Err(std::io::Error::other("Failed to send message to handler"));
                         }
@@ -187,10 +190,11 @@ where
                 _ = Timer::at(timeout).fuse() => {
                     self.binding.handle_timeout(Instant::now());
                 }
-                packet = receiver.recv().fuse() => {
+                packet = self.inbox.recv().fuse() => {
                     match packet {
                         Ok(packet) => self.binding.send(packet),
                         Err(_) => {
+                            self.binding.connection_lost(None);
                             return Err(std::io::Error::other("Failed to read message from channel"));
                         }
                     }
@@ -225,8 +229,7 @@ impl ClientHandle {
     /// # smol::block_on(async {
     /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
     /// # let connect = Connect::builder().build().unwrap();
-    /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, task) = client.spawn();
+    /// # let (_client, mut handle) = Client::new(connect);
     /// subscribe("sensor/temperature/1").unwrap().emit(&handle).await.unwrap();
     /// while let Ok(publish) = handle.subscriptions().await {
     ///    println!(

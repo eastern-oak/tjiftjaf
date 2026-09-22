@@ -26,11 +26,8 @@ async fn main() {
         .password("readonly")
         .build()
         .unwrap();
-    let client = Client::new(connect, stream);
 
-    // Spawn the event loop that monitors the socket.
-    // `handle` allows for sending and receiving MQTT packets.
-    let (handle, task) = client.spawn();
+    let (mut client, handle) = Client::new(connect);
 
     subscribe("$SYS/broker/uptime")
         .unwrap()
@@ -39,7 +36,7 @@ async fn main() {
         .expect("Failed to subscribe to topic.");
 
     tokio::select! {
-        _ = task => {},
+        _ = client.run(stream) => {},
         _ = run(handle) => {}
     }
 }

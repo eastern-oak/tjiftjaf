@@ -342,14 +342,10 @@ impl crate::aio::Emit for Publish {
     /// Publish `payload` to the given `topic`.
     ///
     /// ```no_run
-    /// # use async_net::TcpStream;
-    /// # use futures_lite::FutureExt;
     /// # use tjiftjaf::{publish, Connect, QoS, aio::{Client, Emit}, packet_identifier};
     /// # smol::block_on(async {
-    /// # let stream = TcpStream::connect("localhost:1883").await.unwrap();
     /// # let connect = Connect::builder().build().unwrap();
-    /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, task) = client.spawn();
+    /// # let (_client, mut handle) = Client::new(connect);
     /// publish("sensor/temperature/1", "26.1").unwrap()
     ///     .emit(&handle)
     ///     .await
@@ -367,14 +363,11 @@ impl crate::blocking::Emit for Publish {
     /// Publish `payload` to the given `topic`.
     ///
     /// ```no_run
-    /// # use std::net::TcpStream;
     /// # use tjiftjaf::{publish, Connect, blocking::{Client, Emit}, packet_identifier};
-    /// # let stream = TcpStream::connect("localhost:1883").unwrap();
-    /// # let connect = Connect::builder().build();
-    /// # let client = Client::new(connect, stream);
-    /// # let (mut handle, _task) = client.spawn().unwrap();
+    /// # let connect = Connect::builder().build().unwrap();
+    /// # let (mut client, mut handle) = Client::new(connect).unwrap();
     ///
-    /// publish("sensor/temperature/1", "26.1")
+    /// publish("sensor/temperature/1", "26.1").unwrap()
     ///     .emit(&handle)
     ///     .unwrap();
     ///```

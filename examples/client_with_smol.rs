@@ -24,11 +24,8 @@ fn main() {
             .password("readonly")
             .build()
             .unwrap();
-        let client = Client::new(connect, stream);
 
-        // Spawn the event loop that monitors the socket.
-        // `handle` allows for sending and receiving MQTT packets.
-        let (mut handle, task) = client.spawn();
+        let (mut client, mut handle) = Client::new(connect);
 
         subscribe("$SYS/broker/uptime")
             .unwrap()
@@ -44,7 +41,8 @@ fn main() {
             .expect("Failed to subscribe to topic.");
 
         let mut n = 0;
-        _ = task
+        _ = client
+            .run(stream)
             .race(async {
                 loop {
                     let packet = handle
