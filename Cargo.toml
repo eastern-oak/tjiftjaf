@@ -29,10 +29,13 @@ tokio = { version = "1.48.0", default-features = false, features = ["net", "macr
 tokio-util = { version = "0.7.17", default-features = false, features = ["compat" ] }
 criterion = "0.5"
 
+# By depending on tjiftjaf and enabling some non-default features, the coverage of
+# `cargo test` increases.
+tjiftjaf = { path = ".", default-features = false, features = ["async", "blocking"] }
+
 [[bench]]
 name = "decode-encode"
 harness = false
-
 
 [features]
 default = ["async"]
